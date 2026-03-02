@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useApp } from "@/contexts/AppContext";
-import { Recipe, RecipeIngredient } from "@/types";
+import type { Tables } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,11 +11,24 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Pencil, AlertTriangle, CheckCircle } from "lucide-react";
 
+type RecipeIngredient = Tables<'recipe_ingredients'>;
+
+interface RecipeWithIngredients extends Tables<'recipes'> {
+  ingredients: RecipeIngredient[];
+}
+
+interface LocalIngredient {
+  productId: string;
+  productName: string;
+  quantity: number;
+  unit: string;
+}
+
 export default function Recipes() {
   const { recipes, products, addRecipe, updateRecipe, deleteRecipe } = useApp();
   const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<Recipe | null>(null);
-  const [ingredients, setIngredients] = useState<RecipeIngredient[]>([]);
+  const [editing, setEditing] = useState<RecipeWithIngredients | null>(null);
+  const [ingredients, setIngredients] = useState<LocalIngredient[]>([]);
   const [selProduct, setSelProduct] = useState("");
   const [ingQty, setIngQty] = useState(1);
   const [ingUnit, setIngUnit] = useState("un");
@@ -27,7 +40,7 @@ export default function Recipes() {
     setSelProduct("");
   }
 
-  function handleSave(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const data = {
@@ -36,16 +49,32 @@ export default function Recipes() {
       notes: fd.get('notes') as string,
       ingredients,
     };
-    if (editing) updateRecipe({ ...editing, ...data });
-    else addRecipe(data);
+    if (editing) {
+      await updateRecipe({
+        ...editing,
+        name: data.name,
+        instructions: data.instructions,
+        notes: data.notes,
+        ingredients: ingredients.map(i => ({
+          id: '',
+          recipe_id: editing.id,
+          product_id: i.productId,
+          product_name: i.productName,
+          quantity: i.quantity,
+          unit: i.unit,
+        })),
+      });
+    } else {
+      await addRecipe(data);
+    }
     setEditing(null);
     setIngredients([]);
     setOpen(false);
   }
 
-  function checkAvailability(recipe: Recipe) {
+  function checkAvailability(recipe: RecipeWithIngredients) {
     return recipe.ingredients.map(ing => {
-      const product = products.find(p => p.id === ing.productId);
+      const product = products.find(p => p.id === ing.product_id);
       return { ...ing, available: product?.stock || 0, sufficient: (product?.stock || 0) >= ing.quantity };
     });
   }
@@ -80,8 +109,8 @@ export default function Recipes() {
                   </div>
                 ))}
               </div>
-              <div><Label>Modo de Preparo</Label><Textarea name="instructions" defaultValue={editing?.instructions} rows={4} /></div>
-              <div><Label>Observações</Label><Input name="notes" defaultValue={editing?.notes} /></div>
+              <div><Label>Modo de Preparo</Label><Textarea name="instructions" defaultValue={editing?.instructions || ''} rows={4} /></div>
+              <div><Label>Observações</Label><Input name="notes" defaultValue={editing?.notes || ''} /></div>
               <Button type="submit" className="w-full">Salvar</Button>
             </form>
           </DialogContent>
@@ -98,7 +127,11 @@ export default function Recipes() {
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-lg font-display">{r.name}</CardTitle>
                 <div className="flex gap-1">
-                  <Button variant="ghost" size="icon" onClick={() => { setEditing(r); setIngredients(r.ingredients); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                  <Button variant="ghost" size="icon" onClick={() => {
+                    setEditing(r);
+                    setIngredients(r.ingredients.map(i => ({ productId: i.product_id, productName: i.product_name, quantity: i.quantity, unit: i.unit })));
+                    setOpen(true);
+                  }}><Pencil className="h-4 w-4" /></Button>
                   <Button variant="ghost" size="icon" onClick={() => deleteRecipe(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                 </div>
               </CardHeader>
@@ -111,7 +144,7 @@ export default function Recipes() {
                 <div className="text-sm space-y-1">
                   {availability.map((a, i) => (
                     <div key={i} className="flex justify-between">
-                      <span>{a.productName}: {a.quantity} {a.unit}</span>
+                      <span>{a.product_name}: {a.quantity} {a.unit}</span>
                       <span className={a.sufficient ? "text-success" : "text-destructive"}>
                         Disp: {a.available}
                       </span>

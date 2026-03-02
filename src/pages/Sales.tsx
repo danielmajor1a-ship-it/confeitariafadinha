@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useApp } from "@/contexts/AppContext";
-import { SaleItem, PAYMENT_LABELS } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,17 +7,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Plus, ShoppingCart, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+
+const PAYMENT_LABELS: Record<string, string> = { dinheiro: 'Dinheiro', cartao: 'Cartão', fiado: 'Fiado' };
+
+interface CartItem {
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+}
 
 export default function Sales() {
   const { products, sales, clients, addSale } = useApp();
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<SaleItem[]>([]);
+  const [items, setItems] = useState<CartItem[]>([]);
   const [selectedProduct, setSelectedProduct] = useState("");
   const [qty, setQty] = useState(1);
-  const [paymentMethod, setPaymentMethod] = useState<'dinheiro' | 'cartao' | 'fiado'>('dinheiro');
+  const [paymentMethod, setPaymentMethod] = useState<string>('dinheiro');
   const [clientId, setClientId] = useState("");
 
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -32,16 +41,16 @@ export default function Sales() {
     if (existing) {
       setItems(items.map(i => i.productId === product.id ? { ...i, quantity: i.quantity + qty, subtotal: (i.quantity + qty) * i.unitPrice } : i));
     } else {
-      setItems([...items, { productId: product.id, productName: product.name, quantity: qty, unitPrice: product.salePrice, subtotal: qty * product.salePrice }]);
+      setItems([...items, { productId: product.id, productName: product.name, quantity: qty, unitPrice: product.sale_price, subtotal: qty * product.sale_price }]);
     }
     setSelectedProduct("");
     setQty(1);
   }
 
-  function finalizeSale() {
+  async function finalizeSale() {
     if (items.length === 0) { toast.error("Adicione itens à venda"); return; }
     if (paymentMethod === 'fiado' && !clientId) { toast.error("Selecione um cliente para fiado"); return; }
-    addSale(items, paymentMethod, clientId || undefined);
+    await addSale(items, paymentMethod, clientId || undefined);
     setItems([]);
     setOpen(false);
     toast.success("Venda registrada com sucesso!");
@@ -63,7 +72,7 @@ export default function Sales() {
                   <SelectTrigger className="flex-1"><SelectValue placeholder="Produto" /></SelectTrigger>
                   <SelectContent>
                     {products.filter(p => p.stock > 0).map(p => (
-                      <SelectItem key={p.id} value={p.id}>{p.name} ({p.stock} un) - {fmt(p.salePrice)}</SelectItem>
+                      <SelectItem key={p.id} value={p.id}>{p.name} ({p.stock} un) - {fmt(p.sale_price)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -97,7 +106,7 @@ export default function Sales() {
               </div>
 
               <div><Label>Pagamento</Label>
-                <Select value={paymentMethod} onValueChange={v => setPaymentMethod(v as any)}>
+                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {Object.entries(PAYMENT_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
@@ -131,12 +140,12 @@ export default function Sales() {
           </TableRow></TableHeader>
           <TableBody>
             {sales.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhuma venda registrada</TableCell></TableRow>}
-            {[...sales].reverse().map(s => (
+            {sales.map(s => (
               <TableRow key={s.id}>
-                <TableCell>{new Date(s.date).toLocaleDateString('pt-BR')}</TableCell>
-                <TableCell>{s.items.map(i => `${i.productName} (${i.quantity})`).join(', ')}</TableCell>
+                <TableCell>{new Date(s.created_at).toLocaleDateString('pt-BR')}</TableCell>
+                <TableCell>{s.items.map(i => `${i.product_name} (${i.quantity})`).join(', ')}</TableCell>
                 <TableCell className="font-semibold">{fmt(s.total)}</TableCell>
-                <TableCell><Badge variant="secondary">{PAYMENT_LABELS[s.paymentMethod]}</Badge></TableCell>
+                <TableCell><Badge variant="secondary">{PAYMENT_LABELS[s.payment_method] || s.payment_method}</Badge></TableCell>
                 <TableCell>
                   <Badge variant={s.status === 'pago' ? 'default' : 'destructive'}>
                     {s.status === 'pago' ? 'Pago' : 'Pendente'}

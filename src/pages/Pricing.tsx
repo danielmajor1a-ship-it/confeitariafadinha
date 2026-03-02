@@ -1,5 +1,4 @@
 import { useApp } from "@/contexts/AppContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
@@ -9,7 +8,7 @@ export default function Pricing() {
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   function getProductCosts(productId: string) {
-    return costs.filter(c => c.productId === productId).reduce((s, c) => s + c.value, 0);
+    return costs.filter(c => c.product_id === productId).reduce((s, c) => s + c.value, 0);
   }
 
   return (
@@ -33,18 +32,18 @@ export default function Pricing() {
             {products.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Cadastre produtos para ver a precificação</TableCell></TableRow>}
             {products.map(p => {
               const extraCosts = getProductCosts(p.id);
-              const totalCost = p.purchasePrice + extraCosts;
-              const marginValue = p.salePrice - totalCost;
+              const totalCost = p.purchase_price + extraCosts;
+              const marginValue = p.sale_price - totalCost;
               const marginPercent = totalCost > 0 ? (marginValue / totalCost) * 100 : 0;
               const status = marginPercent >= 30 ? 'healthy' : marginPercent >= 10 ? 'warning' : 'low';
 
               return (
                 <TableRow key={p.id}>
                   <TableCell className="font-medium">{p.name}</TableCell>
-                  <TableCell>{fmt(p.purchasePrice)}</TableCell>
+                  <TableCell>{fmt(p.purchase_price)}</TableCell>
                   <TableCell>{fmt(extraCosts)}</TableCell>
                   <TableCell className="font-semibold">{fmt(totalCost)}</TableCell>
-                  <TableCell className="font-semibold">{fmt(p.salePrice)}</TableCell>
+                  <TableCell className="font-semibold">{fmt(p.sale_price)}</TableCell>
                   <TableCell className={marginValue >= 0 ? "text-success font-semibold" : "text-destructive font-semibold"}>
                     {fmt(marginValue)}
                   </TableCell>

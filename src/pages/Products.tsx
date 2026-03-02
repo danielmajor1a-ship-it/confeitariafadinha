@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useApp } from "@/contexts/AppContext";
-import { Product, CATEGORY_LABELS } from "@/types";
+import { CATEGORY_LABELS } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,12 +9,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Trash2, History } from "lucide-react";
+import type { Tables } from "@/integrations/supabase/types";
+
+type PriceHistory = Tables<'price_history'>;
+
+interface ProductWithHistory extends Tables<'products'> {
+  priceHistory: PriceHistory[];
+}
 
 export default function Products() {
   const { products, addProduct, updateProduct, deleteProduct } = useApp();
   const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<Product | null>(null);
-  const [historyProduct, setHistoryProduct] = useState<Product | null>(null);
+  const [editing, setEditing] = useState<ProductWithHistory | null>(null);
+  const [historyProduct, setHistoryProduct] = useState<ProductWithHistory | null>(null);
   const [search, setSearch] = useState("");
 
   const filtered = products.filter(p =>
@@ -31,14 +38,24 @@ export default function Products() {
       name: fd.get('name') as string,
       description: fd.get('description') as string,
       brand: fd.get('brand') as string,
-      category: fd.get('category') as Product['category'],
+      category: fd.get('category') as string,
       purchasePrice: parseFloat(fd.get('purchasePrice') as string) || 0,
       salePrice: parseFloat(fd.get('salePrice') as string) || 0,
       stock: parseInt(fd.get('stock') as string) || 0,
       lowStockThreshold: parseInt(fd.get('lowStockThreshold') as string) || 5,
     };
     if (editing) {
-      updateProduct({ ...editing, ...data });
+      updateProduct({
+        ...editing,
+        name: data.name,
+        description: data.description,
+        brand: data.brand,
+        category: data.category,
+        purchase_price: data.purchasePrice,
+        sale_price: data.salePrice,
+        stock: data.stock,
+        low_stock_threshold: data.lowStockThreshold,
+      });
     } else {
       addProduct(data);
     }
@@ -60,8 +77,8 @@ export default function Products() {
               <DialogHeader><DialogTitle>{editing ? 'Editar' : 'Novo'} Produto</DialogTitle></DialogHeader>
               <form onSubmit={handleSave} className="space-y-3">
                 <div><Label>Nome</Label><Input name="name" required defaultValue={editing?.name} /></div>
-                <div><Label>Descrição</Label><Input name="description" defaultValue={editing?.description} /></div>
-                <div><Label>Marca</Label><Input name="brand" defaultValue={editing?.brand} /></div>
+                <div><Label>Descrição</Label><Input name="description" defaultValue={editing?.description || ''} /></div>
+                <div><Label>Marca</Label><Input name="brand" defaultValue={editing?.brand || ''} /></div>
                 <div>
                   <Label>Categoria</Label>
                   <Select name="category" defaultValue={editing?.category || 'doce'}>
@@ -74,12 +91,12 @@ export default function Products() {
                   </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div><Label>Preço Compra</Label><Input name="purchasePrice" type="number" step="0.01" defaultValue={editing?.purchasePrice} /></div>
-                  <div><Label>Preço Venda</Label><Input name="salePrice" type="number" step="0.01" defaultValue={editing?.salePrice} /></div>
+                  <div><Label>Preço Compra</Label><Input name="purchasePrice" type="number" step="0.01" defaultValue={editing?.purchase_price} /></div>
+                  <div><Label>Preço Venda</Label><Input name="salePrice" type="number" step="0.01" defaultValue={editing?.sale_price} /></div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div><Label>Estoque</Label><Input name="stock" type="number" defaultValue={editing?.stock || 0} /></div>
-                  <div><Label>Alerta Mínimo</Label><Input name="lowStockThreshold" type="number" defaultValue={editing?.lowStockThreshold || 5} /></div>
+                  <div><Label>Alerta Mínimo</Label><Input name="lowStockThreshold" type="number" defaultValue={editing?.low_stock_threshold || 5} /></div>
                 </div>
                 <Button type="submit" className="w-full">Salvar</Button>
               </form>
@@ -107,11 +124,11 @@ export default function Products() {
             {filtered.map(p => (
               <TableRow key={p.id}>
                 <TableCell className="font-medium">{p.name}</TableCell>
-                <TableCell><Badge variant="secondary">{CATEGORY_LABELS[p.category]}</Badge></TableCell>
-                <TableCell>{fmt(p.purchasePrice)}</TableCell>
-                <TableCell>{fmt(p.salePrice)}</TableCell>
+                <TableCell><Badge variant="secondary">{CATEGORY_LABELS[p.category as keyof typeof CATEGORY_LABELS] || p.category}</Badge></TableCell>
+                <TableCell>{fmt(p.purchase_price)}</TableCell>
+                <TableCell>{fmt(p.sale_price)}</TableCell>
                 <TableCell>
-                  <span className={p.stock <= p.lowStockThreshold ? "text-destructive font-bold" : ""}>
+                  <span className={p.stock <= p.low_stock_threshold ? "text-destructive font-bold" : ""}>
                     {p.stock}
                   </span>
                 </TableCell>
@@ -134,9 +151,9 @@ export default function Products() {
             <TableBody>
               {historyProduct?.priceHistory.map((h, i) => (
                 <TableRow key={i}>
-                  <TableCell>{new Date(h.date).toLocaleDateString('pt-BR')}</TableCell>
-                  <TableCell>{fmt(h.purchasePrice)}</TableCell>
-                  <TableCell>{fmt(h.salePrice)}</TableCell>
+                  <TableCell>{new Date(h.recorded_at).toLocaleDateString('pt-BR')}</TableCell>
+                  <TableCell>{fmt(h.purchase_price)}</TableCell>
+                  <TableCell>{fmt(h.sale_price)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
