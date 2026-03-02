@@ -27,10 +27,24 @@ export default function Products() {
   const [importing, setImporting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const VALID_CATEGORIES = Object.keys(CATEGORY_LABELS);
+
+  function normalizeCategory(cat: string): string {
+    const lower = cat.toLowerCase().trim();
+    if (VALID_CATEGORIES.includes(lower)) return lower;
+    // Map common variations
+    const map: Record<string, string> = {
+      'bebidas': 'bebida', 'doces': 'doce', 'salgados': 'salgado',
+      'outros': 'outro', 'mercearia': 'outro', 'limpeza': 'outro',
+    };
+    return map[lower] || 'outro';
+  }
+
   function downloadTemplate() {
     const header = "nome;descricao;marca;categoria;preco_compra;preco_venda;estoque;alerta_minimo";
+    const catInfo = `# Categorias validas: ${VALID_CATEGORIES.join(', ')}`;
     const example = "Bolo de Chocolate;Bolo artesanal;Minha Marca;doce;15.00;45.00;10;3";
-    const blob = new Blob([header + "\n" + example], { type: "text/csv" });
+    const blob = new Blob([header + "\n" + catInfo + "\n" + example], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -45,26 +59,32 @@ export default function Products() {
     setImporting(true);
     try {
       const text = await file.text();
-      const lines = text.split(/\r?\n/).filter(l => l.trim());
-      if (lines.length < 2) { toast.error("Arquivo vazio ou sem dados"); return; }
+      const lines = text.split(/\r?\n/).filter(l => l.trim() && !l.trim().startsWith('#'));
+      if (lines.length < 2) { toast.error("Arquivo vazio ou sem dados"); setImporting(false); return; }
       const rows = lines.slice(1); // skip header
       let count = 0;
+      let errors = 0;
       for (const row of rows) {
         const cols = row.split(";").map(c => c.trim());
-        if (cols.length < 6 || !cols[0]) continue;
-        await addProduct({
-          name: cols[0],
-          description: cols[1] || "",
-          brand: cols[2] || "",
-          category: cols[3] || "doce",
-          purchasePrice: parseFloat(cols[4]) || 0,
-          salePrice: parseFloat(cols[5]) || 0,
-          stock: parseInt(cols[6]) || 0,
-          lowStockThreshold: parseInt(cols[7]) || 5,
-        });
-        count++;
+        if (cols.length < 2 || !cols[0]) continue;
+        try {
+          await addProduct({
+            name: cols[0],
+            description: cols[1] || "",
+            brand: cols[2] || "",
+            category: normalizeCategory(cols[3] || "outro"),
+            purchasePrice: parseFloat(cols[4]) || 0,
+            salePrice: parseFloat(cols[5]) || 0,
+            stock: parseInt(cols[6]) || 0,
+            lowStockThreshold: parseInt(cols[7]) || 5,
+          });
+          count++;
+        } catch {
+          errors++;
+        }
       }
-      toast.success(`${count} produto(s) importado(s) com sucesso!`);
+      if (count > 0) toast.success(`${count} produto(s) importado(s) com sucesso!`);
+      if (errors > 0) toast.error(`${errors} produto(s) com erro na importação`);
     } catch (err) {
       toast.error("Erro ao importar arquivo");
     } finally {
