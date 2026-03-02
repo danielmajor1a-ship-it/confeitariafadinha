@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useApp } from "@/contexts/AppContext";
 import { CATEGORY_LABELS } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, History } from "lucide-react";
+import { Plus, Pencil, Trash2, History, Upload, Download } from "lucide-react";
+import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 
 type PriceHistory = Tables<'price_history'>;
@@ -23,6 +24,54 @@ export default function Products() {
   const [editing, setEditing] = useState<ProductWithHistory | null>(null);
   const [historyProduct, setHistoryProduct] = useState<ProductWithHistory | null>(null);
   const [search, setSearch] = useState("");
+  const [importing, setImporting] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  function downloadTemplate() {
+    const header = "nome;descricao;marca;categoria;preco_compra;preco_venda;estoque;alerta_minimo";
+    const example = "Bolo de Chocolate;Bolo artesanal;Minha Marca;doce;15.00;45.00;10;3";
+    const blob = new Blob([header + "\n" + example], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "modelo_produtos.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const lines = text.split(/\r?\n/).filter(l => l.trim());
+      if (lines.length < 2) { toast.error("Arquivo vazio ou sem dados"); return; }
+      const rows = lines.slice(1); // skip header
+      let count = 0;
+      for (const row of rows) {
+        const cols = row.split(";").map(c => c.trim());
+        if (cols.length < 6 || !cols[0]) continue;
+        await addProduct({
+          name: cols[0],
+          description: cols[1] || "",
+          brand: cols[2] || "",
+          category: cols[3] || "doce",
+          purchasePrice: parseFloat(cols[4]) || 0,
+          salePrice: parseFloat(cols[5]) || 0,
+          stock: parseInt(cols[6]) || 0,
+          lowStockThreshold: parseInt(cols[7]) || 5,
+        });
+        count++;
+      }
+      toast.success(`${count} produto(s) importado(s) com sucesso!`);
+    } catch (err) {
+      toast.error("Erro ao importar arquivo");
+    } finally {
+      setImporting(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
 
   const filtered = products.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -67,8 +116,15 @@ export default function Products() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <h1 className="page-header">Produtos</h1>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Input placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} className="w-48" />
+          <input ref={fileRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleImport} />
+          <Button variant="outline" onClick={downloadTemplate} disabled={importing}>
+            <Download className="h-4 w-4 mr-1" /> Modelo CSV
+          </Button>
+          <Button variant="outline" onClick={() => fileRef.current?.click()} disabled={importing}>
+            <Upload className="h-4 w-4 mr-1" /> {importing ? "Importando..." : "Importar"}
+          </Button>
           <Dialog open={open} onOpenChange={v => { setOpen(v); if (!v) setEditing(null); }}>
             <DialogTrigger asChild>
               <Button><Plus className="h-4 w-4 mr-1" /> Novo Produto</Button>
