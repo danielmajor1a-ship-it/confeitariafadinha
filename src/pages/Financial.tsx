@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DollarSign, CreditCard, Banknote, AlertCircle } from "lucide-react";
 
-const PAYMENT_LABELS: Record<string, string> = { dinheiro: 'Dinheiro', cartao: 'Cartão', fiado: 'Fiado' };
+const PAYMENT_LABELS: Record<string, string> = { dinheiro: 'Dinheiro', credito: 'Crédito', debito: 'Débito', fiado: 'Fiado' };
 
 export default function Financial() {
   const { sales, clients } = useApp();
@@ -19,7 +19,9 @@ export default function Financial() {
   }, [sales, period]);
 
   const cashTotal = filtered.filter(s => s.payment_method === 'dinheiro').reduce((s, v) => s + v.total, 0);
-  const cardTotal = filtered.filter(s => s.payment_method === 'cartao').reduce((s, v) => s + v.total, 0);
+  const creditTotal = filtered.filter(s => s.payment_method === 'credito').reduce((s, v) => s + v.total, 0);
+  const debitTotal = filtered.filter(s => s.payment_method === 'debito').reduce((s, v) => s + v.total, 0);
+  const cardTotal = creditTotal + debitTotal;
   const fiadoTotal = filtered.filter(s => s.payment_method === 'fiado').reduce((s, v) => s + v.total, 0);
   const total = cashTotal + cardTotal + fiadoTotal;
   const totalDebt = clients.reduce((s, c) => s + c.total_owed, 0);
@@ -41,7 +43,7 @@ export default function Financial() {
         </Select>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card className="stat-card border-none">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-secondary text-success"><DollarSign className="h-5 w-5" /></div>
@@ -57,7 +59,13 @@ export default function Financial() {
         <Card className="stat-card border-none">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-secondary text-chocolate"><CreditCard className="h-5 w-5" /></div>
-            <div><p className="text-xs text-muted-foreground">Cartão</p><p className="text-xl font-bold font-display">{fmt(cardTotal)}</p></div>
+            <div><p className="text-xs text-muted-foreground">Crédito</p><p className="text-xl font-bold font-display">{fmt(creditTotal)}</p></div>
+          </div>
+        </Card>
+        <Card className="stat-card border-none">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-secondary text-chocolate"><CreditCard className="h-5 w-5" /></div>
+            <div><p className="text-xs text-muted-foreground">Débito</p><p className="text-xl font-bold font-display">{fmt(debitTotal)}</p></div>
           </div>
         </Card>
         <Card className="stat-card border-none">

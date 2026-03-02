@@ -12,10 +12,11 @@ import { Search, ShoppingCart, Trash2, Plus, Minus, CreditCard, Banknote, HandCo
 import { toast } from "sonner";
 import { CATEGORY_LABELS } from "@/types";
 
-const PAYMENT_LABELS: Record<string, string> = { dinheiro: 'Dinheiro', cartao: 'Cartão', fiado: 'Fiado' };
+const PAYMENT_LABELS: Record<string, string> = { dinheiro: 'Dinheiro', credito: 'Crédito', debito: 'Débito', fiado: 'Fiado' };
 const PAYMENT_ICONS: Record<string, React.ReactNode> = {
   dinheiro: <Banknote className="h-5 w-5" />,
-  cartao: <CreditCard className="h-5 w-5" />,
+  credito: <CreditCard className="h-5 w-5" />,
+  debito: <CreditCard className="h-5 w-5" />,
   fiado: <HandCoins className="h-5 w-5" />,
 };
 
@@ -332,7 +333,7 @@ export default function Sales() {
             </div>
 
             {/* Payment Method */}
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-4 gap-2">
               {Object.entries(PAYMENT_LABELS).map(([k, v]) => (
                 <button
                   key={k}

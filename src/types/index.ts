@@ -7,6 +7,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
 
 export const PAYMENT_LABELS: Record<string, string> = {
   dinheiro: 'Dinheiro',
-  cartao: 'Cartão',
+  credito: 'Crédito',
+  debito: 'Débito',
   fiado: 'Fiado',
 };

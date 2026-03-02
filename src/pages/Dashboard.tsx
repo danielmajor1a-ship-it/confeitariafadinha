@@ -20,7 +20,9 @@ export default function Dashboard() {
 
   const totalRevenue = filtered.reduce((s, v) => s + v.total, 0);
   const cashTotal = filtered.filter(s => s.payment_method === 'dinheiro').reduce((s, v) => s + v.total, 0);
-  const cardTotal = filtered.filter(s => s.payment_method === 'cartao').reduce((s, v) => s + v.total, 0);
+  const creditTotal = filtered.filter(s => s.payment_method === 'credito').reduce((s, v) => s + v.total, 0);
+  const debitTotal = filtered.filter(s => s.payment_method === 'debito').reduce((s, v) => s + v.total, 0);
+  const cardTotal = creditTotal + debitTotal;
   const fiadoTotal = filtered.filter(s => s.payment_method === 'fiado').reduce((s, v) => s + v.total, 0);
   const lowStock = products.filter(p => p.stock <= p.low_stock_threshold).length;
   const totalDebt = clients.reduce((s, c) => s + c.total_owed, 0);
@@ -39,7 +41,8 @@ export default function Dashboard() {
 
   const paymentPie = [
     { name: "Dinheiro", value: cashTotal },
-    { name: "Cartão", value: cardTotal },
+    { name: "Crédito", value: creditTotal },
+    { name: "Débito", value: debitTotal },
     { name: "Fiado", value: fiadoTotal },
   ].filter(d => d.value > 0);
 
