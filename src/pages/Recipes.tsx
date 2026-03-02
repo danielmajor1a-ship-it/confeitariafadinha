@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useApp } from "@/contexts/AppContext";
+import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Pencil, AlertTriangle, CheckCircle } from "lucide-react";
+import { Plus, Trash2, Pencil, AlertTriangle, CheckCircle, Wand2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 type RecipeIngredient = Tables<'recipe_ingredients'>;
 
@@ -32,6 +34,40 @@ export default function Recipes() {
   const [selProduct, setSelProduct] = useState("");
   const [ingQty, setIngQty] = useState(1);
   const [ingUnit, setIngUnit] = useState("un");
+  const [autoOpen, setAutoOpen] = useState(false);
+  const [autoText, setAutoText] = useState("");
+  const [autoParsing, setAutoParsing] = useState(false);
+
+  async function handleAutoParseRecipe() {
+    if (!autoText.trim()) { toast.error("Cole o texto da receita"); return; }
+    setAutoParsing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("parse-recipe", {
+        body: { text: autoText, availableProducts: products.map(p => ({ id: p.id, name: p.name })) },
+      });
+      if (error) throw error;
+      
+      const parsed = data as { name: string; ingredients: LocalIngredient[]; instructions: string; notes: string };
+      // Save recipe directly
+      await addRecipe({
+        name: parsed.name,
+        instructions: parsed.instructions,
+        notes: parsed.notes || "",
+        ingredients: parsed.ingredients.map(i => ({
+          productId: i.productId || "",
+          productName: i.productName,
+          quantity: i.quantity,
+          unit: i.unit,
+        })),
+      });
+      toast.success(`Receita "${parsed.name}" cadastrada!`);
+      setAutoText("");
+      setAutoOpen(false);
+    } catch (err: any) {
+      toast.error("Erro ao processar receita: " + (err.message || "tente novamente"));
+    }
+    setAutoParsing(false);
+  }
 
   function addIngredient() {
     const p = products.find(pr => pr.id === selProduct);
@@ -83,6 +119,24 @@ export default function Recipes() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <h1 className="page-header">Receitas</h1>
+        <Dialog open={autoOpen} onOpenChange={v => { setAutoOpen(v); if (!v) setAutoText(""); }}>
+          <DialogTrigger asChild><Button variant="outline"><Wand2 className="h-4 w-4 mr-1" /> Cadastro Automático</Button></DialogTrigger>
+          <DialogContent className="max-w-lg">
+            <DialogHeader><DialogTitle>Cadastro Automático de Receita</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">Cole abaixo a receita completa (ingredientes, modo de preparo, etc.) e a IA vai estruturar tudo automaticamente.</p>
+              <Textarea
+                rows={10}
+                placeholder={"Bolo de Chocolate\n\nIngredientes:\n- 3 ovos\n- 2 xícaras de farinha\n- 1 xícara de açúcar\n...\n\nModo de preparo:\n1. Misture os ingredientes secos..."}
+                value={autoText}
+                onChange={e => setAutoText(e.target.value)}
+              />
+              <Button onClick={handleAutoParseRecipe} disabled={autoParsing} className="w-full">
+                {autoParsing ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Processando...</> : <><Wand2 className="h-4 w-4 mr-1" /> Cadastrar Receita</>}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
         <Dialog open={open} onOpenChange={v => { setOpen(v); if (!v) { setEditing(null); setIngredients([]); } }}>
           <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-1" /> Nova Receita</Button></DialogTrigger>
           <DialogContent className="max-w-lg">
