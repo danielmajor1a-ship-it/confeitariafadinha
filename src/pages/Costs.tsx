@@ -10,12 +10,14 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Plus, Trash2, TrendingUp, Target, PieChart, BarChart3, Info, DollarSign, Percent, Scale } from "lucide-react";
-import { PieChart as RePie, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip, ResponsiveContainer, Legend } from "recharts";
+import { Plus, Trash2, TrendingUp, Target, PieChart, BarChart3, Info, DollarSign, Percent, Scale, Edit2, Check, X } from "lucide-react";
+import { PieChart as RePie, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip, ResponsiveContainer, Legend, LineChart, Line, ReferenceLine, Area, ComposedChart } from "recharts";
 
 export default function Costs() {
   const { costs, products, sales, addCost, deleteCost } = useApp();
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
 
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const fmtPct = (v: number) => `${v.toFixed(1)}%`;
@@ -97,6 +99,26 @@ export default function Costs() {
     { name: 'C. Variáveis', value: varTotal },
     { name: 'Lucro Líq.', value: Math.max(0, netProfit) },
   ];
+
+  // ─── Break-even chart data ───
+  const breakEvenChartData = useMemo(() => {
+    const maxRevenue = Math.max(revenue * 1.5, breakEvenRevenue * 1.3, 1000);
+    const steps = 10;
+    const cmPct = contributionMarginPct / 100;
+    return Array.from({ length: steps + 1 }, (_, i) => {
+      const rev = (maxRevenue / steps) * i;
+      const totalCostLine = fixedTotal + (cmPct > 0 ? rev * (1 - cmPct) : rev * 0.5);
+      return {
+        revenue: rev,
+        revenueLabel: `R$${(rev / 1000).toFixed(0)}k`,
+        receita: rev,
+        custoTotal: totalCostLine,
+        custoFixo: fixedTotal,
+      };
+    });
+  }, [fixedTotal, contributionMarginPct, revenue, breakEvenRevenue]);
+
+  const fixedCosts = costs.filter(c => c.type === 'fixo');
 
   const COLORS = [
     'hsl(345, 60%, 55%)', 'hsl(25, 52%, 28%)', 'hsl(38, 92%, 50%)',
@@ -197,12 +219,112 @@ export default function Costs() {
         </Card>
 
         {/* Tabs: Gráficos / Classificação ABC / Lista de Custos */}
-        <Tabs defaultValue="charts">
+        <Tabs defaultValue="fixed">
           <TabsList>
+            <TabsTrigger value="fixed"><DollarSign className="h-4 w-4 mr-1" /> Custos Fixos</TabsTrigger>
             <TabsTrigger value="charts"><BarChart3 className="h-4 w-4 mr-1" /> Gráficos</TabsTrigger>
             <TabsTrigger value="abc"><PieChart className="h-4 w-4 mr-1" /> Curva ABC</TabsTrigger>
-            <TabsTrigger value="list">Lista de Custos</TabsTrigger>
+            <TabsTrigger value="list">Todos os Custos</TabsTrigger>
           </TabsList>
+
+          {/* Fixed Costs Control Tab */}
+          <TabsContent value="fixed" className="space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="section-title text-sm flex items-center gap-2">
+                    Controle de Custos Fixos Mensais
+                    <Tooltip>
+                      <TooltipTrigger><Info className="h-4 w-4 text-muted-foreground" /></TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p className="text-xs">Custos fixos são despesas recorrentes independentes do volume de produção. Monitore-os de perto pois impactam diretamente o ponto de equilíbrio.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {fixedCosts.length === 0 ? (
+                    <p className="text-muted-foreground text-sm py-8 text-center">Nenhum custo fixo cadastrado. Adicione custos como aluguel, salários, etc.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {fixedCosts.map(c => (
+                        <div key={c.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 border group">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">{c.name}</p>
+                            {c.product_id && (
+                              <p className="text-xs text-muted-foreground">{products.find(p => p.id === c.product_id)?.name}</p>
+                            )}
+                          </div>
+                          <p className="font-bold text-sm shrink-0 text-destructive">{fmt(c.value)}/mês</p>
+                          <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => deleteCost(c.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      ))}
+                      <div className="flex items-center justify-between pt-3 border-t mt-3">
+                        <p className="font-semibold text-sm">Total Fixos Mensal</p>
+                        <p className="font-bold text-lg text-destructive">{fmt(fixedTotal)}</p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Break-even Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="section-title text-sm flex items-center gap-2">
+                    <Target className="h-4 w-4" /> Análise do Ponto de Equilíbrio
+                    <Tooltip>
+                      <TooltipTrigger><Info className="h-4 w-4 text-muted-foreground" /></TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p className="text-xs">O ponto onde a linha de receita cruza a linha de custo total. Acima desse ponto, há lucro; abaixo, prejuízo.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {breakEvenRevenue > 0 ? (
+                    <div className="space-y-3">
+                      <ResponsiveContainer width="100%" height={250}>
+                        <ComposedChart data={breakEvenChartData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis dataKey="revenueLabel" tick={{ fontSize: 10 }} />
+                          <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `R$${(v / 1000).toFixed(0)}k`} />
+                          <ReTooltip formatter={(v: number) => fmt(v)} />
+                          <Line type="monotone" dataKey="receita" stroke="hsl(142, 60%, 40%)" strokeWidth={2} name="Receita" dot={false} />
+                          <Line type="monotone" dataKey="custoTotal" stroke="hsl(0, 72%, 51%)" strokeWidth={2} name="Custo Total" dot={false} />
+                          <Line type="monotone" dataKey="custoFixo" stroke="hsl(38, 92%, 50%)" strokeWidth={1.5} strokeDasharray="5 5" name="Custo Fixo" dot={false} />
+                          {breakEvenRevenue > 0 && (
+                            <ReferenceLine x={`R$${(breakEvenRevenue / 1000).toFixed(0)}k`} stroke="hsl(var(--foreground))" strokeDasharray="3 3" label={{ value: 'Equilíbrio', position: 'top', fontSize: 11 }} />
+                          )}
+                          <Legend />
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                      <div className="grid grid-cols-3 gap-2 text-center">
+                        <div className="p-2 rounded-lg bg-muted/50">
+                          <p className="text-[10px] text-muted-foreground">Ponto de Equilíbrio</p>
+                          <p className="font-bold text-sm">{fmt(breakEvenRevenue)}</p>
+                        </div>
+                        <div className="p-2 rounded-lg bg-muted/50">
+                          <p className="text-[10px] text-muted-foreground">Receita Atual</p>
+                          <p className={`font-bold text-sm ${revenue >= breakEvenRevenue ? 'text-success' : 'text-destructive'}`}>{fmt(revenue)}</p>
+                        </div>
+                        <div className="p-2 rounded-lg bg-muted/50">
+                          <p className="text-[10px] text-muted-foreground">{revenue >= breakEvenRevenue ? 'Margem de Segurança' : 'Falta p/ Equilíbrio'}</p>
+                          <p className={`font-bold text-sm ${revenue >= breakEvenRevenue ? 'text-success' : 'text-destructive'}`}>
+                            {fmt(Math.abs(revenue - breakEvenRevenue))}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground text-sm py-12 text-center">Cadastre custos e faça vendas para visualizar o ponto de equilíbrio</p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
 
           {/* Charts Tab */}
           <TabsContent value="charts" className="space-y-4">
