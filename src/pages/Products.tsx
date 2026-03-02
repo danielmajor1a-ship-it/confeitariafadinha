@@ -32,12 +32,38 @@ export default function Products() {
   function normalizeCategory(cat: string): string {
     const lower = cat.toLowerCase().trim();
     if (VALID_CATEGORIES.includes(lower)) return lower;
-    // Map common variations
     const map: Record<string, string> = {
       'bebidas': 'bebida', 'doces': 'doce', 'salgados': 'salgado',
       'outros': 'outro', 'mercearia': 'outro', 'limpeza': 'outro',
     };
     return map[lower] || 'outro';
+  }
+
+  function parseNumber(value: string): number {
+    if (!value || !value.trim()) return 0;
+    let cleaned = value.trim().replace(/\s/g, '').replace(/[R$]/g, '');
+    // Detect Brazilian format: comma as decimal separator
+    const lastDot = cleaned.lastIndexOf('.');
+    const lastComma = cleaned.lastIndexOf(',');
+    if (lastComma > lastDot) {
+      // Brazilian: 1.234,56 → 1234.56
+      cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+    } else {
+      // US/standard: 1,234.56 → 1234.56
+      cleaned = cleaned.replace(/,/g, '');
+    }
+    const num = parseFloat(cleaned);
+    return isNaN(num) ? 0 : num;
+  }
+
+  function detectDelimiter(lines: string[]): string {
+    const first = lines[0] || '';
+    const semicolons = (first.match(/;/g) || []).length;
+    const commas = (first.match(/,/g) || []).length;
+    const tabs = (first.match(/\t/g) || []).length;
+    if (semicolons >= commas && semicolons >= tabs) return ';';
+    if (tabs >= commas) return '\t';
+    return ',';
   }
 
   function downloadTemplate() {
@@ -61,11 +87,12 @@ export default function Products() {
       const text = await file.text();
       const lines = text.split(/\r?\n/).filter(l => l.trim() && !l.trim().startsWith('#'));
       if (lines.length < 2) { toast.error("Arquivo vazio ou sem dados"); setImporting(false); return; }
+      const delimiter = detectDelimiter(lines);
       const rows = lines.slice(1); // skip header
       let count = 0;
       let errors = 0;
       for (const row of rows) {
-        const cols = row.split(";").map(c => c.trim());
+        const cols = row.split(delimiter).map(c => c.trim().replace(/^"|"$/g, ''));
         if (cols.length < 2 || !cols[0]) continue;
         try {
           await addProduct({
@@ -73,8 +100,8 @@ export default function Products() {
             description: cols[1] || "",
             brand: cols[2] || "",
             category: normalizeCategory(cols[3] || "outro"),
-            purchasePrice: parseFloat(cols[4]) || 0,
-            salePrice: parseFloat(cols[5]) || 0,
+            purchasePrice: parseNumber(cols[4] || "0"),
+            salePrice: parseNumber(cols[5] || "0"),
             stock: parseInt(cols[6]) || 0,
             lowStockThreshold: parseInt(cols[7]) || 5,
           });
