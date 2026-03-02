@@ -5,6 +5,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DollarSign, CreditCard, Banknote, AlertCircle } from "lucide-react";
 
+const PAYMENT_LABELS: Record<string, string> = { dinheiro: 'Dinheiro', cartao: 'Cartão', fiado: 'Fiado' };
+
 export default function Financial() {
   const { sales, clients } = useApp();
   const [period, setPeriod] = useState("30");
@@ -13,14 +15,14 @@ export default function Financial() {
     const days = parseInt(period);
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
-    return sales.filter(s => new Date(s.date) >= cutoff);
+    return sales.filter(s => new Date(s.created_at) >= cutoff);
   }, [sales, period]);
 
-  const cashTotal = filtered.filter(s => s.paymentMethod === 'dinheiro').reduce((s, v) => s + v.total, 0);
-  const cardTotal = filtered.filter(s => s.paymentMethod === 'cartao').reduce((s, v) => s + v.total, 0);
-  const fiadoTotal = filtered.filter(s => s.paymentMethod === 'fiado').reduce((s, v) => s + v.total, 0);
+  const cashTotal = filtered.filter(s => s.payment_method === 'dinheiro').reduce((s, v) => s + v.total, 0);
+  const cardTotal = filtered.filter(s => s.payment_method === 'cartao').reduce((s, v) => s + v.total, 0);
+  const fiadoTotal = filtered.filter(s => s.payment_method === 'fiado').reduce((s, v) => s + v.total, 0);
   const total = cashTotal + cardTotal + fiadoTotal;
-  const totalDebt = clients.reduce((s, c) => s + c.totalOwed, 0);
+  const totalDebt = clients.reduce((s, c) => s + c.total_owed, 0);
 
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -43,37 +45,25 @@ export default function Financial() {
         <Card className="stat-card border-none">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-secondary text-success"><DollarSign className="h-5 w-5" /></div>
-            <div>
-              <p className="text-xs text-muted-foreground">Total Geral</p>
-              <p className="text-xl font-bold font-display">{fmt(total)}</p>
-            </div>
+            <div><p className="text-xs text-muted-foreground">Total Geral</p><p className="text-xl font-bold font-display">{fmt(total)}</p></div>
           </div>
         </Card>
         <Card className="stat-card border-none">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-secondary text-success"><Banknote className="h-5 w-5" /></div>
-            <div>
-              <p className="text-xs text-muted-foreground">Dinheiro</p>
-              <p className="text-xl font-bold font-display">{fmt(cashTotal)}</p>
-            </div>
+            <div><p className="text-xs text-muted-foreground">Dinheiro</p><p className="text-xl font-bold font-display">{fmt(cashTotal)}</p></div>
           </div>
         </Card>
         <Card className="stat-card border-none">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-secondary text-chocolate"><CreditCard className="h-5 w-5" /></div>
-            <div>
-              <p className="text-xs text-muted-foreground">Cartão</p>
-              <p className="text-xl font-bold font-display">{fmt(cardTotal)}</p>
-            </div>
+            <div><p className="text-xs text-muted-foreground">Cartão</p><p className="text-xl font-bold font-display">{fmt(cardTotal)}</p></div>
           </div>
         </Card>
         <Card className="stat-card border-none">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-secondary text-warning"><AlertCircle className="h-5 w-5" /></div>
-            <div>
-              <p className="text-xs text-muted-foreground">Fiado em Aberto</p>
-              <p className="text-xl font-bold font-display">{fmt(totalDebt)}</p>
-            </div>
+            <div><p className="text-xs text-muted-foreground">Fiado em Aberto</p><p className="text-xl font-bold font-display">{fmt(totalDebt)}</p></div>
           </div>
         </Card>
       </div>
@@ -87,11 +77,11 @@ export default function Financial() {
             </TableRow></TableHeader>
             <TableBody>
               {filtered.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Nenhuma venda no período</TableCell></TableRow>}
-              {[...filtered].reverse().map(s => (
+              {filtered.map(s => (
                 <TableRow key={s.id}>
-                  <TableCell>{new Date(s.date).toLocaleDateString('pt-BR')}</TableCell>
-                  <TableCell>{s.items.map(i => i.productName).join(', ')}</TableCell>
-                  <TableCell className="capitalize">{s.paymentMethod}</TableCell>
+                  <TableCell>{new Date(s.created_at).toLocaleDateString('pt-BR')}</TableCell>
+                  <TableCell>{s.items.map(i => i.product_name).join(', ')}</TableCell>
+                  <TableCell className="capitalize">{PAYMENT_LABELS[s.payment_method] || s.payment_method}</TableCell>
                   <TableCell className="font-semibold">{fmt(s.total)}</TableCell>
                 </TableRow>
               ))}

@@ -8,11 +8,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Trash2, DollarSign } from "lucide-react";
 import { toast } from "sonner";
+import type { Tables } from "@/integrations/supabase/types";
+
+type Client = Tables<'clients'>;
 
 export default function Clients() {
-  const { clients, sales, addClient, updateClient, deleteClient, payClientDebt } = useApp();
+  const { clients, addClient, updateClient, deleteClient, payClientDebt } = useApp();
   const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<any>(null);
+  const [editing, setEditing] = useState<Client | null>(null);
   const [payOpen, setPayOpen] = useState<string | null>(null);
   const [payAmount, setPayAmount] = useState(0);
 
@@ -46,8 +49,8 @@ export default function Clients() {
             <DialogHeader><DialogTitle>{editing ? 'Editar' : 'Novo'} Cliente</DialogTitle></DialogHeader>
             <form onSubmit={handleSave} className="space-y-3">
               <div><Label>Nome</Label><Input name="name" required defaultValue={editing?.name} /></div>
-              <div><Label>Telefone</Label><Input name="phone" defaultValue={editing?.phone} /></div>
-              <div><Label>Email</Label><Input name="email" type="email" defaultValue={editing?.email} /></div>
+              <div><Label>Telefone</Label><Input name="phone" defaultValue={editing?.phone || ''} /></div>
+              <div><Label>Email</Label><Input name="email" type="email" defaultValue={editing?.email || ''} /></div>
               <Button type="submit" className="w-full">Salvar</Button>
             </form>
           </DialogContent>
@@ -65,15 +68,15 @@ export default function Clients() {
               <TableRow key={c.id}>
                 <TableCell className="font-medium">{c.name}</TableCell>
                 <TableCell>{c.phone}</TableCell>
-                <TableCell className={c.totalOwed > 0 ? "text-destructive font-bold" : ""}>{fmt(c.totalOwed)}</TableCell>
+                <TableCell className={c.total_owed > 0 ? "text-destructive font-bold" : ""}>{fmt(c.total_owed)}</TableCell>
                 <TableCell>
-                  {c.totalOwed > 0
+                  {c.total_owed > 0
                     ? <Badge variant="destructive">Inadimplente</Badge>
                     : <Badge variant="secondary">Em dia</Badge>}
                 </TableCell>
                 <TableCell className="text-right space-x-1">
-                  {c.totalOwed > 0 && (
-                    <Button variant="ghost" size="icon" onClick={() => { setPayOpen(c.id); setPayAmount(c.totalOwed); }}>
+                  {c.total_owed > 0 && (
+                    <Button variant="ghost" size="icon" onClick={() => { setPayOpen(c.id); setPayAmount(c.total_owed); }}>
                       <DollarSign className="h-4 w-4 text-success" />
                     </Button>
                   )}

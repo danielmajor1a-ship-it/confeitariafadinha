@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, PackagePlus } from "lucide-react";
+import { PackagePlus } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Stock() {
@@ -17,9 +17,9 @@ export default function Stock() {
   const [quantity, setQuantity] = useState(1);
   const [reason, setReason] = useState("Compra/Reposição");
 
-  function handleEntry() {
+  async function handleEntry() {
     if (!productId) { toast.error("Selecione um produto"); return; }
-    addStockEntry(productId, quantity, reason);
+    await addStockEntry(productId, quantity, reason);
     setOpen(false);
     toast.success("Entrada registrada!");
   }
@@ -63,7 +63,7 @@ export default function Stock() {
                     <TableCell className="font-medium">{p.name}</TableCell>
                     <TableCell>{p.stock}</TableCell>
                     <TableCell>
-                      {p.stock <= p.lowStockThreshold
+                      {p.stock <= p.low_stock_threshold
                         ? <Badge variant="destructive">Baixo</Badge>
                         : <Badge variant="secondary">OK</Badge>}
                     </TableCell>
@@ -81,10 +81,10 @@ export default function Stock() {
               <TableHeader><TableRow><TableHead>Data</TableHead><TableHead>Produto</TableHead><TableHead>Tipo</TableHead><TableHead>Qtd</TableHead></TableRow></TableHeader>
               <TableBody>
                 {stockMovements.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Nenhuma movimentação</TableCell></TableRow>}
-                {[...stockMovements].reverse().slice(0, 20).map(m => (
+                {stockMovements.slice(0, 20).map(m => (
                   <TableRow key={m.id}>
-                    <TableCell>{new Date(m.date).toLocaleDateString('pt-BR')}</TableCell>
-                    <TableCell>{getProductName(m.productId)}</TableCell>
+                    <TableCell>{new Date(m.created_at).toLocaleDateString('pt-BR')}</TableCell>
+                    <TableCell>{getProductName(m.product_id)}</TableCell>
                     <TableCell>
                       <Badge variant={m.type === 'entrada' ? 'default' : 'secondary'}>
                         {m.type === 'entrada' ? '↑ Entrada' : '↓ Saída'}

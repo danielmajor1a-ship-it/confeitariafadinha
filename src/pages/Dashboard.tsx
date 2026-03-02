@@ -15,22 +15,22 @@ export default function Dashboard() {
     const days = parseInt(period);
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
-    return sales.filter(s => new Date(s.date) >= cutoff);
+    return sales.filter(s => new Date(s.created_at) >= cutoff);
   }, [sales, period]);
 
   const totalRevenue = filtered.reduce((s, v) => s + v.total, 0);
-  const cashTotal = filtered.filter(s => s.paymentMethod === 'dinheiro').reduce((s, v) => s + v.total, 0);
-  const cardTotal = filtered.filter(s => s.paymentMethod === 'cartao').reduce((s, v) => s + v.total, 0);
-  const fiadoTotal = filtered.filter(s => s.paymentMethod === 'fiado').reduce((s, v) => s + v.total, 0);
-  const lowStock = products.filter(p => p.stock <= p.lowStockThreshold).length;
-  const totalDebt = clients.reduce((s, c) => s + c.totalOwed, 0);
+  const cashTotal = filtered.filter(s => s.payment_method === 'dinheiro').reduce((s, v) => s + v.total, 0);
+  const cardTotal = filtered.filter(s => s.payment_method === 'cartao').reduce((s, v) => s + v.total, 0);
+  const fiadoTotal = filtered.filter(s => s.payment_method === 'fiado').reduce((s, v) => s + v.total, 0);
+  const lowStock = products.filter(p => p.stock <= p.low_stock_threshold).length;
+  const totalDebt = clients.reduce((s, c) => s + c.total_owed, 0);
 
   const productSales = useMemo(() => {
     const map: Record<string, { name: string; qty: number; revenue: number }> = {};
     filtered.forEach(sale => sale.items.forEach(item => {
-      if (!map[item.productId]) map[item.productId] = { name: item.productName, qty: 0, revenue: 0 };
-      map[item.productId].qty += item.quantity;
-      map[item.productId].revenue += item.subtotal;
+      if (!map[item.product_id]) map[item.product_id] = { name: item.product_name, qty: 0, revenue: 0 };
+      map[item.product_id].qty += item.quantity;
+      map[item.product_id].revenue += item.subtotal;
     }));
     return Object.values(map).sort((a, b) => b.qty - a.qty);
   }, [filtered]);
@@ -46,7 +46,7 @@ export default function Dashboard() {
   const dailyRevenue = useMemo(() => {
     const map: Record<string, number> = {};
     filtered.forEach(s => {
-      const day = new Date(s.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+      const day = new Date(s.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
       map[day] = (map[day] || 0) + s.total;
     });
     return Object.entries(map).map(([date, total]) => ({ date, total })).slice(-15);
