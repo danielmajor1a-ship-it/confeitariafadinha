@@ -8,9 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, ShoppingCart, Trash2, Plus, Minus, CreditCard, Banknote, HandCoins, Receipt, X, History } from "lucide-react";
+import { Search, ShoppingCart, Trash2, Plus, Minus, CreditCard, Banknote, HandCoins, Receipt, X, History, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { CATEGORY_LABELS } from "@/types";
+import ReceiptDialog from "@/components/ReceiptDialog";
 
 const PAYMENT_LABELS: Record<string, string> = { dinheiro: 'Dinheiro', credito: 'Crédito', debito: 'Débito', fiado: 'Fiado' };
 const PAYMENT_ICONS: Record<string, React.ReactNode> = {
@@ -37,6 +38,11 @@ export default function Sales() {
   const [paymentMethod, setPaymentMethod] = useState<string>("dinheiro");
   const [clientId, setClientId] = useState("");
   const [showHistory, setShowHistory] = useState(false);
+  const [receiptData, setReceiptData] = useState<{
+    date: string; items: { productName: string; quantity: number; unitPrice: number; subtotal: number }[];
+    total: number; paymentMethod: string; clientName?: string;
+  } | null>(null);
+  const [showReceipt, setShowReceipt] = useState(false);
 
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const total = cart.reduce((s, i) => s + i.subtotal, 0);
@@ -99,72 +105,98 @@ export default function Sales() {
   async function finalizeSale() {
     if (cart.length === 0) { toast.error("Adicione itens à venda"); return; }
     if (paymentMethod === 'fiado' && !clientId) { toast.error("Selecione um cliente para fiado"); return; }
+    const clientName = clientId ? clients.find(c => c.id === clientId)?.name : undefined;
+    const receiptItems = cart.map(i => ({ productName: i.productName, quantity: i.quantity, unitPrice: i.unitPrice, subtotal: i.subtotal }));
     await addSale(cart, paymentMethod, clientId || undefined);
+    setReceiptData({
+      date: new Date().toLocaleString('pt-BR'),
+      items: receiptItems,
+      total,
+      paymentMethod,
+      clientName,
+    });
+    setShowReceipt(true);
     clearCart();
     toast.success("Venda registrada com sucesso!");
   }
 
   if (showHistory) {
     return (
-      <div className="space-y-4 animate-fade-in">
-        <div className="flex items-center justify-between">
-          <h1 className="page-header">Histórico de Vendas</h1>
-          <Button variant="outline" onClick={() => setShowHistory(false)}>
-            <ShoppingCart className="h-4 w-4 mr-1" /> Voltar ao PDV
-          </Button>
-        </div>
-        <div className="rounded-2xl border bg-card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-muted/50">
-                  <th className="text-left p-3 font-semibold">Data</th>
-                  <th className="text-left p-3 font-semibold">Itens</th>
-                  <th className="text-left p-3 font-semibold">Total</th>
-                  <th className="text-left p-3 font-semibold">Pagamento</th>
-                  <th className="text-left p-3 font-semibold">Status</th>
-                  <th className="p-3"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {sales.length === 0 && (
-                  <tr><td colSpan={6} className="text-center text-muted-foreground py-8">Nenhuma venda registrada</td></tr>
-                )}
-                {sales.map(s => (
-                  <tr key={s.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                    <td className="p-3">{new Date(s.created_at).toLocaleDateString('pt-BR')} {new Date(s.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</td>
-                    <td className="p-3 max-w-[200px] truncate">{s.items.map(i => `${i.product_name} (${i.quantity})`).join(', ')}</td>
-                    <td className="p-3 font-semibold">{fmt(s.total)}</td>
-                    <td className="p-3"><Badge variant="secondary">{PAYMENT_LABELS[s.payment_method] || s.payment_method}</Badge></td>
-                    <td className="p-3">
-                      <Badge variant={s.status === 'pago' ? 'default' : 'destructive'}>
-                        {s.status === 'pago' ? 'Pago' : 'Pendente'}
-                      </Badge>
-                    </td>
-                    <td className="p-3">
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Excluir venda?</AlertDialogTitle>
-                            <AlertDialogDescription>O estoque será restaurado e a venda será removida permanentemente.</AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={async () => { await deleteSale(s.id); toast.success("Venda excluída"); }}>Excluir</AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </td>
+      <>
+        <div className="space-y-4 animate-fade-in">
+          <div className="flex items-center justify-between">
+            <h1 className="page-header">Histórico de Vendas</h1>
+            <Button variant="outline" onClick={() => setShowHistory(false)}>
+              <ShoppingCart className="h-4 w-4 mr-1" /> Voltar ao PDV
+            </Button>
+          </div>
+          <div className="rounded-2xl border bg-card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="text-left p-3 font-semibold">Data</th>
+                    <th className="text-left p-3 font-semibold">Itens</th>
+                    <th className="text-left p-3 font-semibold">Total</th>
+                    <th className="text-left p-3 font-semibold">Pagamento</th>
+                    <th className="text-left p-3 font-semibold">Status</th>
+                    <th className="p-3"></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {sales.length === 0 && (
+                    <tr><td colSpan={6} className="text-center text-muted-foreground py-8">Nenhuma venda registrada</td></tr>
+                  )}
+                  {sales.map(s => (
+                    <tr key={s.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                      <td className="p-3">{new Date(s.created_at).toLocaleDateString('pt-BR')} {new Date(s.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</td>
+                      <td className="p-3 max-w-[200px] truncate">{s.items.map(i => `${i.product_name} (${i.quantity})`).join(', ')}</td>
+                      <td className="p-3 font-semibold">{fmt(s.total)}</td>
+                      <td className="p-3"><Badge variant="secondary">{PAYMENT_LABELS[s.payment_method] || s.payment_method}</Badge></td>
+                      <td className="p-3">
+                        <Badge variant={s.status === 'pago' ? 'default' : 'destructive'}>
+                          {s.status === 'pago' ? 'Pago' : 'Pendente'}
+                        </Badge>
+                      </td>
+                      <td className="p-3 flex gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => {
+                          const clientName = s.client_id ? clients.find(c => c.id === s.client_id)?.name : undefined;
+                          setReceiptData({
+                            date: new Date(s.created_at).toLocaleString('pt-BR'),
+                            items: s.items.map(i => ({ productName: i.product_name, quantity: i.quantity, unitPrice: i.unit_price, subtotal: i.subtotal })),
+                            total: s.total,
+                            paymentMethod: s.payment_method,
+                            clientName,
+                          });
+                          setShowReceipt(true);
+                        }}>
+                          <FileText className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir venda?</AlertDialogTitle>
+                              <AlertDialogDescription>O estoque será restaurado e a venda será removida permanentemente.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={async () => { await deleteSale(s.id); toast.success("Venda excluída"); }}>Excluir</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
-      </div>
+        <ReceiptDialog open={showReceipt} onOpenChange={setShowReceipt} data={receiptData} />
+      </>
     );
   }
 
@@ -369,6 +401,7 @@ export default function Sales() {
           </div>
         )}
       </Card>
+      <ReceiptDialog open={showReceipt} onOpenChange={setShowReceipt} data={receiptData} />
     </div>
   );
 }
