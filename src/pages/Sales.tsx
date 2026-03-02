@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -22,7 +23,7 @@ interface CartItem {
 }
 
 export default function Sales() {
-  const { products, sales, clients, addSale } = useApp();
+  const { products, sales, clients, addSale, deleteSale } = useApp();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<CartItem[]>([]);
   const [selectedProduct, setSelectedProduct] = useState("");
@@ -136,10 +137,10 @@ export default function Sales() {
       <div className="rounded-2xl border bg-card overflow-hidden">
         <Table>
           <TableHeader><TableRow>
-            <TableHead>Data</TableHead><TableHead>Itens</TableHead><TableHead>Total</TableHead><TableHead>Pagamento</TableHead><TableHead>Status</TableHead>
+            <TableHead>Data</TableHead><TableHead>Itens</TableHead><TableHead>Total</TableHead><TableHead>Pagamento</TableHead><TableHead>Status</TableHead><TableHead></TableHead>
           </TableRow></TableHeader>
           <TableBody>
-            {sales.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhuma venda registrada</TableCell></TableRow>}
+            {sales.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhuma venda registrada</TableCell></TableRow>}
             {sales.map(s => (
               <TableRow key={s.id}>
                 <TableCell>{new Date(s.created_at).toLocaleDateString('pt-BR')}</TableCell>
@@ -150,6 +151,27 @@ export default function Sales() {
                   <Badge variant={s.status === 'pago' ? 'default' : 'destructive'}>
                     {s.status === 'pago' ? 'Pago' : 'Pendente'}
                   </Badge>
+                </TableCell>
+                <TableCell>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Excluir venda?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          O estoque será restaurado e a venda será removida permanentemente.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={async () => { await deleteSale(s.id); toast.success("Venda excluída"); }}>
+                          Excluir
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </TableCell>
               </TableRow>
             ))}

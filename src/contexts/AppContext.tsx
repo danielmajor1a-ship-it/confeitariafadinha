@@ -38,6 +38,7 @@ interface AppContextType {
   updateProduct: (p: ProductWithHistory) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
   addSale: (items: { productId: string; productName: string; quantity: number; unitPrice: number; subtotal: number }[], paymentMethod: string, clientId?: string) => Promise<void>;
+  deleteSale: (id: string) => Promise<void>;
   addClient: (c: { name: string; phone: string; email?: string }) => Promise<void>;
   updateClient: (c: Client) => Promise<void>;
   deleteClient: (id: string) => Promise<void>;
@@ -191,6 +192,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await refresh();
   }, [user, products, clients, refresh]);
 
+  const deleteSale = useCallback(async (id: string) => {
+    if (!user) return;
+    const sale = sales.find(s => s.id === id);
+    if (!sale) return;
+    // Restore stock for each item
+    for (const item of sale.items) {
+      const product = products.find(p => p.id === item.product_id);
+      if (product) {
+        await supabase.from('products').update({ stock: product.stock + item.quantity }).eq('id', item.product_id);
+      }
+    }
+    // Restore client debt if fiado
+    if (sale.payment_method === 'fiado' && sale.client_id) {
+      const client = clients.find(c => c.id === sale.client_id);
+      if (client) {
+        await supabase.from('clients').update({ total_owed: Math.max(0, client.total_owed - sale.total) }).eq('id', sale.client_id);
+      }
+    }
+    // Delete stock movements, sale items, then sale
+    await supabase.from('stock_movements').delete().eq('reference', id);
+    await supabase.from('sale_items').delete().eq('sale_id', id);
+    await supabase.from('sales').delete().eq('id', id);
+    await refresh();
+  }, [user, sales, products, clients, refresh]);
+
   const addClient = useCallback(async (c: { name: string; phone: string; email?: string }) => {
     if (!user) return;
     const { error } = await supabase.from('clients').insert({ user_id: user.id, name: c.name, phone: c.phone, email: c.email || '' });
@@ -279,7 +305,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     <AppContext.Provider value={{
       products, sales, clients, stockMovements, recipes, costs, loading,
       addProduct, updateProduct, deleteProduct,
-      addSale, addClient, updateClient, deleteClient, payClientDebt,
+      addSale, deleteSale, addClient, updateClient, deleteClient, payClientDebt,
       addStockEntry, addRecipe, updateRecipe, deleteRecipe,
       addCost, deleteCost, refresh,
     }}>
