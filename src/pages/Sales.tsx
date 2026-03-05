@@ -214,7 +214,7 @@ export default function Sales() {
           <h1 className="page-header flex items-center gap-2">
             <Receipt className="h-6 w-6 text-pink-dark" /> PDV Caixa
           </h1>
-          <Button variant="outline" size="sm" onClick={() => setShowHistory(true)}>
+          <Button variant="outline" size="sm" onClick={() => { refresh(); setShowHistory(true); }}>
             <History className="h-4 w-4 mr-1" /> Histórico
           </Button>
         </div>
