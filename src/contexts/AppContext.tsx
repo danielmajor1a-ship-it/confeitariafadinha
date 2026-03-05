@@ -37,7 +37,7 @@ interface AppContextType {
   addProduct: (p: { name: string; description: string; brand: string; category: string; purchasePrice: number; salePrice: number; stock: number; lowStockThreshold: number }) => Promise<void>;
   updateProduct: (p: ProductWithHistory) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
-  addSale: (items: { productId: string; productName: string; quantity: number; unitPrice: number; subtotal: number }[], paymentMethod: string, clientId?: string) => Promise<void>;
+  addSale: (items: { productId: string; productName: string; quantity: number; unitPrice: number; subtotal: number }[], paymentMethod: string, clientId?: string) => Promise<boolean>;
   deleteSale: (id: string) => Promise<void>;
   addClient: (c: { name: string; phone: string; email?: string }) => Promise<void>;
   updateClient: (c: Client) => Promise<void>;
@@ -154,58 +154,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [refresh]);
 
   const addSale = useCallback(async (items: { productId: string; productName: string; quantity: number; unitPrice: number; subtotal: number }[], paymentMethod: string, clientId?: string) => {
-    if (!user) return;
-    const total = items.reduce((s, i) => s + i.subtotal, 0);
-    const { data: sale, error } = await supabase.from('sales').insert({
-      user_id: user.id, total, payment_method: paymentMethod,
-      client_id: clientId || null,
-      status: paymentMethod === 'fiado' ? 'pendente' : 'pago',
-    }).select().single();
-    if (error) { toast.error(error.message); return; }
+    if (!user) return false;
 
-    // Insert sale items
-    await supabase.from('sale_items').insert(items.map(i => ({
-      sale_id: sale.id, product_id: i.productId, product_name: i.productName,
-      quantity: i.quantity, unit_price: i.unitPrice, subtotal: i.subtotal,
-    })));
+    try {
+      const payload = items.map((i) => ({
+        product_id: i.productId,
+        product_name: i.productName,
+        quantity: i.quantity,
+        unit_price: i.unitPrice,
+        subtotal: i.subtotal,
+      }));
 
-    // Update stock and create movements
-    for (const item of items) {
-      const product = products.find(p => p.id === item.productId);
-      if (product) {
-        await supabase.from('products').update({ stock: Math.max(0, product.stock - item.quantity) }).eq('id', item.productId);
-      }
-      await supabase.from('stock_movements').insert({
-        user_id: user.id, product_id: item.productId, type: 'saida',
-        quantity: item.quantity, reason: 'Venda', reference: sale.id,
+      const { error } = await supabase.rpc('create_sale_with_items', {
+        _items: payload,
+        _payment_method: paymentMethod,
+        _client_id: clientId || null,
       });
-    }
 
-    // Update client debt if fiado
-    if (paymentMethod === 'fiado' && clientId) {
-      const client = clients.find(c => c.id === clientId);
-      if (client) {
-        await supabase.from('clients').update({ total_owed: client.total_owed + total }).eq('id', clientId);
+      if (error) {
+        toast.error(error.message || 'Não foi possível finalizar a venda');
+        return false;
       }
-    }
 
-    // Auto-register cash movement if there's an open register
-    const { data: openReg } = await supabase.from('cash_registers').select('id').eq('user_id', user.id).eq('status', 'aberto').maybeSingle();
-    if (openReg) {
-      const movType = paymentMethod === 'fiado' ? 'saida' : 'entrada';
-      const category = paymentMethod === 'fiado' ? 'venda' : 'venda';
-      await supabase.from('cash_movements').insert({
-        cash_register_id: openReg.id, user_id: user.id,
-        type: paymentMethod === 'fiado' ? 'entrada' : 'entrada',
-        category: 'venda', amount: total,
-        payment_method: paymentMethod === 'fiado' ? 'fiado' : paymentMethod,
-        description: `Venda #${sale.id.slice(0, 8)}`,
-        reference_id: sale.id,
-      });
+      await refresh();
+      return true;
+    } catch (err) {
+      console.error('Add sale error:', err);
+      toast.error('Erro inesperado ao finalizar venda');
+      return false;
     }
-
-    await refresh();
-  }, [user, products, clients, refresh]);
+  }, [user, refresh]);
 
   const deleteSale = useCallback(async (id: string) => {
     if (!user) return;
