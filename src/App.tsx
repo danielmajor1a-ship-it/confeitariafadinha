@@ -53,6 +53,7 @@ function ProtectedRoutes() {
           <Route path="/custos" element={<Costs />} />
           <Route path="/precificacao" element={<Pricing />} />
           <Route path="/caixa" element={<CashRegister />} />
+          <Route path="/usuarios" element={<UserManagement />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Layout>
