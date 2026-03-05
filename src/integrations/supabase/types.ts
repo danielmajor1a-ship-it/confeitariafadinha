@@ -14,6 +14,95 @@ export type Database = {
   }
   public: {
     Tables: {
+      cash_movements: {
+        Row: {
+          amount: number
+          cash_register_id: string
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          payment_method: string | null
+          reference_id: string | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          cash_register_id: string
+          category: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          payment_method?: string | null
+          reference_id?: string | null
+          type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          cash_register_id?: string
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          payment_method?: string | null
+          reference_id?: string | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_movements_cash_register_id_fkey"
+            columns: ["cash_register_id"]
+            isOneToOne: false
+            referencedRelation: "cash_registers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cash_registers: {
+        Row: {
+          closed_at: string | null
+          counted_amount: number | null
+          created_at: string
+          final_amount: number | null
+          id: string
+          initial_amount: number
+          notes: string | null
+          opened_at: string
+          period_type: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          closed_at?: string | null
+          counted_amount?: number | null
+          created_at?: string
+          final_amount?: number | null
+          id?: string
+          initial_amount?: number
+          notes?: string | null
+          opened_at?: string
+          period_type?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          closed_at?: string | null
+          counted_amount?: number | null
+          created_at?: string
+          final_amount?: number | null
+          id?: string
+          initial_amount?: number
+          notes?: string | null
+          opened_at?: string
+          period_type?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           created_at: string

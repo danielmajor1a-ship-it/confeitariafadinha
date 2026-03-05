@@ -15,6 +15,7 @@ import Financial from "@/pages/Financial";
 import Recipes from "@/pages/Recipes";
 import Costs from "@/pages/Costs";
 import Pricing from "@/pages/Pricing";
+import CashRegister from "@/pages/CashRegister";
 import Auth from "@/pages/Auth";
 import NotFound from "@/pages/NotFound";
 
@@ -49,6 +50,7 @@ function ProtectedRoutes() {
           <Route path="/receitas" element={<Recipes />} />
           <Route path="/custos" element={<Costs />} />
           <Route path="/precificacao" element={<Pricing />} />
+          <Route path="/caixa" element={<CashRegister />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Layout>
