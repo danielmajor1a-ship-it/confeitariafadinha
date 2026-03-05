@@ -189,6 +189,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    // Auto-register cash movement if there's an open register
+    const { data: openReg } = await supabase.from('cash_registers').select('id').eq('user_id', user.id).eq('status', 'aberto').maybeSingle();
+    if (openReg) {
+      const movType = paymentMethod === 'fiado' ? 'saida' : 'entrada';
+      const category = paymentMethod === 'fiado' ? 'venda' : 'venda';
+      await supabase.from('cash_movements').insert({
+        cash_register_id: openReg.id, user_id: user.id,
+        type: paymentMethod === 'fiado' ? 'entrada' : 'entrada',
+        category: 'venda', amount: total,
+        payment_method: paymentMethod === 'fiado' ? 'fiado' : paymentMethod,
+        description: `Venda #${sale.id.slice(0, 8)}`,
+        reference_id: sale.id,
+      });
+    }
+
     await refresh();
   }, [user, products, clients, refresh]);
 
