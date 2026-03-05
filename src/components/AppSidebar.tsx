@@ -1,5 +1,6 @@
-import { Cake, LayoutDashboard, Package, ShoppingCart, Users, Warehouse, DollarSign, BookOpen, Calculator, TrendingUp, LogOut, Landmark } from "lucide-react";
+import { Cake, LayoutDashboard, Package, ShoppingCart, Users, Warehouse, DollarSign, BookOpen, Calculator, TrendingUp, LogOut, Landmark, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserRole } from "@/hooks/useUserRole";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
@@ -7,17 +8,31 @@ import {
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar,
 } from "@/components/ui/sidebar";
 
+const TAB_TO_KEY: Record<string, string> = {
+  "/": "dashboard",
+  "/produtos": "produtos",
+  "/estoque": "estoque",
+  "/vendas": "vendas",
+  "/clientes": "clientes",
+  "/financeiro": "financeiro",
+  "/receitas": "receitas",
+  "/custos": "custos",
+  "/precificacao": "precificacao",
+  "/caixa": "caixa",
+  "/usuarios": "usuarios",
+};
+
 const items = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Produtos", url: "/produtos", icon: Package },
-  { title: "Estoque", url: "/estoque", icon: Warehouse },
-  { title: "Vendas", url: "/vendas", icon: ShoppingCart },
-  { title: "Clientes", url: "/clientes", icon: Users },
-  { title: "Financeiro", url: "/financeiro", icon: DollarSign },
-  { title: "Receitas", url: "/receitas", icon: BookOpen },
-  { title: "Custos", url: "/custos", icon: Calculator },
-  { title: "Precificação", url: "/precificacao", icon: TrendingUp },
-  { title: "Caixa", url: "/caixa", icon: Landmark },
+  { title: "Dashboard", url: "/", icon: LayoutDashboard, key: "dashboard" },
+  { title: "Produtos", url: "/produtos", icon: Package, key: "produtos" },
+  { title: "Estoque", url: "/estoque", icon: Warehouse, key: "estoque" },
+  { title: "Vendas", url: "/vendas", icon: ShoppingCart, key: "vendas" },
+  { title: "Clientes", url: "/clientes", icon: Users, key: "clientes" },
+  { title: "Financeiro", url: "/financeiro", icon: DollarSign, key: "financeiro" },
+  { title: "Receitas", url: "/receitas", icon: BookOpen, key: "receitas" },
+  { title: "Custos", url: "/custos", icon: Calculator, key: "custos" },
+  { title: "Precificação", url: "/precificacao", icon: TrendingUp, key: "precificacao" },
+  { title: "Caixa", url: "/caixa", icon: Landmark, key: "caixa" },
 ];
 
 export function AppSidebar() {
@@ -25,6 +40,9 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const location = useLocation();
   const { signOut } = useAuth();
+  const { isAdmin, canAccess } = useUserRole();
+
+  const visibleItems = items.filter((item) => canAccess(item.key));
 
   return (
     <Sidebar collapsible="icon">
@@ -36,7 +54,7 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => (
+              {visibleItems.map((item) => (
                 <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton asChild>
                     <NavLink
@@ -51,6 +69,20 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              {isAdmin && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink
+                      to="/usuarios"
+                      className="hover:bg-sidebar-accent/70 rounded-lg transition-colors"
+                      activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
+                    >
+                      <ShieldCheck className="mr-2 h-4 w-4" />
+                      {!collapsed && <span>Usuários</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
