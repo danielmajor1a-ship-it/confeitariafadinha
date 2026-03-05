@@ -130,6 +130,65 @@ export type Database = {
         }
         Relationships: []
       }
+      cash_verifications: {
+        Row: {
+          cash_register_id: string
+          counted_amount: number
+          created_at: string
+          difference: number
+          expected_amount: number
+          id: string
+          notes: string | null
+          total_cash_sales: number
+          total_credit_sales: number
+          total_debit_sales: number
+          total_expenses: number
+          total_fiado_received: number
+          total_sangrias: number
+          user_id: string
+        }
+        Insert: {
+          cash_register_id: string
+          counted_amount?: number
+          created_at?: string
+          difference?: number
+          expected_amount?: number
+          id?: string
+          notes?: string | null
+          total_cash_sales?: number
+          total_credit_sales?: number
+          total_debit_sales?: number
+          total_expenses?: number
+          total_fiado_received?: number
+          total_sangrias?: number
+          user_id: string
+        }
+        Update: {
+          cash_register_id?: string
+          counted_amount?: number
+          created_at?: string
+          difference?: number
+          expected_amount?: number
+          id?: string
+          notes?: string | null
+          total_cash_sales?: number
+          total_credit_sales?: number
+          total_debit_sales?: number
+          total_expenses?: number
+          total_fiado_received?: number
+          total_sangrias?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_verifications_cash_register_id_fkey"
+            columns: ["cash_register_id"]
+            isOneToOne: false
+            referencedRelation: "cash_registers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           created_at: string
