@@ -1,14 +1,16 @@
 import { useApp } from "@/contexts/AppContext";
+import { useCardRates } from "@/components/CardRatesSettings";
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, CartesianGrid } from "recharts";
-import { Package, ShoppingCart, DollarSign, AlertTriangle, TrendingUp, Users } from "lucide-react";
+import { Package, ShoppingCart, DollarSign, AlertTriangle, TrendingUp, Users, CreditCard, TrendingDown } from "lucide-react";
 
 const COLORS = ["hsl(345,70%,75%)", "hsl(25,52%,28%)", "hsl(345,60%,55%)", "hsl(40,30%,70%)", "hsl(142,60%,40%)", "hsl(38,92%,50%)"];
 
 export default function Dashboard() {
   const { products, sales, clients } = useApp();
+  const { rates } = useCardRates();
   const [period, setPeriod] = useState("30");
 
   const filtered = useMemo(() => {
@@ -72,11 +74,13 @@ export default function Dashboard() {
         </Select>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4">
         <StatCard icon={DollarSign} label="Faturamento" value={fmt(totalRevenue)} color="text-success" />
         <StatCard icon={ShoppingCart} label="Vendas" value={filtered.length.toString()} color="text-pink" />
         <StatCard icon={DollarSign} label="Dinheiro" value={fmt(cashTotal)} color="text-success" />
-        <StatCard icon={DollarSign} label="Cartão" value={fmt(cardTotal)} color="text-chocolate" />
+        <StatCard icon={CreditCard} label="Crédito" value={fmt(creditTotal)} color="text-chocolate" />
+        <StatCard icon={CreditCard} label="Débito" value={fmt(debitTotal)} color="text-chocolate" />
+        <StatCard icon={TrendingDown} label="Taxas Cartão" value={fmt(creditTotal * rates.credit_rate / 100 + debitTotal * rates.debit_rate / 100)} color="text-destructive" />
         <StatCard icon={Users} label="Fiado Total" value={fmt(totalDebt)} color="text-warning" />
         <StatCard icon={AlertTriangle} label="Estoque Baixo" value={lowStock.toString()} color="text-destructive" />
       </div>

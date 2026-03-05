@@ -16,6 +16,7 @@ import Recipes from "@/pages/Recipes";
 import Costs from "@/pages/Costs";
 import Pricing from "@/pages/Pricing";
 import CashRegister from "@/pages/CashRegister";
+import StockAlerts from "@/pages/StockAlerts";
 import UserManagement from "@/pages/UserManagement";
 import Auth from "@/pages/Auth";
 import ResetPassword from "@/pages/ResetPassword";
@@ -53,6 +54,7 @@ function ProtectedRoutes() {
           <Route path="/custos" element={<Costs />} />
           <Route path="/precificacao" element={<Pricing />} />
           <Route path="/caixa" element={<CashRegister />} />
+          <Route path="/alertas-estoque" element={<StockAlerts />} />
           <Route path="/usuarios" element={<UserManagement />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

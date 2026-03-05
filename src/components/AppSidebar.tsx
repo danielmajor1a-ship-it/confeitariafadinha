@@ -1,4 +1,4 @@
-import { Cake, LayoutDashboard, Package, ShoppingCart, Users, Warehouse, DollarSign, BookOpen, Calculator, TrendingUp, LogOut, Landmark, ShieldCheck } from "lucide-react";
+import { Cake, LayoutDashboard, Package, ShoppingCart, Users, Warehouse, DollarSign, BookOpen, Calculator, TrendingUp, LogOut, Landmark, ShieldCheck, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { NavLink } from "@/components/NavLink";
@@ -19,6 +19,7 @@ const TAB_TO_KEY: Record<string, string> = {
   "/custos": "custos",
   "/precificacao": "precificacao",
   "/caixa": "caixa",
+  "/alertas-estoque": "alertas-estoque",
   "/usuarios": "usuarios",
 };
 
@@ -33,6 +34,7 @@ const items = [
   { title: "Custos", url: "/custos", icon: Calculator, key: "custos" },
   { title: "Precificação", url: "/precificacao", icon: TrendingUp, key: "precificacao" },
   { title: "Caixa", url: "/caixa", icon: Landmark, key: "caixa" },
+  { title: "Alertas Estoque", url: "/alertas-estoque", icon: AlertTriangle, key: "alertas-estoque" },
 ];
 
 export function AppSidebar() {

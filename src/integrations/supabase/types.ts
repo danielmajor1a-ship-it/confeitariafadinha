@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      card_rates: {
+        Row: {
+          created_at: string
+          credit_rate: number
+          debit_rate: number
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credit_rate?: number
+          debit_rate?: number
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credit_rate?: number
+          debit_rate?: number
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       cash_movements: {
         Row: {
           amount: number
