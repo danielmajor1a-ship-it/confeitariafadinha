@@ -107,7 +107,13 @@ export default function Sales() {
     if (paymentMethod === 'fiado' && !clientId) { toast.error("Selecione um cliente para fiado"); return; }
     const clientName = clientId ? clients.find(c => c.id === clientId)?.name : undefined;
     const receiptItems = cart.map(i => ({ productName: i.productName, quantity: i.quantity, unitPrice: i.unitPrice, subtotal: i.subtotal }));
+    const prevSalesCount = sales.length;
     await addSale(cart, paymentMethod, clientId || undefined);
+    // Check if sale was actually added by comparing counts after refresh
+    if (sales.length <= prevSalesCount) {
+      // refresh may not have updated yet, give it a moment
+      await refresh();
+    }
     setReceiptData({
       date: new Date().toLocaleString('pt-BR'),
       items: receiptItems,
