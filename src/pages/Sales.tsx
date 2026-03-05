@@ -31,7 +31,7 @@ interface CartItem {
 }
 
 export default function Sales() {
-  const { products, sales, clients, addSale, deleteSale } = useApp();
+  const { products, sales, clients, addSale, deleteSale, refresh } = useApp();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("todos");
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -107,7 +107,13 @@ export default function Sales() {
     if (paymentMethod === 'fiado' && !clientId) { toast.error("Selecione um cliente para fiado"); return; }
     const clientName = clientId ? clients.find(c => c.id === clientId)?.name : undefined;
     const receiptItems = cart.map(i => ({ productName: i.productName, quantity: i.quantity, unitPrice: i.unitPrice, subtotal: i.subtotal }));
+    const prevSalesCount = sales.length;
     await addSale(cart, paymentMethod, clientId || undefined);
+    // Check if sale was actually added by comparing counts after refresh
+    if (sales.length <= prevSalesCount) {
+      // refresh may not have updated yet, give it a moment
+      await refresh();
+    }
     setReceiptData({
       date: new Date().toLocaleString('pt-BR'),
       items: receiptItems,
@@ -208,7 +214,7 @@ export default function Sales() {
           <h1 className="page-header flex items-center gap-2">
             <Receipt className="h-6 w-6 text-pink-dark" /> PDV Caixa
           </h1>
-          <Button variant="outline" size="sm" onClick={() => setShowHistory(true)}>
+          <Button variant="outline" size="sm" onClick={() => { refresh(); setShowHistory(true); }}>
             <History className="h-4 w-4 mr-1" /> Histórico
           </Button>
         </div>
