@@ -154,7 +154,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [refresh]);
 
   const addSale = useCallback(async (items: { productId: string; productName: string; quantity: number; unitPrice: number; subtotal: number }[], paymentMethod: string, clientId?: string) => {
-    if (!user) return;
+    if (!user) return false;
 
     try {
       const payload = items.map((i) => ({
@@ -173,13 +173,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         toast.error(error.message || 'Não foi possível finalizar a venda');
-        return;
+        return false;
       }
 
       await refresh();
+      return true;
     } catch (err) {
       console.error('Add sale error:', err);
       toast.error('Erro inesperado ao finalizar venda');
+      return false;
     }
   }, [user, refresh]);
 
