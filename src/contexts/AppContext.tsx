@@ -37,7 +37,7 @@ interface AppContextType {
   addProduct: (p: { name: string; description: string; brand: string; category: string; purchasePrice: number; salePrice: number; stock: number; lowStockThreshold: number }) => Promise<void>;
   updateProduct: (p: ProductWithHistory) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
-  addSale: (items: { productId: string; productName: string; quantity: number; unitPrice: number; subtotal: number }[], paymentMethod: string, clientId?: string) => Promise<void>;
+  addSale: (items: { productId: string; productName: string; quantity: number; unitPrice: number; subtotal: number }[], paymentMethod: string, clientId?: string) => Promise<boolean>;
   deleteSale: (id: string) => Promise<void>;
   addClient: (c: { name: string; phone: string; email?: string }) => Promise<void>;
   updateClient: (c: Client) => Promise<void>;
