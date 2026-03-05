@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,6 +50,27 @@ export default function Auth() {
               {loading ? "Aguarde..." : isLogin ? "Entrar" : "Criar Conta"}
             </Button>
           </form>
+          {isLogin && (
+            <p className="text-center text-sm text-muted-foreground mt-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!email) {
+                    toast.error("Informe seu e-mail primeiro.");
+                    return;
+                  }
+                  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                    redirectTo: `${window.location.origin}/reset-password`,
+                  });
+                  if (error) toast.error(error.message);
+                  else toast.success("Link de redefinição enviado para seu e-mail!");
+                }}
+                className="text-pink-dark font-semibold hover:underline"
+              >
+                Esqueci minha senha
+              </button>
+            </p>
+          )}
           <p className="text-center text-sm text-muted-foreground mt-4">
             {isLogin ? "Não tem conta?" : "Já tem conta?"}{" "}
             <button onClick={() => setIsLogin(!isLogin)} className="text-pink-dark font-semibold hover:underline">
