@@ -1,4 +1,4 @@
-import { Cake, LayoutDashboard, Package, ShoppingCart, Users, Warehouse, DollarSign, BookOpen, Calculator, TrendingUp, LogOut } from "lucide-react";
+import { Cake, LayoutDashboard, Package, ShoppingCart, Users, Warehouse, DollarSign, BookOpen, Calculator, TrendingUp, LogOut, Landmark } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -17,6 +17,7 @@ const items = [
   { title: "Receitas", url: "/receitas", icon: BookOpen },
   { title: "Custos", url: "/custos", icon: Calculator },
   { title: "Precificação", url: "/precificacao", icon: TrendingUp },
+  { title: "Caixa", url: "/caixa", icon: Landmark },
 ];
 
 export function AppSidebar() {
