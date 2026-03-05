@@ -31,7 +31,7 @@ interface CartItem {
 }
 
 export default function Sales() {
-  const { products, sales, clients, addSale, deleteSale } = useApp();
+  const { products, sales, clients, addSale, deleteSale, refresh } = useApp();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("todos");
   const [cart, setCart] = useState<CartItem[]>([]);
