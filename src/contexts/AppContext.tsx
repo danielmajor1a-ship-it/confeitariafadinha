@@ -252,14 +252,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [refresh]);
 
   const payClientDebt = useCallback(async (clientId: string, amount: number) => {
+    if (!user) return;
     const client = clients.find(c => c.id === clientId);
     if (!client) return;
     const { error } = await supabase.from('clients').update({ total_owed: Math.max(0, client.total_owed - amount) }).eq('id', clientId);
     if (error) { toast.error(error.message); return; }
     // Mark pending sales as paid
     await supabase.from('sales').update({ status: 'pago' }).eq('client_id', clientId).eq('status', 'pendente');
+    // Auto-register cash movement for fiado payment
+    const { data: openReg } = await supabase.from('cash_registers').select('id').eq('user_id', user.id).eq('status', 'aberto').maybeSingle();
+    if (openReg) {
+      await supabase.from('cash_movements').insert({
+        cash_register_id: openReg.id, user_id: user.id,
+        type: 'entrada', category: 'recebimento_fiado', amount,
+        payment_method: 'dinheiro',
+        description: `Recebimento fiado - ${client.name}`,
+      });
+    }
     await refresh();
-  }, [clients, refresh]);
+  }, [user, clients, refresh]);
 
   const addStockEntry = useCallback(async (productId: string, quantity: number, reason: string) => {
     if (!user) return;
