@@ -1,5 +1,7 @@
-import { useState, useMemo } from "react";
-import { ImageIcon } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { ImageIcon, AlertTriangle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { useApp } from "@/contexts/AppContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
