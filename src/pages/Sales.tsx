@@ -42,6 +42,7 @@ export default function Sales() {
   const [paymentMethod, setPaymentMethod] = useState<string>("dinheiro");
   const [clientId, setClientId] = useState("");
   const [showHistory, setShowHistory] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [hasOpenRegister, setHasOpenRegister] = useState<boolean | null>(null);
   const [receiptData, setReceiptData] = useState<{
     date: string; items: { productName: string; quantity: number; unitPrice: number; subtotal: number }[];
