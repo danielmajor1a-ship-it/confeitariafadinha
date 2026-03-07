@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, History, Upload, Download } from "lucide-react";
+import { Plus, Pencil, Trash2, History, Upload, Download, Camera, ImageIcon, X } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 
 type PriceHistory = Tables<'price_history'>;
@@ -25,7 +26,11 @@ export default function Products() {
   const [historyProduct, setHistoryProduct] = useState<ProductWithHistory | null>(null);
   const [search, setSearch] = useState("");
   const [importing, setImporting] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const imageRef = useRef<HTMLInputElement>(null);
 
   const VALID_CATEGORIES = Object.keys(CATEGORY_LABELS);
 
@@ -42,14 +47,11 @@ export default function Products() {
   function parseNumber(value: string): number {
     if (!value || !value.trim()) return 0;
     let cleaned = value.trim().replace(/\s/g, '').replace(/[R$]/g, '');
-    // Detect Brazilian format: comma as decimal separator
     const lastDot = cleaned.lastIndexOf('.');
     const lastComma = cleaned.lastIndexOf(',');
     if (lastComma > lastDot) {
-      // Brazilian: 1.234,56 → 1234.56
       cleaned = cleaned.replace(/\./g, '').replace(',', '.');
     } else {
-      // US/standard: 1,234.56 → 1234.56
       cleaned = cleaned.replace(/,/g, '');
     }
     const num = parseFloat(cleaned);
@@ -88,7 +90,7 @@ export default function Products() {
       const lines = text.split(/\r?\n/).filter(l => l.trim() && !l.trim().startsWith('#'));
       if (lines.length < 2) { toast.error("Arquivo vazio ou sem dados"); setImporting(false); return; }
       const delimiter = detectDelimiter(lines);
-      const rows = lines.slice(1); // skip header
+      const rows = lines.slice(1);
       let count = 0;
       let errors = 0;
       for (const row of rows) {
@@ -120,6 +122,60 @@ export default function Products() {
     }
   }
 
+  function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Imagem muito grande. Máximo 5MB.");
+      return;
+    }
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onload = () => setImagePreview(reader.result as string);
+    reader.readAsDataURL(file);
+  }
+
+  async function uploadImage(productId: string): Promise<string | null> {
+    if (!imageFile) return null;
+    setUploadingImage(true);
+    try {
+      const ext = imageFile.name.split('.').pop() || 'jpg';
+      const path = `${productId}.${ext}`;
+      // Remove old image if exists
+      await supabase.storage.from('product-images').remove([path]);
+      const { error } = await supabase.storage.from('product-images').upload(path, imageFile, {
+        cacheControl: '3600',
+        upsert: true,
+      });
+      if (error) { toast.error("Erro ao enviar imagem"); return null; }
+      const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(path);
+      return urlData.publicUrl + '?t=' + Date.now();
+    } catch {
+      toast.error("Erro ao enviar imagem");
+      return null;
+    } finally {
+      setUploadingImage(false);
+    }
+  }
+
+  function clearImage() {
+    setImageFile(null);
+    setImagePreview(null);
+    if (imageRef.current) imageRef.current.value = "";
+  }
+
+  function openDialog(product?: ProductWithHistory) {
+    if (product) {
+      setEditing(product);
+      setImagePreview((product as any).image_url || null);
+    } else {
+      setEditing(null);
+      setImagePreview(null);
+    }
+    setImageFile(null);
+    setOpen(true);
+  }
+
   const filtered = products.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
     p.category.toLowerCase().includes(search.toLowerCase())
@@ -127,7 +183,7 @@ export default function Products() {
 
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-  function handleSave(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const data = {
@@ -141,22 +197,48 @@ export default function Products() {
       lowStockThreshold: parseInt(fd.get('lowStockThreshold') as string) || 5,
     };
     if (editing) {
-      updateProduct({
-        ...editing,
-        name: data.name,
-        description: data.description,
-        brand: data.brand,
-        category: data.category,
-        purchase_price: data.purchasePrice,
-        sale_price: data.salePrice,
-        stock: data.stock,
-        low_stock_threshold: data.lowStockThreshold,
-      });
+      let imageUrl = (editing as any).image_url;
+      if (imageFile) {
+        const url = await uploadImage(editing.id);
+        if (url) imageUrl = url;
+      }
+      // Update product including image_url
+      const { error } = await supabase.from('products').update({
+        name: data.name, description: data.description, brand: data.brand, category: data.category,
+        purchase_price: data.purchasePrice, sale_price: data.salePrice,
+        stock: data.stock, low_stock_threshold: data.lowStockThreshold,
+        image_url: imageUrl,
+      }).eq('id', editing.id);
+      if (error) { toast.error(error.message); return; }
+      // Price history
+      if (editing.purchase_price !== data.purchasePrice || editing.sale_price !== data.salePrice) {
+        await supabase.from('price_history').insert({ product_id: editing.id, purchase_price: data.purchasePrice, sale_price: data.salePrice });
+      }
     } else {
-      addProduct(data);
+      // Create product first, then upload image
+      await addProduct(data);
+      // If image selected, upload for the newly created product
+      if (imageFile) {
+        // Find the newly created product by name (latest)
+        const { data: newProducts } = await supabase.from('products').select('id').eq('name', data.name).order('created_at', { ascending: false }).limit(1);
+        if (newProducts && newProducts.length > 0) {
+          const url = await uploadImage(newProducts[0].id);
+          if (url) {
+            await supabase.from('products').update({ image_url: url }).eq('id', newProducts[0].id);
+          }
+        }
+      }
     }
+    clearImage();
     setEditing(null);
     setOpen(false);
+    // Refresh data from context
+    const { refresh } = useApp as any;
+    // We need to trigger refresh - the addProduct already refreshes, for editing we need manual refresh
+    if (editing) {
+      const appCtx = document.dispatchEvent(new Event('app-refresh'));
+    }
+    window.location.reload(); // Simple reload to reflect changes
   }
 
   return (
@@ -166,19 +248,67 @@ export default function Products() {
         <div className="flex gap-2 flex-wrap">
           <Input placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} className="w-48" />
           <input ref={fileRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleImport} />
-          <Button variant="outline" onClick={downloadTemplate} disabled={importing}>
-            <Download className="h-4 w-4 mr-1" /> Modelo CSV
+          <Button variant="outline" onClick={downloadTemplate} disabled={importing} className="min-h-[44px]">
+            <Download className="h-4 w-4 mr-1" /> <span className="hidden sm:inline">Modelo CSV</span>
           </Button>
-          <Button variant="outline" onClick={() => fileRef.current?.click()} disabled={importing}>
-            <Upload className="h-4 w-4 mr-1" /> {importing ? "Importando..." : "Importar"}
+          <Button variant="outline" onClick={() => fileRef.current?.click()} disabled={importing} className="min-h-[44px]">
+            <Upload className="h-4 w-4 mr-1" /> <span className="hidden sm:inline">{importing ? "Importando..." : "Importar"}</span>
           </Button>
-          <Dialog open={open} onOpenChange={v => { setOpen(v); if (!v) setEditing(null); }}>
+          <Dialog open={open} onOpenChange={v => { setOpen(v); if (!v) { setEditing(null); clearImage(); } }}>
             <DialogTrigger asChild>
-              <Button><Plus className="h-4 w-4 mr-1" /> Novo Produto</Button>
+              <Button onClick={() => openDialog()} className="min-h-[44px]"><Plus className="h-4 w-4 mr-1" /> Novo Produto</Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>{editing ? 'Editar' : 'Novo'} Produto</DialogTitle></DialogHeader>
               <form onSubmit={handleSave} className="space-y-3">
+                {/* Image upload */}
+                <div>
+                  <Label>Foto do Produto</Label>
+                  <div className="mt-1 flex flex-col items-center gap-2">
+                    {imagePreview ? (
+                      <div className="relative w-32 h-32 rounded-xl overflow-hidden border-2 border-border">
+                        <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={clearImage}
+                          className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="w-32 h-32 rounded-xl border-2 border-dashed border-border flex items-center justify-center text-muted-foreground">
+                        <ImageIcon className="h-8 w-8" />
+                      </div>
+                    )}
+                    <input
+                      ref={imageRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      capture="environment"
+                      className="hidden"
+                      onChange={handleImageSelect}
+                    />
+                    <div className="flex gap-2">
+                      <Button type="button" variant="outline" size="sm" onClick={() => {
+                        if (imageRef.current) {
+                          imageRef.current.removeAttribute('capture');
+                          imageRef.current.click();
+                        }
+                      }} className="min-h-[44px]">
+                        <Upload className="h-4 w-4 mr-1" /> Galeria
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" onClick={() => {
+                        if (imageRef.current) {
+                          imageRef.current.setAttribute('capture', 'environment');
+                          imageRef.current.click();
+                        }
+                      }} className="min-h-[44px]">
+                        <Camera className="h-4 w-4 mr-1" /> Câmera
+                      </Button>
+                    </div>
+                  </div>
+                </div>
                 <div><Label>Nome</Label><Input name="name" required defaultValue={editing?.name} /></div>
                 <div><Label>Descrição</Label><Input name="description" defaultValue={editing?.description || ''} /></div>
                 <div><Label>Marca</Label><Input name="brand" defaultValue={editing?.brand || ''} /></div>
@@ -201,17 +331,58 @@ export default function Products() {
                   <div><Label>Estoque</Label><Input name="stock" type="number" defaultValue={editing?.stock || 0} /></div>
                   <div><Label>Alerta Mínimo</Label><Input name="lowStockThreshold" type="number" defaultValue={editing?.low_stock_threshold || 5} /></div>
                 </div>
-                <Button type="submit" className="w-full">Salvar</Button>
+                <Button type="submit" className="w-full min-h-[48px]" disabled={uploadingImage}>
+                  {uploadingImage ? "Enviando imagem..." : "Salvar"}
+                </Button>
               </form>
             </DialogContent>
           </Dialog>
         </div>
       </div>
 
-      <div className="rounded-2xl border bg-card overflow-hidden">
+      {/* Mobile/Tablet: Card view. Desktop: Table view */}
+      <div className="block md:hidden space-y-3">
+        {filtered.length === 0 && (
+          <div className="text-center text-muted-foreground py-8">Nenhum produto cadastrado</div>
+        )}
+        {filtered.map(p => (
+          <div key={p.id} className="rounded-2xl border bg-card p-4 flex gap-3 items-start">
+            {(p as any).image_url ? (
+              <img src={(p as any).image_url} alt={p.name} className="w-16 h-16 rounded-xl object-cover border border-border shrink-0" />
+            ) : (
+              <div className="w-16 h-16 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                <ImageIcon className="h-6 w-6 text-muted-foreground" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-semibold truncate">{p.name}</p>
+                  <Badge variant="secondary" className="mt-1">{CATEGORY_LABELS[p.category as keyof typeof CATEGORY_LABELS] || p.category}</Badge>
+                </div>
+                <span className={`text-sm font-bold shrink-0 ${p.stock <= p.low_stock_threshold ? "text-destructive" : ""}`}>
+                  {p.stock} un
+                </span>
+              </div>
+              <div className="flex items-center gap-3 mt-2 text-sm">
+                <span className="text-muted-foreground">Compra: {fmt(p.purchase_price)}</span>
+                <span className="font-semibold">Venda: {fmt(p.sale_price)}</span>
+              </div>
+              <div className="flex gap-1 mt-2">
+                <Button variant="ghost" size="sm" onClick={() => setHistoryProduct(p)} className="min-h-[40px]"><History className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="sm" onClick={() => openDialog(p)} className="min-h-[40px]"><Pencil className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="sm" onClick={() => deleteProduct(p.id)} className="min-h-[40px]"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="hidden md:block rounded-2xl border bg-card overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-12">Foto</TableHead>
               <TableHead>Nome</TableHead>
               <TableHead>Categoria</TableHead>
               <TableHead>Compra</TableHead>
@@ -222,10 +393,19 @@ export default function Products() {
           </TableHeader>
           <TableBody>
             {filtered.length === 0 && (
-              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhum produto cadastrado</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhum produto cadastrado</TableCell></TableRow>
             )}
             {filtered.map(p => (
               <TableRow key={p.id}>
+                <TableCell>
+                  {(p as any).image_url ? (
+                    <img src={(p as any).image_url} alt={p.name} className="w-10 h-10 rounded-lg object-cover border border-border" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                      <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  )}
+                </TableCell>
                 <TableCell className="font-medium">{p.name}</TableCell>
                 <TableCell><Badge variant="secondary">{CATEGORY_LABELS[p.category as keyof typeof CATEGORY_LABELS] || p.category}</Badge></TableCell>
                 <TableCell>{fmt(p.purchase_price)}</TableCell>
@@ -236,9 +416,9 @@ export default function Products() {
                   </span>
                 </TableCell>
                 <TableCell className="text-right space-x-1">
-                  <Button variant="ghost" size="icon" onClick={() => setHistoryProduct(p)}><History className="h-4 w-4" /></Button>
-                  <Button variant="ghost" size="icon" onClick={() => { setEditing(p); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
-                  <Button variant="ghost" size="icon" onClick={() => deleteProduct(p.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                  <Button variant="ghost" size="icon" onClick={() => setHistoryProduct(p)} className="min-h-[44px] min-w-[44px]"><History className="h-4 w-4" /></Button>
+                  <Button variant="ghost" size="icon" onClick={() => openDialog(p)} className="min-h-[44px] min-w-[44px]"><Pencil className="h-4 w-4" /></Button>
+                  <Button variant="ghost" size="icon" onClick={() => deleteProduct(p.id)} className="min-h-[44px] min-w-[44px]"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                 </TableCell>
               </TableRow>
             ))}
