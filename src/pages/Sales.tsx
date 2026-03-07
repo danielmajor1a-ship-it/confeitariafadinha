@@ -442,9 +442,9 @@ export default function Sales() {
             )}
 
             {/* Finalize Button */}
-            <Button onClick={finalizeSale} className="w-full h-12 text-base font-bold" size="lg">
-              <Receipt className="h-5 w-5 mr-2" />
-              Finalizar {fmt(total)}
+            <Button onClick={finalizeSale} className="w-full h-12 text-base font-bold" size="lg" disabled={isProcessing}>
+              {isProcessing ? <span className="animate-spin mr-2">⏳</span> : <Receipt className="h-5 w-5 mr-2" />}
+              {isProcessing ? 'Processando...' : `Finalizar ${fmt(total)}`}
             </Button>
           </div>
         )}
