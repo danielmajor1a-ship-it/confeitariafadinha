@@ -34,6 +34,7 @@ interface CartItem {
 }
 
 export default function Sales() {
+  const { user } = useAuth();
   const { products, sales, clients, addSale, deleteSale, refresh } = useApp();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("todos");
@@ -41,11 +42,26 @@ export default function Sales() {
   const [paymentMethod, setPaymentMethod] = useState<string>("dinheiro");
   const [clientId, setClientId] = useState("");
   const [showHistory, setShowHistory] = useState(false);
+  const [hasOpenRegister, setHasOpenRegister] = useState<boolean | null>(null);
   const [receiptData, setReceiptData] = useState<{
     date: string; items: { productName: string; quantity: number; unitPrice: number; subtotal: number }[];
     total: number; paymentMethod: string; clientName?: string;
   } | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
+
+  useEffect(() => {
+    async function checkRegister() {
+      if (!user) return;
+      const { data } = await supabase
+        .from("cash_registers")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("status", "aberto")
+        .limit(1);
+      setHasOpenRegister(data && data.length > 0);
+    }
+    checkRegister();
+  }, [user]);
 
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const total = cart.reduce((s, i) => s + i.subtotal, 0);
