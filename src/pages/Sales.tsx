@@ -122,6 +122,7 @@ export default function Sales() {
   }
 
   async function finalizeSale() {
+    if (!hasOpenRegister) { toast.error("Abra o caixa antes de registrar vendas"); return; }
     if (cart.length === 0) { toast.error("Adicione itens à venda"); return; }
     if (paymentMethod === 'fiado' && !clientId) { toast.error("Selecione um cliente para fiado"); return; }
     const clientName = clientId ? clients.find(c => c.id === clientId)?.name : undefined;
