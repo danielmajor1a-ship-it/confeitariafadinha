@@ -6,27 +6,73 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Cake } from "lucide-react";
+import { Cake, Check, X } from "lucide-react";
 import { toast } from "sonner";
+
+const PASSWORD_RULES = [
+  { label: "Mínimo 8 caracteres", test: (p: string) => p.length >= 8 },
+  { label: "Pelo menos uma letra maiúscula", test: (p: string) => /[A-Z]/.test(p) },
+  { label: "Pelo menos uma letra minúscula", test: (p: string) => /[a-z]/.test(p) },
+  { label: "Pelo menos um número", test: (p: string) => /[0-9]/.test(p) },
+  { label: "Pelo menos um caractere especial (!@#$%)", test: (p: string) => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(p) },
+];
 
 export default function Auth() {
   const { signIn, signUp, user } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [confirmEmail, setConfirmEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   if (user) return <Navigate to="/" replace />;
 
+  const trimmedEmail = email.trim().toLowerCase();
+  const trimmedConfirmEmail = confirmEmail.trim().toLowerCase();
+  const emailsMatch = trimmedEmail === trimmedConfirmEmail && trimmedEmail.length > 0;
+  const passwordsMatch = password === confirmPassword && password.length > 0;
+  const allRulesPass = PASSWORD_RULES.every((r) => r.test(password));
+
+  const signupValid = name.trim().length > 0 && emailsMatch && passwordsMatch && allRulesPass;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!isLogin) {
+      if (!emailsMatch) {
+        toast.error("Os e-mails não coincidem.");
+        return;
+      }
+      if (!passwordsMatch) {
+        toast.error("As senhas não coincidem.");
+        return;
+      }
+      if (!allRulesPass) {
+        toast.error("A senha não atende aos requisitos mínimos.");
+        return;
+      }
+    }
     setLoading(true);
-    const { error } = isLogin ? await signIn(email, password) : await signUp(email, password);
-    setLoading(false);
-    if (error) {
-      toast.error(error.message);
-    } else if (!isLogin) {
-      toast.success("Conta criada com sucesso!");
+    if (isLogin) {
+      const { error } = await signIn(email.trim(), password);
+      setLoading(false);
+      if (error) toast.error(error.message);
+    } else {
+      const { error } = await supabase.auth.signUp({
+        email: trimmedEmail,
+        password,
+        options: {
+          emailRedirectTo: window.location.origin,
+          data: { display_name: name.trim() },
+        },
+      });
+      setLoading(false);
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success("Conta criada! Verifique seu e-mail para confirmar o cadastro.");
+      }
     }
   }
 
@@ -44,9 +90,95 @@ export default function Auth() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div><Label>Email</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} required /></div>
-            <div><Label>Senha</Label><Input type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} /></div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            {!isLogin && (
+              <div>
+                <Label>Nome</Label>
+                <Input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  placeholder="Seu nome"
+                />
+              </div>
+            )}
+
+            <div>
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+
+            {!isLogin && (
+              <div>
+                <Label>Confirmar Email</Label>
+                <Input
+                  type="email"
+                  value={confirmEmail}
+                  onChange={(e) => setConfirmEmail(e.target.value)}
+                  required
+                />
+                {confirmEmail && !emailsMatch && (
+                  <p className="text-destructive text-xs mt-1">Os e-mails não coincidem.</p>
+                )}
+              </div>
+            )}
+
+            <div>
+              <Label>Senha</Label>
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={isLogin ? 6 : 8}
+              />
+            </div>
+
+            {!isLogin && (
+              <>
+                <div>
+                  <Label>Confirmar Senha</Label>
+                  <Input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                  />
+                  {confirmPassword && !passwordsMatch && (
+                    <p className="text-destructive text-xs mt-1">As senhas não coincidem.</p>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  {PASSWORD_RULES.map((rule) => {
+                    const pass = rule.test(password);
+                    return (
+                      <div key={rule.label} className="flex items-center gap-2 text-xs">
+                        {pass ? (
+                          <Check className="h-3 w-3 text-green-600" />
+                        ) : (
+                          <X className="h-3 w-3 text-muted-foreground" />
+                        )}
+                        <span className={pass ? "text-green-600" : "text-muted-foreground"}>
+                          {rule.label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={loading || (!isLogin && !signupValid)}
+            >
               {loading ? "Aguarde..." : isLogin ? "Entrar" : "Criar Conta"}
             </Button>
           </form>
@@ -73,7 +205,15 @@ export default function Auth() {
           )}
           <p className="text-center text-sm text-muted-foreground mt-4">
             {isLogin ? "Não tem conta?" : "Já tem conta?"}{" "}
-            <button onClick={() => setIsLogin(!isLogin)} className="text-pink-dark font-semibold hover:underline">
+            <button
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setConfirmEmail("");
+                setConfirmPassword("");
+                setName("");
+              }}
+              className="text-pink-dark font-semibold hover:underline"
+            >
               {isLogin ? "Criar conta" : "Fazer login"}
             </button>
           </p>
