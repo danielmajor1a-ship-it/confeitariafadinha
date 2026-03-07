@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, History, Upload, Download, Camera, ImageIcon, X } from "lucide-react";
+import { Plus, Pencil, Trash2, History, Upload, Download, Camera, ImageIcon, X, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
@@ -27,10 +27,13 @@ export default function Products() {
   const [search, setSearch] = useState("");
   const [importing, setImporting] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [aiCategory, setAiCategory] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [identifying, setIdentifying] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const imageRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const VALID_CATEGORIES = Object.keys(CATEGORY_LABELS);
 
@@ -135,6 +138,39 @@ export default function Products() {
     reader.readAsDataURL(file);
   }
 
+  async function identifyFromImage() {
+    if (!imagePreview) { toast.error("Selecione uma imagem primeiro."); return; }
+    setIdentifying(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('identify-product', {
+        body: { imageBase64: imagePreview },
+      });
+      if (error) throw error;
+      if (data?.error) { toast.error(data.error); return; }
+      const p = data.product;
+      if (!p) { toast.error("Não foi possível identificar o produto."); return; }
+      // Auto-fill form fields
+      const form = formRef.current;
+      if (form) {
+        const setVal = (name: string, val: string) => {
+          const input = form.querySelector(`[name="${name}"]`) as HTMLInputElement | null;
+          if (input) { const nativeSet = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set; nativeSet?.call(input, val); input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new Event('change', { bubbles: true })); }
+        };
+        if (p.name) setVal('name', p.name);
+        if (p.description) setVal('description', p.description);
+        if (p.brand) setVal('brand', p.brand);
+        if (p.estimatedPrice) setVal('salePrice', String(p.estimatedPrice));
+      }
+      // Handle category select separately via state
+      if (p.category) setAiCategory(p.category);
+      toast.success("Produto identificado com sucesso!");
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao identificar produto.");
+    } finally {
+      setIdentifying(false);
+    }
+  }
+
   async function uploadImage(productId: string): Promise<string | null> {
     if (!imageFile) return null;
     setUploadingImage(true);
@@ -173,6 +209,7 @@ export default function Products() {
       setImagePreview(null);
     }
     setImageFile(null);
+    setAiCategory(null);
     setOpen(true);
   }
 
@@ -251,7 +288,7 @@ export default function Products() {
             </DialogTrigger>
             <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>{editing ? 'Editar' : 'Novo'} Produto</DialogTitle></DialogHeader>
-              <form onSubmit={handleSave} className="space-y-3">
+              <form ref={formRef} onSubmit={handleSave} className="space-y-3">
                 {/* Image upload */}
                 <div>
                   <Label>Foto do Produto</Label>
@@ -298,6 +335,12 @@ export default function Products() {
                         <Camera className="h-4 w-4 mr-1" /> Câmera
                       </Button>
                     </div>
+                    {imagePreview && (
+                      <Button type="button" variant="secondary" size="sm" onClick={identifyFromImage} disabled={identifying} className="min-h-[44px] w-full">
+                        {identifying ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1" />}
+                        {identifying ? "Identificando..." : "Identificar com IA"}
+                      </Button>
+                    )}
                   </div>
                 </div>
                 <div><Label>Nome</Label><Input name="name" required defaultValue={editing?.name} /></div>
@@ -305,7 +348,7 @@ export default function Products() {
                 <div><Label>Marca</Label><Input name="brand" defaultValue={editing?.brand || ''} /></div>
                 <div>
                   <Label>Categoria</Label>
-                  <Select name="category" defaultValue={editing?.category || 'doce'}>
+                  <Select name="category" defaultValue={editing?.category || 'doce'} value={aiCategory || undefined} onValueChange={(v) => setAiCategory(v)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
