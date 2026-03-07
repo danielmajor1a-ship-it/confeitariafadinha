@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { ImageIcon } from "lucide-react";
 import { useApp } from "@/contexts/AppContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -252,7 +253,7 @@ export default function Sales() {
 
         {/* Product Grid */}
         <ScrollArea className="flex-1">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
             {filteredProducts.map(p => {
               const inCart = cart.find(i => i.productId === p.id);
               const outOfStock = p.stock <= 0;
@@ -261,23 +262,27 @@ export default function Sales() {
                   key={p.id}
                   onClick={() => !outOfStock && addToCart(p.id)}
                   disabled={outOfStock}
-                  className={`relative flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all duration-150 
+                  className={`relative flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all duration-150 min-h-[120px]
                     ${outOfStock
                       ? 'opacity-40 cursor-not-allowed bg-muted'
-                      : 'bg-card hover:shadow-md hover:border-pink-dark/40 hover:scale-[1.02] active:scale-95 cursor-pointer'
+                      : 'bg-card hover:shadow-md hover:border-pink-dark/40 active:scale-95 cursor-pointer'
                     }
                     ${inCart ? 'ring-2 ring-pink-dark/60 border-pink-dark/40' : ''}
                   `}
                 >
                   {inCart && (
-                    <span className="absolute -top-2 -right-2 bg-pink-dark text-primary-foreground text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                    <span className="absolute -top-2 -right-2 bg-pink-dark text-primary-foreground text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center z-10">
                       {inCart.quantity}
                     </span>
                   )}
+                  {(p as any).image_url ? (
+                    <img src={(p as any).image_url} alt={p.name} className="w-12 h-12 rounded-lg object-cover mb-1 border border-border" />
+                  ) : (
+                    <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center mb-1">
+                      <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                  )}
                   <span className="font-semibold text-sm leading-tight line-clamp-2">{p.name}</span>
-                  <span className="text-xs text-muted-foreground mt-1">
-                    {CATEGORY_LABELS[p.category as keyof typeof CATEGORY_LABELS] || p.category}
-                  </span>
                   <span className="font-bold text-base mt-1" style={{ color: 'hsl(var(--chocolate))' }}>
                     {fmt(p.sale_price)}
                   </span>
