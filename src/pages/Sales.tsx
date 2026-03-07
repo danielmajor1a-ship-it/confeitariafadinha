@@ -76,6 +76,7 @@ export default function Sales() {
   }, [products, search, categoryFilter]);
 
   function addToCart(productId: string) {
+    if (!hasOpenRegister) { toast.error("Abra o caixa antes de registrar vendas"); return; }
     const product = products.find(p => p.id === productId);
     if (!product) return;
     const existing = cart.find(i => i.productId === productId);
