@@ -202,7 +202,6 @@ export default function Products() {
         const url = await uploadImage(editing.id);
         if (url) imageUrl = url;
       }
-      // Update product including image_url
       const { error } = await supabase.from('products').update({
         name: data.name, description: data.description, brand: data.brand, category: data.category,
         purchase_price: data.purchasePrice, sale_price: data.salePrice,
@@ -210,21 +209,19 @@ export default function Products() {
         image_url: imageUrl,
       }).eq('id', editing.id);
       if (error) { toast.error(error.message); return; }
-      // Price history
       if (editing.purchase_price !== data.purchasePrice || editing.sale_price !== data.salePrice) {
         await supabase.from('price_history').insert({ product_id: editing.id, purchase_price: data.purchasePrice, sale_price: data.salePrice });
       }
+      await refresh();
     } else {
-      // Create product first, then upload image
       await addProduct(data);
-      // If image selected, upload for the newly created product
       if (imageFile) {
-        // Find the newly created product by name (latest)
         const { data: newProducts } = await supabase.from('products').select('id').eq('name', data.name).order('created_at', { ascending: false }).limit(1);
         if (newProducts && newProducts.length > 0) {
           const url = await uploadImage(newProducts[0].id);
           if (url) {
             await supabase.from('products').update({ image_url: url }).eq('id', newProducts[0].id);
+            await refresh();
           }
         }
       }
@@ -232,13 +229,7 @@ export default function Products() {
     clearImage();
     setEditing(null);
     setOpen(false);
-    // Refresh data from context
-    const { refresh } = useApp as any;
-    // We need to trigger refresh - the addProduct already refreshes, for editing we need manual refresh
-    if (editing) {
-      const appCtx = document.dispatchEvent(new Event('app-refresh'));
-    }
-    window.location.reload(); // Simple reload to reflect changes
+    toast.success("Produto salvo com sucesso!");
   }
 
   return (
