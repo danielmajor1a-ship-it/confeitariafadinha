@@ -287,7 +287,7 @@ export default function Products() {
             </DialogTrigger>
             <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>{editing ? 'Editar' : 'Novo'} Produto</DialogTitle></DialogHeader>
-              <form onSubmit={handleSave} className="space-y-3">
+              <form ref={formRef} onSubmit={handleSave} className="space-y-3">
                 {/* Image upload */}
                 <div>
                   <Label>Foto do Produto</Label>
@@ -334,6 +334,12 @@ export default function Products() {
                         <Camera className="h-4 w-4 mr-1" /> Câmera
                       </Button>
                     </div>
+                    {imagePreview && (
+                      <Button type="button" variant="secondary" size="sm" onClick={identifyFromImage} disabled={identifying} className="min-h-[44px] w-full">
+                        {identifying ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1" />}
+                        {identifying ? "Identificando..." : "Identificar com IA"}
+                      </Button>
+                    )}
                   </div>
                 </div>
                 <div><Label>Nome</Label><Input name="name" required defaultValue={editing?.name} /></div>
@@ -341,7 +347,7 @@ export default function Products() {
                 <div><Label>Marca</Label><Input name="brand" defaultValue={editing?.brand || ''} /></div>
                 <div>
                   <Label>Categoria</Label>
-                  <Select name="category" defaultValue={editing?.category || 'doce'}>
+                  <Select name="category" defaultValue={editing?.category || 'doce'} value={aiCategory || undefined} onValueChange={(v) => setAiCategory(v)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
