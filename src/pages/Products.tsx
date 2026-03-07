@@ -137,6 +137,39 @@ export default function Products() {
     reader.readAsDataURL(file);
   }
 
+  async function identifyFromImage() {
+    if (!imagePreview) { toast.error("Selecione uma imagem primeiro."); return; }
+    setIdentifying(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('identify-product', {
+        body: { imageBase64: imagePreview },
+      });
+      if (error) throw error;
+      if (data?.error) { toast.error(data.error); return; }
+      const p = data.product;
+      if (!p) { toast.error("Não foi possível identificar o produto."); return; }
+      // Auto-fill form fields
+      const form = formRef.current;
+      if (form) {
+        const setVal = (name: string, val: string) => {
+          const input = form.querySelector(`[name="${name}"]`) as HTMLInputElement | null;
+          if (input) { const nativeSet = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set; nativeSet?.call(input, val); input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new Event('change', { bubbles: true })); }
+        };
+        if (p.name) setVal('name', p.name);
+        if (p.description) setVal('description', p.description);
+        if (p.brand) setVal('brand', p.brand);
+        if (p.estimatedPrice) setVal('salePrice', String(p.estimatedPrice));
+      }
+      // Handle category select separately via state
+      if (p.category) setAiCategory(p.category);
+      toast.success("Produto identificado com sucesso!");
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao identificar produto.");
+    } finally {
+      setIdentifying(false);
+    }
+  }
+
   async function uploadImage(productId: string): Promise<string | null> {
     if (!imageFile) return null;
     setUploadingImage(true);
