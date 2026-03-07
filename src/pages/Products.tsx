@@ -209,6 +209,7 @@ export default function Products() {
       setImagePreview(null);
     }
     setImageFile(null);
+    setAiCategory(null);
     setOpen(true);
   }
 
