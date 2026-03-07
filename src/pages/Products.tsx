@@ -27,6 +27,7 @@ export default function Products() {
   const [search, setSearch] = useState("");
   const [importing, setImporting] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [aiCategory, setAiCategory] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [identifying, setIdentifying] = useState(false);
