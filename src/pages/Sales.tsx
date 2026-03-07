@@ -124,25 +124,31 @@ export default function Sales() {
   }
 
   async function finalizeSale() {
+    if (isProcessing) return;
     if (!hasOpenRegister) { toast.error("Abra o caixa antes de registrar vendas"); return; }
     if (cart.length === 0) { toast.error("Adicione itens à venda"); return; }
     if (paymentMethod === 'fiado' && !clientId) { toast.error("Selecione um cliente para fiado"); return; }
     const clientName = clientId ? clients.find(c => c.id === clientId)?.name : undefined;
     const receiptItems = cart.map(i => ({ productName: i.productName, quantity: i.quantity, unitPrice: i.unitPrice, subtotal: i.subtotal }));
 
-    const success = await addSale(cart, paymentMethod, clientId || undefined);
-    if (!success) return;
+    setIsProcessing(true);
+    try {
+      const success = await addSale(cart, paymentMethod, clientId || undefined);
+      if (!success) return;
 
-    setReceiptData({
-      date: new Date().toLocaleString('pt-BR'),
-      items: receiptItems,
-      total,
-      paymentMethod,
-      clientName,
-    });
-    setShowReceipt(true);
-    clearCart();
-    toast.success("Venda registrada com sucesso!");
+      setReceiptData({
+        date: new Date().toLocaleString('pt-BR'),
+        items: receiptItems,
+        total,
+        paymentMethod,
+        clientName,
+      });
+      setShowReceipt(true);
+      clearCart();
+      toast.success("Venda registrada com sucesso!");
+    } finally {
+      setIsProcessing(false);
+    }
   }
 
   if (showHistory) {
