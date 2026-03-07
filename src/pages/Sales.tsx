@@ -1,5 +1,7 @@
-import { useState, useMemo } from "react";
-import { ImageIcon } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { ImageIcon, AlertTriangle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { useApp } from "@/contexts/AppContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +34,7 @@ interface CartItem {
 }
 
 export default function Sales() {
+  const { user } = useAuth();
   const { products, sales, clients, addSale, deleteSale, refresh } = useApp();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("todos");
@@ -39,11 +42,26 @@ export default function Sales() {
   const [paymentMethod, setPaymentMethod] = useState<string>("dinheiro");
   const [clientId, setClientId] = useState("");
   const [showHistory, setShowHistory] = useState(false);
+  const [hasOpenRegister, setHasOpenRegister] = useState<boolean | null>(null);
   const [receiptData, setReceiptData] = useState<{
     date: string; items: { productName: string; quantity: number; unitPrice: number; subtotal: number }[];
     total: number; paymentMethod: string; clientName?: string;
   } | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
+
+  useEffect(() => {
+    async function checkRegister() {
+      if (!user) return;
+      const { data } = await supabase
+        .from("cash_registers")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("status", "aberto")
+        .limit(1);
+      setHasOpenRegister(data && data.length > 0);
+    }
+    checkRegister();
+  }, [user]);
 
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const total = cart.reduce((s, i) => s + i.subtotal, 0);
@@ -58,6 +76,7 @@ export default function Sales() {
   }, [products, search, categoryFilter]);
 
   function addToCart(productId: string) {
+    if (!hasOpenRegister) { toast.error("Abra o caixa antes de registrar vendas"); return; }
     const product = products.find(p => p.id === productId);
     if (!product) return;
     const existing = cart.find(i => i.productId === productId);
@@ -104,6 +123,7 @@ export default function Sales() {
   }
 
   async function finalizeSale() {
+    if (!hasOpenRegister) { toast.error("Abra o caixa antes de registrar vendas"); return; }
     if (cart.length === 0) { toast.error("Adicione itens à venda"); return; }
     if (paymentMethod === 'fiado' && !clientId) { toast.error("Selecione um cliente para fiado"); return; }
     const clientName = clientId ? clients.find(c => c.id === clientId)?.name : undefined;
@@ -217,7 +237,20 @@ export default function Sales() {
           </Button>
         </div>
 
-        {/* Search + Category filter */}
+        {hasOpenRegister === false && (
+          <div className="flex items-center gap-3 p-4 mb-3 rounded-xl border-2 border-destructive/30 bg-destructive/10 text-destructive">
+            <AlertTriangle className="h-5 w-5 shrink-0" />
+            <div className="flex-1">
+              <p className="font-semibold text-sm">Caixa fechado</p>
+              <p className="text-xs opacity-80">Abra o caixa antes de registrar vendas.</p>
+            </div>
+            <Button size="sm" variant="destructive" onClick={() => window.location.href = '/caixa'}>
+              Abrir Caixa
+            </Button>
+          </div>
+        )}
+
+
         <div className="flex gap-2 mb-3 flex-wrap">
           <div className="relative flex-1 min-w-[180px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
