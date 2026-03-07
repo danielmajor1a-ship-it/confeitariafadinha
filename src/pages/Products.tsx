@@ -20,7 +20,7 @@ interface ProductWithHistory extends Tables<'products'> {
 }
 
 export default function Products() {
-  const { products, addProduct, updateProduct, deleteProduct } = useApp();
+  const { products, addProduct, updateProduct, deleteProduct, refresh } = useApp();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<ProductWithHistory | null>(null);
   const [historyProduct, setHistoryProduct] = useState<ProductWithHistory | null>(null);
