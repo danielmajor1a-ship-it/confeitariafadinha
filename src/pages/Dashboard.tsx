@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, CartesianGrid } from "recharts";
-import { Package, ShoppingCart, DollarSign, AlertTriangle, TrendingUp, Users, CreditCard, TrendingDown } from "lucide-react";
+import { Package, ShoppingCart, DollarSign, AlertTriangle, TrendingUp, Users, CreditCard, TrendingDown, Smartphone } from "lucide-react";
 
 const COLORS = ["hsl(345,70%,75%)", "hsl(25,52%,28%)", "hsl(345,60%,55%)", "hsl(40,30%,70%)", "hsl(142,60%,40%)", "hsl(38,92%,50%)"];
 
@@ -20,12 +20,15 @@ export default function Dashboard() {
     return sales.filter(s => new Date(s.created_at) >= cutoff);
   }, [sales, period]);
 
+  // Use sale_payments for accurate breakdowns
+  const allPayments = useMemo(() => filtered.flatMap(s => s.payments || []), [filtered]);
   const totalRevenue = filtered.reduce((s, v) => s + v.total, 0);
-  const cashTotal = filtered.filter(s => s.payment_method === 'dinheiro').reduce((s, v) => s + v.total, 0);
-  const creditTotal = filtered.filter(s => s.payment_method === 'credito').reduce((s, v) => s + v.total, 0);
-  const debitTotal = filtered.filter(s => s.payment_method === 'debito').reduce((s, v) => s + v.total, 0);
-  const cardTotal = creditTotal + debitTotal;
-  const fiadoTotal = filtered.filter(s => s.payment_method === 'fiado').reduce((s, v) => s + v.total, 0);
+  const cashTotal = allPayments.filter(p => p.payment_method === 'dinheiro').reduce((s, p) => s + p.amount, 0);
+  const pixTotal = allPayments.filter(p => p.payment_method === 'pix').reduce((s, p) => s + p.amount, 0);
+  const creditTotal = allPayments.filter(p => p.payment_method === 'credito').reduce((s, p) => s + p.amount, 0);
+  const debitTotal = allPayments.filter(p => p.payment_method === 'debito').reduce((s, p) => s + p.amount, 0);
+  const fiadoTotal = allPayments.filter(p => p.payment_method === 'fiado').reduce((s, p) => s + p.amount, 0);
+  const totalTax = allPayments.reduce((s, p) => s + p.card_tax_amount, 0);
   const lowStock = products.filter(p => p.stock <= p.low_stock_threshold).length;
   const totalDebt = clients.reduce((s, c) => s + c.total_owed, 0);
 
@@ -43,6 +46,7 @@ export default function Dashboard() {
 
   const paymentPie = [
     { name: "Dinheiro", value: cashTotal },
+    { name: "PIX", value: pixTotal },
     { name: "Crédito", value: creditTotal },
     { name: "Débito", value: debitTotal },
     { name: "Fiado", value: fiadoTotal },
@@ -74,13 +78,14 @@ export default function Dashboard() {
         </Select>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-9 gap-3">
         <StatCard icon={DollarSign} label="Faturamento" value={fmt(totalRevenue)} color="text-success" />
         <StatCard icon={ShoppingCart} label="Vendas" value={filtered.length.toString()} color="text-pink" />
         <StatCard icon={DollarSign} label="Dinheiro" value={fmt(cashTotal)} color="text-success" />
+        <StatCard icon={Smartphone} label="PIX" value={fmt(pixTotal)} color="text-primary" />
         <StatCard icon={CreditCard} label="Crédito" value={fmt(creditTotal)} color="text-chocolate" />
         <StatCard icon={CreditCard} label="Débito" value={fmt(debitTotal)} color="text-chocolate" />
-        <StatCard icon={TrendingDown} label="Taxas Cartão" value={fmt(creditTotal * rates.credit_rate / 100 + debitTotal * rates.debit_rate / 100)} color="text-destructive" />
+        <StatCard icon={TrendingDown} label="Taxas Cartão" value={fmt(totalTax)} color="text-destructive" />
         <StatCard icon={Users} label="Fiado Total" value={fmt(totalDebt)} color="text-warning" />
         <StatCard icon={AlertTriangle} label="Estoque Baixo" value={lowStock.toString()} color="text-destructive" />
       </div>
