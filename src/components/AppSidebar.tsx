@@ -42,7 +42,7 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const location = useLocation();
   const { signOut } = useAuth();
-  const { isAdmin, canAccess } = useUserRole();
+  const { isAdmin, canAccess, loading } = useUserRole();
 
   if (loading) {
     return (
