@@ -500,6 +500,7 @@ export default function CashRegisterPage() {
                         <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Saídas</p><p className="font-bold text-destructive">{fmt(totalSaidas)}</p></CardContent></Card>
                         <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Dinheiro</p><p className="font-bold">{fmt(totalDinheiro)}</p></CardContent></Card>
                         <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Cartão</p><p className="font-bold">{fmt(totalCartao)}</p></CardContent></Card>
+                        <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">PIX</p><p className="font-bold">{fmt(totalPix)}</p></CardContent></Card>
                         <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Fiado</p><p className="font-bold">{fmt(totalFiado)}</p></CardContent></Card>
                         <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Saldo Final</p><p className="font-bold text-primary">{fmt(saldoAtual)}</p></CardContent></Card>
                       </div>
