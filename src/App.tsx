@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppProvider } from "@/contexts/AppContext";
 import Layout from "@/components/Layout";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import Dashboard from "@/pages/Dashboard";
 import Products from "@/pages/Products";
 import Stock from "@/pages/Stock";
@@ -44,18 +45,18 @@ function ProtectedRoutes() {
     <AppProvider>
       <Layout>
         <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/produtos" element={<Products />} />
-          <Route path="/estoque" element={<Stock />} />
-          <Route path="/vendas" element={<Sales />} />
-          <Route path="/clientes" element={<Clients />} />
-          <Route path="/financeiro" element={<Financial />} />
-          <Route path="/receitas" element={<Recipes />} />
-          <Route path="/custos" element={<Costs />} />
-          <Route path="/precificacao" element={<Pricing />} />
-          <Route path="/caixa" element={<CashRegister />} />
-          <Route path="/alertas-estoque" element={<StockAlerts />} />
-          <Route path="/usuarios" element={<UserManagement />} />
+          <Route path="/" element={<ProtectedRoute tabKey="dashboard"><Dashboard /></ProtectedRoute>} />
+          <Route path="/produtos" element={<ProtectedRoute tabKey="produtos"><Products /></ProtectedRoute>} />
+          <Route path="/estoque" element={<ProtectedRoute tabKey="estoque"><Stock /></ProtectedRoute>} />
+          <Route path="/vendas" element={<ProtectedRoute tabKey="vendas"><Sales /></ProtectedRoute>} />
+          <Route path="/clientes" element={<ProtectedRoute tabKey="clientes"><Clients /></ProtectedRoute>} />
+          <Route path="/financeiro" element={<ProtectedRoute tabKey="financeiro"><Financial /></ProtectedRoute>} />
+          <Route path="/receitas" element={<ProtectedRoute tabKey="receitas"><Recipes /></ProtectedRoute>} />
+          <Route path="/custos" element={<ProtectedRoute tabKey="custos"><Costs /></ProtectedRoute>} />
+          <Route path="/precificacao" element={<ProtectedRoute tabKey="precificacao"><Pricing /></ProtectedRoute>} />
+          <Route path="/caixa" element={<ProtectedRoute tabKey="caixa"><CashRegister /></ProtectedRoute>} />
+          <Route path="/alertas-estoque" element={<ProtectedRoute tabKey="alertas-estoque"><StockAlerts /></ProtectedRoute>} />
+          <Route path="/usuarios" element={<ProtectedRoute tabKey="usuarios"><UserManagement /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Layout>
