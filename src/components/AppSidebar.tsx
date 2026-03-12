@@ -44,6 +44,33 @@ export function AppSidebar() {
   const { signOut } = useAuth();
   const { isAdmin, canAccess } = useUserRole();
 
+  if (loading) {
+    return (
+      <Sidebar collapsible="icon">
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupLabel className="gap-2 text-sm">
+              <Cake className="h-5 w-5 text-pink" />
+              {!collapsed && <span className="font-display font-semibold text-foreground">Confeitaria</span>}
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {[1,2,3,4].map(i => (
+                  <SidebarMenuItem key={i}>
+                    <SidebarMenuButton className="animate-pulse">
+                      <div className="h-4 w-4 rounded bg-muted" />
+                      {!collapsed && <div className="h-4 w-24 rounded bg-muted" />}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+      </Sidebar>
+    );
+  }
+
   const visibleItems = items.filter((item) => canAccess(item.key));
 
   return (
