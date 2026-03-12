@@ -7,9 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, CreditCard, Banknote, AlertCircle, TrendingDown, Receipt } from "lucide-react";
-
-const PAYMENT_LABELS: Record<string, string> = { dinheiro: 'Dinheiro', credito: 'Crédito', debito: 'Débito', fiado: 'Fiado' };
+import { DollarSign, CreditCard, Banknote, AlertCircle, TrendingDown, Smartphone } from "lucide-react";
+import { PAYMENT_LABELS } from "@/types";
 
 export default function Financial() {
   const { sales, clients } = useApp();
@@ -24,19 +23,21 @@ export default function Financial() {
     return sales.filter(s => new Date(s.created_at) >= cutoff);
   }, [sales, period]);
 
-  const cashTotal = filtered.filter(s => s.payment_method === 'dinheiro').reduce((s, v) => s + v.total, 0);
-  const creditTotal = filtered.filter(s => s.payment_method === 'credito').reduce((s, v) => s + v.total, 0);
-  const debitTotal = filtered.filter(s => s.payment_method === 'debito').reduce((s, v) => s + v.total, 0);
-  const cardTotal = creditTotal + debitTotal;
-  const fiadoTotal = filtered.filter(s => s.payment_method === 'fiado').reduce((s, v) => s + v.total, 0);
-  const total = cashTotal + cardTotal + fiadoTotal;
+  // Use sale_payments for accurate breakdown
+  const allPayments = useMemo(() => filtered.flatMap(s => s.payments || []), [filtered]);
+  const cashTotal = allPayments.filter(p => p.payment_method === 'dinheiro').reduce((s, p) => s + p.amount, 0);
+  const pixTotal = allPayments.filter(p => p.payment_method === 'pix').reduce((s, p) => s + p.amount, 0);
+  const creditTotal = allPayments.filter(p => p.payment_method === 'credito').reduce((s, p) => s + p.amount, 0);
+  const debitTotal = allPayments.filter(p => p.payment_method === 'debito').reduce((s, p) => s + p.amount, 0);
+  const fiadoTotal = allPayments.filter(p => p.payment_method === 'fiado').reduce((s, p) => s + p.amount, 0);
+  const total = filtered.reduce((s, v) => s + v.total, 0);
   const totalDebt = clients.reduce((s, c) => s + c.total_owed, 0);
 
-  // Tax calculations
-  const creditTax = creditTotal * (rates.credit_rate / 100);
-  const debitTax = debitTotal * (rates.debit_rate / 100);
+  // Tax calculations from sale_payments
+  const creditTax = allPayments.filter(p => p.payment_method === 'credito').reduce((s, p) => s + p.card_tax_amount, 0);
+  const debitTax = allPayments.filter(p => p.payment_method === 'debito').reduce((s, p) => s + p.card_tax_amount, 0);
   const totalTax = creditTax + debitTax;
-  const netCard = cardTotal - totalTax;
+  const netCard = creditTotal + debitTotal - totalTax;
   const netTotal = total - totalTax;
 
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -56,7 +57,7 @@ export default function Financial() {
         </Select>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <Card className="stat-card border-none">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-secondary text-success"><DollarSign className="h-5 w-5" /></div>
@@ -67,6 +68,12 @@ export default function Financial() {
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-secondary text-success"><Banknote className="h-5 w-5" /></div>
             <div><p className="text-xs text-muted-foreground">Dinheiro</p><p className="text-xl font-bold font-display">{fmt(cashTotal)}</p></div>
+          </div>
+        </Card>
+        <Card className="stat-card border-none">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-secondary text-primary"><Smartphone className="h-5 w-5" /></div>
+            <div><p className="text-xs text-muted-foreground">PIX</p><p className="text-xl font-bold font-display">{fmt(pixTotal)}</p></div>
           </div>
         </Card>
         <Card className="stat-card border-none">
@@ -90,7 +97,7 @@ export default function Financial() {
       </div>
 
       {/* Tax summary card */}
-      {(rates.credit_rate > 0 || rates.debit_rate > 0) && (
+      {totalTax > 0 && (
         <Card className="border-2 border-warning/20 bg-warning/5">
           <CardContent className="py-4">
             <div className="flex items-center gap-3 mb-3">
@@ -102,11 +109,11 @@ export default function Financial() {
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
               <div className="p-2 rounded-lg bg-card">
-                <p className="text-xs text-muted-foreground">Taxa Crédito ({rates.credit_rate}%)</p>
+                <p className="text-xs text-muted-foreground">Taxa Crédito</p>
                 <p className="font-bold text-destructive">{fmt(creditTax)}</p>
               </div>
               <div className="p-2 rounded-lg bg-card">
-                <p className="text-xs text-muted-foreground">Taxa Débito ({rates.debit_rate}%)</p>
+                <p className="text-xs text-muted-foreground">Taxa Débito</p>
                 <p className="font-bold text-destructive">{fmt(debitTax)}</p>
               </div>
               <div className="p-2 rounded-lg bg-card">
@@ -130,31 +137,40 @@ export default function Financial() {
               <Table>
                 <TableHeader><TableRow>
                   <TableHead>Data</TableHead><TableHead>Itens</TableHead><TableHead>Pagamento</TableHead><TableHead>Bruto</TableHead>
-                  {(rates.credit_rate > 0 || rates.debit_rate > 0) && <TableHead>Taxa</TableHead>}
-                  {(rates.credit_rate > 0 || rates.debit_rate > 0) && <TableHead>Líquido</TableHead>}
+                  {totalTax > 0 && <TableHead>Taxa</TableHead>}
+                  {totalTax > 0 && <TableHead>Líquido</TableHead>}
                 </TableRow></TableHeader>
                 <TableBody>
                   {filtered.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhuma venda no período</TableCell></TableRow>}
                   {filtered.map(s => {
-                    const taxRate = s.payment_method === 'credito' ? rates.credit_rate : s.payment_method === 'debito' ? rates.debit_rate : 0;
-                    const tax = s.total * (taxRate / 100);
-                    const net = s.total - tax;
+                    const saleTax = (s.payments || []).reduce((sum, p) => sum + p.card_tax_amount, 0);
+                    const saleNet = s.total - saleTax;
                     return (
                       <TableRow key={s.id}>
                         <TableCell>{new Date(s.created_at).toLocaleDateString('pt-BR')}</TableCell>
                         <TableCell>{s.items.map(i => i.product_name).join(', ')}</TableCell>
                         <TableCell>
-                          <Badge variant="secondary">{PAYMENT_LABELS[s.payment_method] || s.payment_method}</Badge>
+                          {s.payments && s.payments.length > 1 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {s.payments.map((p, i) => (
+                                <Badge key={i} variant="secondary" className="text-xs">
+                                  {PAYMENT_LABELS[p.payment_method] || p.payment_method}
+                                </Badge>
+                              ))}
+                            </div>
+                          ) : (
+                            <Badge variant="secondary">{PAYMENT_LABELS[s.payment_method] || s.payment_method}</Badge>
+                          )}
                         </TableCell>
                         <TableCell className="font-semibold">{fmt(s.total)}</TableCell>
-                        {(rates.credit_rate > 0 || rates.debit_rate > 0) && (
-                          <TableCell className={tax > 0 ? "text-destructive" : "text-muted-foreground"}>
-                            {tax > 0 ? `-${fmt(tax)}` : "-"}
+                        {totalTax > 0 && (
+                          <TableCell className={saleTax > 0 ? "text-destructive" : "text-muted-foreground"}>
+                            {saleTax > 0 ? `-${fmt(saleTax)}` : "-"}
                           </TableCell>
                         )}
-                        {(rates.credit_rate > 0 || rates.debit_rate > 0) && (
+                        {totalTax > 0 && (
                           <TableCell className="font-semibold text-success">
-                            {tax > 0 ? fmt(net) : fmt(s.total)}
+                            {saleTax > 0 ? fmt(saleNet) : fmt(s.total)}
                           </TableCell>
                         )}
                       </TableRow>
@@ -166,7 +182,6 @@ export default function Financial() {
           </Card>
         </div>
 
-        {/* Admin card rates settings */}
         {isAdmin && (
           <div>
             <CardRatesSettings />

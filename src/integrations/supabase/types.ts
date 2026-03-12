@@ -17,6 +17,7 @@ export type Database = {
       card_rates: {
         Row: {
           created_at: string
+          credit_installment_rates: Json | null
           credit_rate: number
           debit_rate: number
           id: string
@@ -25,6 +26,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          credit_installment_rates?: Json | null
           credit_rate?: number
           debit_rate?: number
           id?: string
@@ -33,6 +35,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          credit_installment_rates?: Json | null
           credit_rate?: number
           debit_rate?: number
           id?: string
@@ -144,6 +147,7 @@ export type Database = {
           total_debit_sales: number
           total_expenses: number
           total_fiado_received: number
+          total_pix_sales: number
           total_sangrias: number
           user_id: string
         }
@@ -160,6 +164,7 @@ export type Database = {
           total_debit_sales?: number
           total_expenses?: number
           total_fiado_received?: number
+          total_pix_sales?: number
           total_sangrias?: number
           user_id: string
         }
@@ -176,6 +181,7 @@ export type Database = {
           total_debit_sales?: number
           total_expenses?: number
           total_fiado_received?: number
+          total_pix_sales?: number
           total_sangrias?: number
           user_id?: string
         }
@@ -502,6 +508,50 @@ export type Database = {
           },
         ]
       }
+      sale_payments: {
+        Row: {
+          amount: number
+          card_tax_amount: number | null
+          card_tax_rate: number | null
+          created_at: string
+          id: string
+          installments: number | null
+          net_amount: number | null
+          payment_method: string
+          sale_id: string
+        }
+        Insert: {
+          amount?: number
+          card_tax_amount?: number | null
+          card_tax_rate?: number | null
+          created_at?: string
+          id?: string
+          installments?: number | null
+          net_amount?: number | null
+          payment_method?: string
+          sale_id: string
+        }
+        Update: {
+          amount?: number
+          card_tax_amount?: number | null
+          card_tax_rate?: number | null
+          created_at?: string
+          id?: string
+          installments?: number | null
+          net_amount?: number | null
+          payment_method?: string
+          sale_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_payments_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales: {
         Row: {
           client_id: string | null
@@ -604,10 +654,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      create_sale_with_items: {
-        Args: { _client_id?: string; _items: Json; _payment_method: string }
-        Returns: string
-      }
+      create_sale_with_items:
+        | {
+            Args: { _client_id?: string; _items: Json; _payment_method: string }
+            Returns: string
+          }
+        | {
+            Args: {
+              _client_id?: string
+              _items: Json
+              _payment_method: string
+              _payments?: Json
+            }
+            Returns: string
+          }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

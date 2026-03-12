@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import type { Tables } from '@/integrations/supabase/types';
+import type { PaymentEntry } from '@/types';
 
 type Product = Tables<'products'>;
 type PriceHistory = Tables<'price_history'>;
@@ -14,6 +15,18 @@ type Recipe = Tables<'recipes'>;
 type RecipeIngredient = Tables<'recipe_ingredients'>;
 type Cost = Tables<'costs'>;
 
+export interface SalePayment {
+  id: string;
+  sale_id: string;
+  payment_method: string;
+  amount: number;
+  installments: number;
+  card_tax_rate: number;
+  card_tax_amount: number;
+  net_amount: number;
+  created_at: string;
+}
+
 interface ProductWithHistory extends Product {
   priceHistory: PriceHistory[];
 }
@@ -24,6 +37,7 @@ interface RecipeWithIngredients extends Recipe {
 
 interface SaleWithItems extends Sale {
   items: SaleItem[];
+  payments: SalePayment[];
 }
 
 interface AppContextType {
@@ -37,7 +51,7 @@ interface AppContextType {
   addProduct: (p: { name: string; description: string; brand: string; category: string; purchasePrice: number; salePrice: number; stock: number; lowStockThreshold: number }) => Promise<void>;
   updateProduct: (p: ProductWithHistory) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
-  addSale: (items: { productId: string; productName: string; quantity: number; unitPrice: number; subtotal: number }[], paymentMethod: string, clientId?: string) => Promise<boolean>;
+  addSale: (items: { productId: string; productName: string; quantity: number; unitPrice: number; subtotal: number }[], paymentMethod: string, clientId?: string, payments?: PaymentEntry[]) => Promise<boolean>;
   deleteSale: (id: string) => Promise<void>;
   addClient: (c: { name: string; phone: string; email?: string }) => Promise<void>;
   updateClient: (c: Client) => Promise<void>;
@@ -78,7 +92,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ]);
 
       const productsData = pRes.data || [];
-      // Load price history for all products
       const phRes = await supabase.from('price_history').select('*').in('product_id', productsData.map(p => p.id)).order('recorded_at');
       const phMap: Record<string, PriceHistory[]> = {};
       (phRes.data || []).forEach(ph => {
@@ -89,19 +102,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       setClients(cRes.data || []);
 
-      // Load sale items
+      // Load sales with items and payments
       const salesData = sRes.data || [];
-      const siRes = await supabase.from('sale_items').select('*').in('sale_id', salesData.map(s => s.id));
+      const [siRes, spRes] = await Promise.all([
+        supabase.from('sale_items').select('*').in('sale_id', salesData.map(s => s.id)),
+        supabase.from('sale_payments' as any).select('*').in('sale_id', salesData.map(s => s.id)),
+      ]);
       const siMap: Record<string, SaleItem[]> = {};
-      (siRes.data || []).forEach(si => {
+      (siRes.data || []).forEach((si: any) => {
         if (!siMap[si.sale_id]) siMap[si.sale_id] = [];
         siMap[si.sale_id].push(si);
       });
-      setSales(salesData.map(s => ({ ...s, items: siMap[s.id] || [] })));
+      const spMap: Record<string, SalePayment[]> = {};
+      ((spRes.data || []) as any[]).forEach((sp: any) => {
+        if (!spMap[sp.sale_id]) spMap[sp.sale_id] = [];
+        spMap[sp.sale_id].push(sp);
+      });
+      setSales(salesData.map(s => ({ ...s, items: siMap[s.id] || [], payments: spMap[s.id] || [] })));
 
       setStockMovements(smRes.data || []);
 
-      // Load recipe ingredients
       const recipesData = rRes.data || [];
       const riRes = await supabase.from('recipe_ingredients').select('*').in('recipe_id', recipesData.map(r => r.id));
       const riMap: Record<string, RecipeIngredient[]> = {};
@@ -153,29 +173,38 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await refresh();
   }, [refresh]);
 
-  const addSale = useCallback(async (items: { productId: string; productName: string; quantity: number; unitPrice: number; subtotal: number }[], paymentMethod: string, clientId?: string) => {
+  const addSale = useCallback(async (
+    items: { productId: string; productName: string; quantity: number; unitPrice: number; subtotal: number }[],
+    paymentMethod: string,
+    clientId?: string,
+    payments?: PaymentEntry[]
+  ) => {
     if (!user) return false;
-
     try {
       const payload = items.map((i) => ({
-        product_id: i.productId,
-        product_name: i.productName,
-        quantity: i.quantity,
-        unit_price: i.unitPrice,
-        subtotal: i.subtotal,
+        product_id: i.productId, product_name: i.productName,
+        quantity: i.quantity, unit_price: i.unitPrice, subtotal: i.subtotal,
       }));
+
+      const paymentsPayload = payments ? payments.map(p => ({
+        method: p.method, amount: p.amount,
+        installments: p.installments || 1,
+        tax_rate: p.tax_rate || 0,
+        tax_amount: p.tax_amount || 0,
+        net_amount: p.net_amount || p.amount,
+      })) : null;
 
       const { error } = await supabase.rpc('create_sale_with_items', {
         _items: payload,
         _payment_method: paymentMethod,
         _client_id: clientId || null,
-      });
+        _payments: paymentsPayload,
+      } as any);
 
       if (error) {
         toast.error(error.message || 'Não foi possível finalizar a venda');
         return false;
       }
-
       await refresh();
       return true;
     } catch (err) {
@@ -196,15 +225,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         await supabase.from('products').update({ stock: product.stock + item.quantity }).eq('id', item.product_id);
       }
     }
-    // Restore client debt if fiado
-    if (sale.payment_method === 'fiado' && sale.client_id) {
-      const client = clients.find(c => c.id === sale.client_id);
-      if (client) {
-        await supabase.from('clients').update({ total_owed: Math.max(0, client.total_owed - sale.total) }).eq('id', sale.client_id);
+    // Restore client debt for fiado payments
+    if (sale.client_id) {
+      const fiadoPayments = sale.payments.filter(p => p.payment_method === 'fiado');
+      if (fiadoPayments.length > 0) {
+        const fiadoTotal = fiadoPayments.reduce((s, p) => s + p.amount, 0);
+        const client = clients.find(c => c.id === sale.client_id);
+        if (client) {
+          await supabase.from('clients').update({ total_owed: Math.max(0, client.total_owed - fiadoTotal) }).eq('id', sale.client_id);
+        }
       }
     }
-    // Delete stock movements, sale items, then sale
+    // Delete stock movements, sale payments, sale items, then sale
     await supabase.from('stock_movements').delete().eq('reference', id);
+    await supabase.from('sale_payments' as any).delete().eq('sale_id', id);
     await supabase.from('sale_items').delete().eq('sale_id', id);
     await supabase.from('sales').delete().eq('id', id);
     await refresh();
@@ -235,9 +269,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!client) return;
     const { error } = await supabase.from('clients').update({ total_owed: Math.max(0, client.total_owed - amount) }).eq('id', clientId);
     if (error) { toast.error(error.message); return; }
-    // Mark pending sales as paid
     await supabase.from('sales').update({ status: 'pago' }).eq('client_id', clientId).eq('status', 'pendente');
-    // Auto-register cash movement for fiado payment
     const { data: openReg } = await supabase.from('cash_registers').select('id').eq('user_id', user.id).eq('status', 'aberto').maybeSingle();
     if (openReg) {
       await supabase.from('cash_movements').insert({
@@ -274,7 +306,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const updateRecipe = useCallback(async (r: RecipeWithIngredients) => {
     const { error } = await supabase.from('recipes').update({ name: r.name, instructions: r.instructions, notes: r.notes }).eq('id', r.id);
     if (error) { toast.error(error.message); return; }
-    // Replace ingredients
     await supabase.from('recipe_ingredients').delete().eq('recipe_id', r.id);
     if (r.ingredients.length > 0) {
       await supabase.from('recipe_ingredients').insert(r.ingredients.map(i => ({
