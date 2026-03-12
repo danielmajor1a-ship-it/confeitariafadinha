@@ -193,12 +193,13 @@ export default function CashRegisterPage() {
       difference: diff,
       notes: verifyNotes,
       total_cash_sales: totalDinheiro,
-      total_credit_sales: totalCartaoCredito + entradas.filter((m) => m.payment_method === "cartao").reduce((s, m) => s + m.amount, 0),
+      total_credit_sales: totalCartaoCredito,
       total_debit_sales: totalCartaoDebito,
+      total_pix_sales: totalPix,
       total_fiado_received: totalFiado,
       total_sangrias: totalSangrias,
       total_expenses: totalDespesas,
-    });
+    } as any);
     if (error) { toast.error(error.message); return; }
     toast.success("Conferência registrada com sucesso!");
     setVerifyDialogOpen(false);
