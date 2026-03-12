@@ -409,6 +409,10 @@ export default function CashRegisterPage() {
                         <p className="font-bold text-sm">{fmt(totalCartaoDebito)}</p>
                       </CardContent></Card>
                       <Card><CardContent className="p-3">
+                        <p className="text-xs text-muted-foreground">PIX</p>
+                        <p className="font-bold text-sm">{fmt(totalPix)}</p>
+                      </CardContent></Card>
+                      <Card><CardContent className="p-3">
                         <p className="text-xs text-muted-foreground">Recebido Fiado</p>
                         <p className="font-bold text-sm">{fmt(totalFiado)}</p>
                       </CardContent></Card>
