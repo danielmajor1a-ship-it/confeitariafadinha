@@ -134,10 +134,11 @@ export default function CashRegisterPage() {
   const saldoAtual = (openRegister?.initial_amount || 0) + totalEntradas - totalSaidas;
 
   const totalDinheiro = entradas.filter((m) => m.payment_method === "dinheiro").reduce((s, m) => s + m.amount, 0);
-  const totalCartaoCredito = entradas.filter((m) => m.payment_method === "cartao_credito").reduce((s, m) => s + m.amount, 0);
-  const totalCartaoDebito = entradas.filter((m) => m.payment_method === "cartao_debito").reduce((s, m) => s + m.amount, 0);
-  const totalCartao = entradas.filter((m) => m.payment_method === "cartao" || m.payment_method === "cartao_credito" || m.payment_method === "cartao_debito").reduce((s, m) => s + m.amount, 0);
-  const totalFiado = entradas.filter((m) => m.category === "recebimento_fiado").reduce((s, m) => s + m.amount, 0);
+  const totalPix = entradas.filter((m) => m.payment_method === "pix").reduce((s, m) => s + m.amount, 0);
+  const totalCartaoCredito = entradas.filter((m) => m.payment_method === "cartao_credito" || m.payment_method === "credito").reduce((s, m) => s + m.amount, 0);
+  const totalCartaoDebito = entradas.filter((m) => m.payment_method === "cartao_debito" || m.payment_method === "debito").reduce((s, m) => s + m.amount, 0);
+  const totalCartao = entradas.filter((m) => ["cartao", "cartao_credito", "cartao_debito", "credito", "debito"].includes(m.payment_method || "")).reduce((s, m) => s + m.amount, 0);
+  const totalFiado = entradas.filter((m) => m.category === "recebimento_fiado" || m.payment_method === "fiado").reduce((s, m) => s + m.amount, 0);
   const totalSangrias = saidas.filter((m) => m.category === "sangria").reduce((s, m) => s + m.amount, 0);
   const totalDespesas = saidas.filter((m) => m.category === "despesa").reduce((s, m) => s + m.amount, 0);
 
