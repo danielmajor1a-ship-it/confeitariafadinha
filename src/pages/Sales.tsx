@@ -38,9 +38,10 @@ interface CartItem {
 }
 
 export default function Sales() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { products, sales, clients, addSale, deleteSale, refresh } = useApp();
   const { rates, getCreditRate } = useCardRates();
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("todos");
   const [cart, setCart] = useState<CartItem[]>([]);
