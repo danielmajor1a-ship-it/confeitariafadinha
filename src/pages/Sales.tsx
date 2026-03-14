@@ -65,18 +65,43 @@ export default function Sales() {
   const [amountReceived, setAmountReceived] = useState('');
 
   useEffect(() => {
+    let isCancelled = false;
+
     async function checkRegister() {
-      if (!user) return;
-      const { data } = await supabase
+      if (authLoading) {
+        setHasOpenRegister(null);
+        return;
+      }
+
+      if (!user) {
+        setHasOpenRegister(false);
+        return;
+      }
+
+      const { data, error } = await supabase
         .from("cash_registers")
         .select("id")
         .eq("user_id", user.id)
         .eq("status", "aberto")
         .limit(1);
-      setHasOpenRegister(data && data.length > 0);
+
+      if (isCancelled) return;
+
+      if (error) {
+        console.error("Erro ao verificar caixa aberto:", error);
+        setHasOpenRegister(false);
+        return;
+      }
+
+      setHasOpenRegister((data?.length ?? 0) > 0);
     }
+
     checkRegister();
-  }, [user]);
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [user, authLoading]);
 
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const total = cart.reduce((s, i) => s + i.subtotal, 0);
