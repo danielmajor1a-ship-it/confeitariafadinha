@@ -108,22 +108,37 @@ export default function CashRegisterPage() {
   const canClose = isAdmin || (profile?.can_register_cash ?? false);
 
   const refresh = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      setRegisters([]);
+      setMovements([]);
+      setVerifications([]);
+      setOpenRegister(null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     const [regRes, movRes, verRes] = await Promise.all([
       supabase.from("cash_registers").select("*").order("opened_at", { ascending: false }),
       supabase.from("cash_movements").select("*").order("created_at", { ascending: false }),
       supabase.from("cash_verifications").select("*").order("created_at", { ascending: false }),
     ]);
+
     const regs = (regRes.data || []) as CashRegister[];
     setRegisters(regs);
     setMovements((movRes.data || []) as CashMovement[]);
     setVerifications((verRes.data || []) as CashVerification[]);
-    setOpenRegister(regs.find((r) => r.status === "aberto") || null);
-    setLoading(false);
-  }, [user]);
 
-  useEffect(() => { refresh(); }, [refresh]);
+    const userOpenRegister = regs.find((r) => r.status === "aberto" && r.user_id === user.id) || null;
+    const adminOpenRegister = isAdmin ? regs.find((r) => r.status === "aberto") || null : null;
+    setOpenRegister(userOpenRegister ?? adminOpenRegister);
+    setLoading(false);
+  }, [user, isAdmin]);
+
+  useEffect(() => {
+    if (authLoading || roleLoading) return;
+    refresh();
+  }, [refresh, authLoading, roleLoading]);
 
   // Computed values for open register
   const currentMovements = openRegister ? movements.filter((m) => m.cash_register_id === openRegister.id) : [];
