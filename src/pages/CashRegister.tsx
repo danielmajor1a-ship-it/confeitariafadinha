@@ -79,8 +79,8 @@ const categoryLabels: Record<string, string> = {
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export default function CashRegisterPage() {
-  const { user } = useAuth();
-  const { isAdmin, profile } = useUserRole();
+  const { user, loading: authLoading } = useAuth();
+  const { isAdmin, profile, loading: roleLoading } = useUserRole();
   const [registers, setRegisters] = useState<CashRegister[]>([]);
   const [movements, setMovements] = useState<CashMovement[]>([]);
   const [verifications, setVerifications] = useState<CashVerification[]>([]);
