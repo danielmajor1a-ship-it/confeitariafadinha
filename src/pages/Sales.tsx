@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { ImageIcon, AlertTriangle, Calculator, Smartphone, Layers } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -37,9 +38,10 @@ interface CartItem {
 }
 
 export default function Sales() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { products, sales, clients, addSale, deleteSale, refresh } = useApp();
   const { rates, getCreditRate } = useCardRates();
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("todos");
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -63,18 +65,43 @@ export default function Sales() {
   const [amountReceived, setAmountReceived] = useState('');
 
   useEffect(() => {
+    let isCancelled = false;
+
     async function checkRegister() {
-      if (!user) return;
-      const { data } = await supabase
+      if (authLoading) {
+        setHasOpenRegister(null);
+        return;
+      }
+
+      if (!user) {
+        setHasOpenRegister(false);
+        return;
+      }
+
+      const { data, error } = await supabase
         .from("cash_registers")
         .select("id")
         .eq("user_id", user.id)
         .eq("status", "aberto")
         .limit(1);
-      setHasOpenRegister(data && data.length > 0);
+
+      if (isCancelled) return;
+
+      if (error) {
+        console.error("Erro ao verificar caixa aberto:", error);
+        setHasOpenRegister(false);
+        return;
+      }
+
+      setHasOpenRegister((data?.length ?? 0) > 0);
     }
+
     checkRegister();
-  }, [user]);
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [user, authLoading]);
 
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const total = cart.reduce((s, i) => s + i.subtotal, 0);
@@ -321,7 +348,7 @@ export default function Sales() {
               <p className="font-semibold text-sm">Caixa fechado</p>
               <p className="text-xs opacity-80">Abra o caixa antes de registrar vendas.</p>
             </div>
-            <Button size="sm" variant="destructive" onClick={() => window.location.href = '/caixa'}>
+            <Button size="sm" variant="destructive" onClick={() => navigate('/caixa')}>
               Abrir Caixa
             </Button>
           </div>
