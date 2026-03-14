@@ -348,7 +348,7 @@ export default function Sales() {
               <p className="font-semibold text-sm">Caixa fechado</p>
               <p className="text-xs opacity-80">Abra o caixa antes de registrar vendas.</p>
             </div>
-            <Button size="sm" variant="destructive" onClick={() => window.location.href = '/caixa'}>
+            <Button size="sm" variant="destructive" onClick={() => navigate('/caixa')}>
               Abrir Caixa
             </Button>
           </div>
