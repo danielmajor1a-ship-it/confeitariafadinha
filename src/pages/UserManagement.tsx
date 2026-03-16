@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,8 +10,9 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Shield, UserPlus, Users } from "lucide-react";
+import { Shield, UserPlus, Users, KeyRound, Eye, EyeOff } from "lucide-react";
 
 const ALL_TABS = [
   { key: "dashboard", label: "Dashboard" },
@@ -41,9 +43,17 @@ interface UserRow {
 
 export default function UserManagement() {
   const { isAdmin } = useUserRole();
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [editUser, setEditUser] = useState<UserRow | null>(null);
+  const [passwordDialog, setPasswordDialog] = useState<UserRow | null>(null);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPw, setShowCurrentPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [changingPw, setChangingPw] = useState(false);
 
   async function fetchUsers() {
     setLoading(true);
@@ -111,11 +121,60 @@ export default function UserManagement() {
     fetchUsers();
   }
 
-  async function handleResetPassword(userId: string) {
-    // Admin sends reset email - we need the user's email
-    // Since we can't access auth.users, we use supabase admin functionality via edge function
-    // For now, we'll use the profile's associated email from auth metadata
-    toast.info("Para resetar a senha, o usuário deve usar 'Esqueci minha senha' na tela de login.");
+  const passwordRules = [
+    { test: (p: string) => p.length >= 8, label: "Mínimo 8 caracteres" },
+    { test: (p: string) => /[A-Z]/.test(p), label: "Uma letra maiúscula" },
+    { test: (p: string) => /[a-z]/.test(p), label: "Uma letra minúscula" },
+    { test: (p: string) => /[0-9]/.test(p), label: "Um número" },
+    { test: (p: string) => /[^A-Za-z0-9]/.test(p), label: "Um caractere especial" },
+  ];
+
+  async function handleChangePassword() {
+    if (!passwordDialog) return;
+    if (newPassword !== confirmPassword) {
+      toast.error("As senhas não conferem");
+      return;
+    }
+    if (!passwordRules.every(r => r.test(newPassword))) {
+      toast.error("A senha não atende todos os requisitos");
+      return;
+    }
+    if (!isAdmin && !currentPassword) {
+      toast.error("Informe a senha atual");
+      return;
+    }
+    setChangingPw(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/change-password`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({
+            target_user_id: passwordDialog.user_id,
+            current_password: isAdmin ? undefined : currentPassword,
+            new_password: newPassword,
+          }),
+        }
+      );
+      const result = await res.json();
+      if (!res.ok) {
+        toast.error(result.error || "Erro ao alterar senha");
+      } else {
+        toast.success("Senha alterada com sucesso!");
+        setPasswordDialog(null);
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+      }
+    } catch {
+      toast.error("Erro inesperado ao alterar senha");
+    }
+    setChangingPw(false);
   }
 
   if (!isAdmin) {
@@ -163,6 +222,14 @@ export default function UserManagement() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => {
+                    setPasswordDialog(u);
+                    setCurrentPassword("");
+                    setNewPassword("");
+                    setConfirmPassword("");
+                  }}>
+                    <KeyRound className="h-3.5 w-3.5 mr-1" /> Senha
+                  </Button>
                   <Button variant="outline" size="sm" onClick={() => handleToggleActive(u)}>
                     {u.is_active ? "Desativar" : "Ativar"}
                   </Button>
@@ -256,6 +323,86 @@ export default function UserManagement() {
           ))}
         </div>
       )}
+      {/* Password Change Dialog */}
+      <Dialog open={!!passwordDialog} onOpenChange={(open) => { if (!open) setPasswordDialog(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5" /> Alterar Senha — {passwordDialog?.display_name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Non-admin must provide current password */}
+            {!isAdmin && (
+              <div>
+                <Label>Senha Atual</Label>
+                <div className="relative">
+                  <Input
+                    type={showCurrentPw ? "text" : "password"}
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Digite sua senha atual"
+                  />
+                  <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground" onClick={() => setShowCurrentPw(!showCurrentPw)}>
+                    {showCurrentPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <Label>Nova Senha</Label>
+              <div className="relative">
+                <Input
+                  type={showNewPw ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Digite a nova senha"
+                />
+                <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground" onClick={() => setShowNewPw(!showNewPw)}>
+                  {showNewPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <Label>Confirmar Nova Senha</Label>
+              <Input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirme a nova senha"
+              />
+              {confirmPassword && newPassword !== confirmPassword && (
+                <p className="text-xs text-destructive mt-1">As senhas não conferem</p>
+              )}
+            </div>
+
+            {/* Password strength indicators */}
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Requisitos da senha:</Label>
+              {passwordRules.map((rule, i) => (
+                <div key={i} className="flex items-center gap-2 text-xs">
+                  <span className={rule.test(newPassword) ? "text-green-500" : "text-muted-foreground"}>
+                    {rule.test(newPassword) ? "✓" : "○"}
+                  </span>
+                  <span className={rule.test(newPassword) ? "text-green-500" : "text-muted-foreground"}>
+                    {rule.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <Button
+              className="w-full"
+              onClick={handleChangePassword}
+              disabled={changingPw || !newPassword || newPassword !== confirmPassword || !passwordRules.every(r => r.test(newPassword))}
+            >
+              {changingPw ? "Alterando..." : "Alterar Senha"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
