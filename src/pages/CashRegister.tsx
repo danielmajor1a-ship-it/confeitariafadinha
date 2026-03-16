@@ -421,6 +421,7 @@ export default function CashRegisterPage() {
 
               {/* Verify (Conferir) button - available when "aberto" */}
               {openRegister.status === "aberto" && (
+              <Dialog open={verifyDialogOpen} onOpenChange={setVerifyDialogOpen}>
                 <DialogTrigger asChild>
                   <Button variant="secondary" className="gap-2"><ClipboardCheck className="h-4 w-4" /> Conferir Caixa</Button>
                 </DialogTrigger>
@@ -513,11 +514,18 @@ export default function CashRegisterPage() {
                     </div>
 
                     <Button onClick={handleVerify} className="w-full gap-2">
-                      <ClipboardCheck className="h-4 w-4" /> Registrar Conferência
+                      <ClipboardCheck className="h-4 w-4" /> {isAdmin ? "Registrar Conferência" : "Finalizar Conferência e Enviar"}
                     </Button>
+
+                    {!isAdmin && (
+                      <p className="text-xs text-muted-foreground text-center">
+                        Após registrar a conferência, o caixa ficará aguardando o fechamento oficial pelo administrador.
+                      </p>
+                    )}
                   </div>
                 </DialogContent>
               </Dialog>
+              )}
 
               {/* Close button - admin or permitted only */}
               {canClose && (
