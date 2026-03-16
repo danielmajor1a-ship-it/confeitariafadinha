@@ -129,8 +129,8 @@ export default function CashRegisterPage() {
     setMovements((movRes.data || []) as CashMovement[]);
     setVerifications((verRes.data || []) as CashVerification[]);
 
-    const userOpenRegister = regs.find((r) => r.status === "aberto" && r.user_id === user.id) || null;
-    const adminOpenRegister = isAdmin ? regs.find((r) => r.status === "aberto") || null : null;
+    const userOpenRegister = regs.find((r) => (r.status === "aberto" || r.status === "conferido") && r.user_id === user.id) || null;
+    const adminOpenRegister = isAdmin ? regs.find((r) => r.status === "aberto" || r.status === "conferido") || null : null;
     setOpenRegister(userOpenRegister ?? adminOpenRegister);
     setLoading(false);
   }, [user, isAdmin]);
