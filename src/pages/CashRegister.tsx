@@ -105,7 +105,7 @@ export default function CashRegisterPage() {
   const [verifyCountedAmount, setVerifyCountedAmount] = useState("");
   const [verifyNotes, setVerifyNotes] = useState("");
 
-  const canClose = isAdmin || (profile?.can_register_cash ?? false);
+  const canClose = isAdmin;
 
   const refresh = useCallback(async () => {
     if (!user) {
@@ -129,8 +129,8 @@ export default function CashRegisterPage() {
     setMovements((movRes.data || []) as CashMovement[]);
     setVerifications((verRes.data || []) as CashVerification[]);
 
-    const userOpenRegister = regs.find((r) => r.status === "aberto" && r.user_id === user.id) || null;
-    const adminOpenRegister = isAdmin ? regs.find((r) => r.status === "aberto") || null : null;
+    const userOpenRegister = regs.find((r) => (r.status === "aberto" || r.status === "conferido") && r.user_id === user.id) || null;
+    const adminOpenRegister = isAdmin ? regs.find((r) => r.status === "aberto" || r.status === "conferido") || null : null;
     setOpenRegister(userOpenRegister ?? adminOpenRegister);
     setLoading(false);
   }, [user, isAdmin]);
@@ -216,7 +216,16 @@ export default function CashRegisterPage() {
       total_expenses: totalDespesas,
     } as any);
     if (error) { toast.error(error.message); return; }
-    toast.success("Conferência registrada com sucesso!");
+
+    // If not admin, mark register as "conferido" (awaiting admin finalization)
+    if (!isAdmin) {
+      await supabase.from("cash_registers").update({
+        status: "conferido",
+        counted_amount: counted,
+      }).eq("id", openRegister.id);
+    }
+
+    toast.success(isAdmin ? "Conferência registrada com sucesso!" : "Conferência registrada! Aguardando fechamento pelo administrador.");
     setVerifyDialogOpen(false);
     setVerifyCountedAmount("");
     setVerifyNotes("");
@@ -327,9 +336,17 @@ export default function CashRegisterPage() {
                 </div>
               </DialogContent>
             </Dialog>
+          ) : openRegister.status === "conferido" && !isAdmin ? (
+            /* Funcionário view when register is "conferido" - awaiting admin */
+            <div className="flex items-center gap-2">
+              <Badge className="bg-amber-100 text-amber-800 gap-1">
+                <Clock className="h-3 w-3" /> Aguardando fechamento
+              </Badge>
+            </div>
           ) : (
             <>
-              {/* Movement button */}
+              {/* Movement button - only if still "aberto" */}
+              {openRegister.status === "aberto" && (
               <Dialog open={movDialogOpen} onOpenChange={setMovDialogOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" className="gap-2"><Plus className="h-4 w-4" /> Movimentação</Button>
@@ -400,8 +417,10 @@ export default function CashRegisterPage() {
                   </div>
                 </DialogContent>
               </Dialog>
+              )}
 
-              {/* Verify (Conferir) button - available to all */}
+              {/* Verify (Conferir) button - available when "aberto" */}
+              {openRegister.status === "aberto" && (
               <Dialog open={verifyDialogOpen} onOpenChange={setVerifyDialogOpen}>
                 <DialogTrigger asChild>
                   <Button variant="secondary" className="gap-2"><ClipboardCheck className="h-4 w-4" /> Conferir Caixa</Button>
@@ -495,11 +514,18 @@ export default function CashRegisterPage() {
                     </div>
 
                     <Button onClick={handleVerify} className="w-full gap-2">
-                      <ClipboardCheck className="h-4 w-4" /> Registrar Conferência
+                      <ClipboardCheck className="h-4 w-4" /> {isAdmin ? "Registrar Conferência" : "Finalizar Conferência e Enviar"}
                     </Button>
+
+                    {!isAdmin && (
+                      <p className="text-xs text-muted-foreground text-center">
+                        Após registrar a conferência, o caixa ficará aguardando o fechamento oficial pelo administrador.
+                      </p>
+                    )}
                   </div>
                 </DialogContent>
               </Dialog>
+              )}
 
               {/* Close button - admin or permitted only */}
               {canClose && (
@@ -569,12 +595,46 @@ export default function CashRegisterPage() {
         </div>
       </div>
 
+      {/* Conferido banner for funcionário */}
+      {openRegister && openRegister.status === "conferido" && !isAdmin && (
+        <Card className="border-amber-300 bg-amber-50 dark:bg-amber-950/20">
+          <CardContent className="p-4 flex items-center gap-3">
+            <Clock className="h-5 w-5 text-amber-600 flex-shrink-0" />
+            <div>
+              <p className="font-semibold text-amber-800 dark:text-amber-200">Conferência realizada</p>
+              <p className="text-sm text-amber-700 dark:text-amber-300">
+                Sua conferência foi registrada. O fechamento oficial será realizado pelo administrador.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Conferido banner for admin */}
+      {openRegister && openRegister.status === "conferido" && isAdmin && (
+        <Card className="border-amber-300 bg-amber-50 dark:bg-amber-950/20">
+          <CardContent className="p-4 flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0" />
+            <div>
+              <p className="font-semibold text-amber-800 dark:text-amber-200">Caixa aguardando fechamento</p>
+              <p className="text-sm text-amber-700 dark:text-amber-300">
+                O funcionário já realizou a conferência. Clique em "Fechar Caixa" para finalizar.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Status Cards */}
       {openRegister && (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
           <Card><CardContent className="p-4 text-center">
             <p className="text-xs text-muted-foreground">Status</p>
-            <Badge className="mt-1 bg-green-100 text-green-800">Aberto</Badge>
+            {openRegister.status === "conferido" ? (
+              <Badge className="mt-1 bg-amber-100 text-amber-800">Conferido</Badge>
+            ) : (
+              <Badge className="mt-1 bg-green-100 text-green-800">Aberto</Badge>
+            )}
           </CardContent></Card>
           <Card><CardContent className="p-4 text-center">
             <p className="text-xs text-muted-foreground">Abertura</p>
@@ -693,7 +753,7 @@ export default function CashRegisterPage() {
                             </span>
                             {reg && (
                               <Badge variant="outline" className="text-xs">
-                                Caixa {reg.status === "aberto" ? "Aberto" : "Fechado"} - {format(new Date(reg.opened_at), "dd/MM HH:mm")}
+                                Caixa {reg.status === "aberto" ? "Aberto" : reg.status === "conferido" ? "Conferido" : "Fechado"} - {format(new Date(reg.opened_at), "dd/MM HH:mm")}
                               </Badge>
                             )}
                           </div>
