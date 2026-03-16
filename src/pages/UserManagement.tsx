@@ -43,9 +43,17 @@ interface UserRow {
 
 export default function UserManagement() {
   const { isAdmin } = useUserRole();
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [editUser, setEditUser] = useState<UserRow | null>(null);
+  const [passwordDialog, setPasswordDialog] = useState<UserRow | null>(null);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPw, setShowCurrentPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [changingPw, setChangingPw] = useState(false);
 
   async function fetchUsers() {
     setLoading(true);
