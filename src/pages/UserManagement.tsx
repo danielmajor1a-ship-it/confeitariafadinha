@@ -323,6 +323,86 @@ export default function UserManagement() {
           ))}
         </div>
       )}
+      {/* Password Change Dialog */}
+      <Dialog open={!!passwordDialog} onOpenChange={(open) => { if (!open) setPasswordDialog(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5" /> Alterar Senha — {passwordDialog?.display_name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Non-admin must provide current password */}
+            {!isAdmin && (
+              <div>
+                <Label>Senha Atual</Label>
+                <div className="relative">
+                  <Input
+                    type={showCurrentPw ? "text" : "password"}
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Digite sua senha atual"
+                  />
+                  <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground" onClick={() => setShowCurrentPw(!showCurrentPw)}>
+                    {showCurrentPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <Label>Nova Senha</Label>
+              <div className="relative">
+                <Input
+                  type={showNewPw ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Digite a nova senha"
+                />
+                <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground" onClick={() => setShowNewPw(!showNewPw)}>
+                  {showNewPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <Label>Confirmar Nova Senha</Label>
+              <Input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirme a nova senha"
+              />
+              {confirmPassword && newPassword !== confirmPassword && (
+                <p className="text-xs text-destructive mt-1">As senhas não conferem</p>
+              )}
+            </div>
+
+            {/* Password strength indicators */}
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Requisitos da senha:</Label>
+              {passwordRules.map((rule, i) => (
+                <div key={i} className="flex items-center gap-2 text-xs">
+                  <span className={rule.test(newPassword) ? "text-green-500" : "text-muted-foreground"}>
+                    {rule.test(newPassword) ? "✓" : "○"}
+                  </span>
+                  <span className={rule.test(newPassword) ? "text-green-500" : "text-muted-foreground"}>
+                    {rule.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <Button
+              className="w-full"
+              onClick={handleChangePassword}
+              disabled={changingPw || !newPassword || newPassword !== confirmPassword || !passwordRules.every(r => r.test(newPassword))}
+            >
+              {changingPw ? "Alterando..." : "Alterar Senha"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
