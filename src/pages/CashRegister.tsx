@@ -754,6 +754,7 @@ export default function CashRegisterPage() {
                             {reg && (
                               <Badge variant="outline" className="text-xs">
                                 Caixa {reg.status === "aberto" ? "Aberto" : reg.status === "conferido" ? "Conferido" : "Fechado"} - {format(new Date(reg.opened_at), "dd/MM HH:mm")}
+                              </Badge>
                             )}
                           </div>
                           <Badge className={
