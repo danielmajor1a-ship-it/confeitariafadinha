@@ -1,8 +1,9 @@
-import { Cake, LayoutDashboard, Package, ShoppingCart, Users, Warehouse, DollarSign, BookOpen, Calculator, TrendingUp, LogOut, Landmark, ShieldCheck, AlertTriangle } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingCart, Users, Warehouse, DollarSign, BookOpen, Calculator, TrendingUp, LogOut, Landmark, ShieldCheck, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
+import logo from "@/assets/logo.png";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar,
@@ -49,9 +50,8 @@ export function AppSidebar() {
       <Sidebar collapsible="icon">
         <SidebarContent>
           <SidebarGroup>
-            <SidebarGroupLabel className="gap-2 text-sm">
-              <Cake className="h-5 w-5 text-pink" />
-              {!collapsed && <span className="font-display font-semibold text-foreground">Confeitaria</span>}
+          <SidebarGroupLabel className="gap-2 text-sm py-4">
+              <img src={logo} alt="Confeitaria Fadinha" className={collapsed ? "h-8 w-8 object-contain" : "h-10 object-contain"} />
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
@@ -77,9 +77,8 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="gap-2 text-sm">
-            <Cake className="h-5 w-5 text-pink" />
-            {!collapsed && <span className="font-display font-semibold text-foreground">Confeitaria</span>}
+          <SidebarGroupLabel className="gap-2 text-sm py-4">
+            <img src={logo} alt="Confeitaria Fadinha" className={collapsed ? "h-8 w-8 object-contain" : "h-10 object-contain"} />
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
