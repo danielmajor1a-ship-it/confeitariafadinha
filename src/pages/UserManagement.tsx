@@ -121,11 +121,60 @@ export default function UserManagement() {
     fetchUsers();
   }
 
-  async function handleResetPassword(userId: string) {
-    // Admin sends reset email - we need the user's email
-    // Since we can't access auth.users, we use supabase admin functionality via edge function
-    // For now, we'll use the profile's associated email from auth metadata
-    toast.info("Para resetar a senha, o usuário deve usar 'Esqueci minha senha' na tela de login.");
+  const passwordRules = [
+    { test: (p: string) => p.length >= 8, label: "Mínimo 8 caracteres" },
+    { test: (p: string) => /[A-Z]/.test(p), label: "Uma letra maiúscula" },
+    { test: (p: string) => /[a-z]/.test(p), label: "Uma letra minúscula" },
+    { test: (p: string) => /[0-9]/.test(p), label: "Um número" },
+    { test: (p: string) => /[^A-Za-z0-9]/.test(p), label: "Um caractere especial" },
+  ];
+
+  async function handleChangePassword() {
+    if (!passwordDialog) return;
+    if (newPassword !== confirmPassword) {
+      toast.error("As senhas não conferem");
+      return;
+    }
+    if (!passwordRules.every(r => r.test(newPassword))) {
+      toast.error("A senha não atende todos os requisitos");
+      return;
+    }
+    if (!isAdmin && !currentPassword) {
+      toast.error("Informe a senha atual");
+      return;
+    }
+    setChangingPw(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/change-password`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({
+            target_user_id: passwordDialog.user_id,
+            current_password: isAdmin ? undefined : currentPassword,
+            new_password: newPassword,
+          }),
+        }
+      );
+      const result = await res.json();
+      if (!res.ok) {
+        toast.error(result.error || "Erro ao alterar senha");
+      } else {
+        toast.success("Senha alterada com sucesso!");
+        setPasswordDialog(null);
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+      }
+    } catch {
+      toast.error("Erro inesperado ao alterar senha");
+    }
+    setChangingPw(false);
   }
 
   if (!isAdmin) {
