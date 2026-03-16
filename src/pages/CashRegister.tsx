@@ -595,12 +595,46 @@ export default function CashRegisterPage() {
         </div>
       </div>
 
+      {/* Conferido banner for funcionário */}
+      {openRegister && openRegister.status === "conferido" && !isAdmin && (
+        <Card className="border-amber-300 bg-amber-50 dark:bg-amber-950/20">
+          <CardContent className="p-4 flex items-center gap-3">
+            <Clock className="h-5 w-5 text-amber-600 flex-shrink-0" />
+            <div>
+              <p className="font-semibold text-amber-800 dark:text-amber-200">Conferência realizada</p>
+              <p className="text-sm text-amber-700 dark:text-amber-300">
+                Sua conferência foi registrada. O fechamento oficial será realizado pelo administrador.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Conferido banner for admin */}
+      {openRegister && openRegister.status === "conferido" && isAdmin && (
+        <Card className="border-amber-300 bg-amber-50 dark:bg-amber-950/20">
+          <CardContent className="p-4 flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0" />
+            <div>
+              <p className="font-semibold text-amber-800 dark:text-amber-200">Caixa aguardando fechamento</p>
+              <p className="text-sm text-amber-700 dark:text-amber-300">
+                O funcionário já realizou a conferência. Clique em "Fechar Caixa" para finalizar.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Status Cards */}
       {openRegister && (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
           <Card><CardContent className="p-4 text-center">
             <p className="text-xs text-muted-foreground">Status</p>
-            <Badge className="mt-1 bg-green-100 text-green-800">Aberto</Badge>
+            {openRegister.status === "conferido" ? (
+              <Badge className="mt-1 bg-amber-100 text-amber-800">Conferido</Badge>
+            ) : (
+              <Badge className="mt-1 bg-green-100 text-green-800">Aberto</Badge>
+            )}
           </CardContent></Card>
           <Card><CardContent className="p-4 text-center">
             <p className="text-xs text-muted-foreground">Abertura</p>
