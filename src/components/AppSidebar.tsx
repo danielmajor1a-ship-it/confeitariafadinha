@@ -50,9 +50,8 @@ export function AppSidebar() {
       <Sidebar collapsible="icon">
         <SidebarContent>
           <SidebarGroup>
-            <SidebarGroupLabel className="gap-2 text-sm">
-              <Cake className="h-5 w-5 text-pink" />
-              {!collapsed && <span className="font-display font-semibold text-foreground">Confeitaria</span>}
+          <SidebarGroupLabel className="gap-2 text-sm py-4">
+              <img src={logo} alt="Confeitaria Fadinha" className={collapsed ? "h-8 w-8 object-contain" : "h-10 object-contain"} />
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
