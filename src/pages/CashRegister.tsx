@@ -105,7 +105,7 @@ export default function CashRegisterPage() {
   const [verifyCountedAmount, setVerifyCountedAmount] = useState("");
   const [verifyNotes, setVerifyNotes] = useState("");
 
-  const canClose = isAdmin || (profile?.can_register_cash ?? false);
+  const canClose = isAdmin;
 
   const refresh = useCallback(async () => {
     if (!user) {
