@@ -216,7 +216,16 @@ export default function CashRegisterPage() {
       total_expenses: totalDespesas,
     } as any);
     if (error) { toast.error(error.message); return; }
-    toast.success("Conferência registrada com sucesso!");
+
+    // If not admin, mark register as "conferido" (awaiting admin finalization)
+    if (!isAdmin) {
+      await supabase.from("cash_registers").update({
+        status: "conferido",
+        counted_amount: counted,
+      }).eq("id", openRegister.id);
+    }
+
+    toast.success(isAdmin ? "Conferência registrada com sucesso!" : "Conferência registrada! Aguardando fechamento pelo administrador.");
     setVerifyDialogOpen(false);
     setVerifyCountedAmount("");
     setVerifyNotes("");
