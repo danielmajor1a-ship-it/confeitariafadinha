@@ -222,6 +222,14 @@ export default function UserManagement() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => {
+                    setPasswordDialog(u);
+                    setCurrentPassword("");
+                    setNewPassword("");
+                    setConfirmPassword("");
+                  }}>
+                    <KeyRound className="h-3.5 w-3.5 mr-1" /> Senha
+                  </Button>
                   <Button variant="outline" size="sm" onClick={() => handleToggleActive(u)}>
                     {u.is_active ? "Desativar" : "Ativar"}
                   </Button>
