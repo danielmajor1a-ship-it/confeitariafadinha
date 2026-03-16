@@ -336,9 +336,17 @@ export default function CashRegisterPage() {
                 </div>
               </DialogContent>
             </Dialog>
+          ) : openRegister.status === "conferido" && !isAdmin ? (
+            /* Funcionário view when register is "conferido" - awaiting admin */
+            <div className="flex items-center gap-2">
+              <Badge className="bg-amber-100 text-amber-800 gap-1">
+                <Clock className="h-3 w-3" /> Aguardando fechamento
+              </Badge>
+            </div>
           ) : (
             <>
-              {/* Movement button */}
+              {/* Movement button - only if still "aberto" */}
+              {openRegister.status === "aberto" && (
               <Dialog open={movDialogOpen} onOpenChange={setMovDialogOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" className="gap-2"><Plus className="h-4 w-4" /> Movimentação</Button>
@@ -409,9 +417,10 @@ export default function CashRegisterPage() {
                   </div>
                 </DialogContent>
               </Dialog>
+              )}
 
-              {/* Verify (Conferir) button - available to all */}
-              <Dialog open={verifyDialogOpen} onOpenChange={setVerifyDialogOpen}>
+              {/* Verify (Conferir) button - available when "aberto" */}
+              {openRegister.status === "aberto" && (
                 <DialogTrigger asChild>
                   <Button variant="secondary" className="gap-2"><ClipboardCheck className="h-4 w-4" /> Conferir Caixa</Button>
                 </DialogTrigger>
