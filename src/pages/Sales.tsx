@@ -144,6 +144,15 @@ export default function Sales() {
     }).filter(i => i.quantity > 0));
   }
 
+  function setQty(productId: string, value: number) {
+    setCart(prev => prev.map(i => {
+      if (i.productId !== productId) return i;
+      if (!Number.isFinite(value) || value < 1) return { ...i, quantity: 1, subtotal: i.unitPrice };
+      if (value > i.maxStock) { toast.error("Estoque insuficiente!"); return { ...i, quantity: i.maxStock, subtotal: i.maxStock * i.unitPrice }; }
+      return { ...i, quantity: value, subtotal: value * i.unitPrice };
+    }));
+  }
+
   function removeFromCart(productId: string) { setCart(prev => prev.filter(i => i.productId !== productId)); }
 
   function clearCart() {
