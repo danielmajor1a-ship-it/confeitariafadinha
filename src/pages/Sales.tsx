@@ -144,6 +144,15 @@ export default function Sales() {
     }).filter(i => i.quantity > 0));
   }
 
+  function setQty(productId: string, value: number) {
+    setCart(prev => prev.map(i => {
+      if (i.productId !== productId) return i;
+      if (!Number.isFinite(value) || value < 1) return { ...i, quantity: 1, subtotal: i.unitPrice };
+      if (value > i.maxStock) { toast.error("Estoque insuficiente!"); return { ...i, quantity: i.maxStock, subtotal: i.maxStock * i.unitPrice }; }
+      return { ...i, quantity: value, subtotal: value * i.unitPrice };
+    }));
+  }
+
   function removeFromCart(productId: string) { setCart(prev => prev.filter(i => i.productId !== productId)); }
 
   function clearCart() {
@@ -440,7 +449,15 @@ export default function Sales() {
                       onClick={() => item.quantity === 1 ? removeFromCart(item.productId) : updateQty(item.productId, -1)}>
                       {item.quantity === 1 ? <Trash2 className="h-3 w-3 text-destructive" /> : <Minus className="h-3 w-3" />}
                     </Button>
-                    <span className="w-7 text-center text-sm font-bold">{item.quantity}</span>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={item.maxStock}
+                      value={item.quantity}
+                      onChange={e => setQty(item.productId, parseInt(e.target.value) || 1)}
+                      onFocus={e => e.target.select()}
+                      className="w-14 h-7 text-center text-sm font-bold px-1"
+                    />
                     <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQty(item.productId, 1)}>
                       <Plus className="h-3 w-3" />
                     </Button>
