@@ -449,7 +449,15 @@ export default function Sales() {
                       onClick={() => item.quantity === 1 ? removeFromCart(item.productId) : updateQty(item.productId, -1)}>
                       {item.quantity === 1 ? <Trash2 className="h-3 w-3 text-destructive" /> : <Minus className="h-3 w-3" />}
                     </Button>
-                    <span className="w-7 text-center text-sm font-bold">{item.quantity}</span>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={item.maxStock}
+                      value={item.quantity}
+                      onChange={e => setQty(item.productId, parseInt(e.target.value) || 1)}
+                      onFocus={e => e.target.select()}
+                      className="w-14 h-7 text-center text-sm font-bold px-1"
+                    />
                     <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQty(item.productId, 1)}>
                       <Plus className="h-3 w-3" />
                     </Button>
