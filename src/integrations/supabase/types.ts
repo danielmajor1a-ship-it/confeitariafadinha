@@ -308,6 +308,7 @@ export type Database = {
           image_url: string | null
           low_stock_threshold: number
           name: string
+          needs_review: boolean
           purchase_price: number
           sale_price: number
           stock: number
@@ -323,6 +324,7 @@ export type Database = {
           image_url?: string | null
           low_stock_threshold?: number
           name: string
+          needs_review?: boolean
           purchase_price?: number
           sale_price?: number
           stock?: number
@@ -338,6 +340,7 @@ export type Database = {
           image_url?: string | null
           low_stock_threshold?: number
           name?: string
+          needs_review?: boolean
           purchase_price?: number
           sale_price?: number
           stock?: number
