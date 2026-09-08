@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Plus, Trash2, TrendingUp, Target, PieChart, BarChart3, Info, DollarSign, Percent, Scale, Edit2, Check, X } from "lucide-react";
 import { PieChart as RePie, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip, ResponsiveContainer, Legend, LineChart, Line, ReferenceLine, Area, ComposedChart } from "recharts";
+import NfeImportDialog from "@/components/NfeImportDialog";
 
 export default function Costs() {
   const { costs, products, sales, addCost, deleteCost } = useApp();
@@ -145,6 +146,8 @@ export default function Costs() {
         {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <h1 className="page-header">Análise de Custos</h1>
+          <div className="flex gap-2 flex-wrap items-center">
+          <NfeImportDialog />
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-1" /> Novo Custo</Button></DialogTrigger>
             <DialogContent>
@@ -173,6 +176,7 @@ export default function Costs() {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         {/* KPI Cards */}
