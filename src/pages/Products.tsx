@@ -244,7 +244,8 @@ export default function Products() {
         purchase_price: data.purchasePrice, sale_price: data.salePrice,
         stock: data.stock, low_stock_threshold: data.lowStockThreshold,
         image_url: imageUrl,
-      }).eq('id', editing.id);
+        needs_review: false,
+      } as any).eq('id', editing.id);
       if (error) { toast.error(error.message); return; }
       if (editing.purchase_price !== data.purchasePrice || editing.sale_price !== data.salePrice) {
         await supabase.from('price_history').insert({ product_id: editing.id, purchase_price: data.purchasePrice, sale_price: data.salePrice });
@@ -393,6 +394,9 @@ export default function Products() {
                 <div className="min-w-0">
                   <p className="font-semibold truncate">{p.name}</p>
                   <Badge variant="secondary" className="mt-1">{CATEGORY_LABELS[p.category as keyof typeof CATEGORY_LABELS] || p.category}</Badge>
+                  {(p as any).needs_review && (
+                    <Badge variant="destructive" className="mt-1 ml-1">Novo, revisar categoria e preço de venda</Badge>
+                  )}
                 </div>
                 <span className={`text-sm font-bold shrink-0 ${p.stock <= p.low_stock_threshold ? "text-destructive" : ""}`}>
                   {p.stock} un
@@ -440,7 +444,12 @@ export default function Products() {
                     </div>
                   )}
                 </TableCell>
-                <TableCell className="font-medium">{p.name}</TableCell>
+                <TableCell className="font-medium">
+                  {p.name}
+                  {(p as any).needs_review && (
+                    <Badge variant="destructive" className="ml-2">Novo, revisar categoria e preço de venda</Badge>
+                  )}
+                </TableCell>
                 <TableCell><Badge variant="secondary">{CATEGORY_LABELS[p.category as keyof typeof CATEGORY_LABELS] || p.category}</Badge></TableCell>
                 <TableCell>{fmt(p.purchase_price)}</TableCell>
                 <TableCell>{fmt(p.sale_price)}</TableCell>
