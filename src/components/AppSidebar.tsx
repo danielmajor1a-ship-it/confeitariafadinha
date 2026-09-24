@@ -44,8 +44,8 @@ function BrandHeader({ collapsed }: { collapsed: boolean }) {
   return (
     <SidebarHeader
       className={collapsed
-        ? "h-14 items-center justify-center overflow-hidden border-b border-sidebar-border bg-chocolate-dark p-1"
-        : "h-48 items-center justify-center overflow-hidden border-b border-chocolate bg-chocolate-dark p-0"
+        ? "h-14 items-center justify-center overflow-hidden border-b border-sidebar-border bg-background p-1"
+        : "h-48 items-center justify-center overflow-hidden border-b border-sidebar-border bg-background p-0"
       }
     >
       <img
