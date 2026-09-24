@@ -158,7 +158,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const { error } = await supabase.from('products').update({
       name: p.name, description: p.description, brand: p.brand, category: p.category,
       purchase_price: p.purchase_price, sale_price: p.sale_price,
-      stock: p.stock, low_stock_threshold: p.low_stock_threshold,
+      low_stock_threshold: p.low_stock_threshold,
     }).eq('id', p.id);
     if (error) { toast.error(error.message); return; }
     if (old && (old.purchase_price !== p.purchase_price || old.sale_price !== p.sale_price)) {
@@ -218,13 +218,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     const sale = sales.find(s => s.id === id);
     if (!sale) return;
-    // Restore stock for each item
-    for (const item of sale.items) {
-      const product = products.find(p => p.id === item.product_id);
-      if (product) {
-        await supabase.from('products').update({ stock: product.stock + item.quantity }).eq('id', item.product_id);
-      }
-    }
+    // Estoque é devolvido automaticamente ao apagar os movimentos da venda (saldo = soma dos movimentos)
     // Restore client debt for fiado payments
     if (sale.client_id) {
       const fiadoPayments = sale.payments.filter(p => p.payment_method === 'fiado');
@@ -284,12 +278,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const addStockEntry = useCallback(async (productId: string, quantity: number, reason: string) => {
     if (!user) return;
-    const product = products.find(p => p.id === productId);
-    if (!product) return;
-    await supabase.from('products').update({ stock: product.stock + quantity }).eq('id', productId);
-    await supabase.from('stock_movements').insert({ user_id: user.id, product_id: productId, type: 'entrada', quantity, reason });
+    const { error } = await supabase.from('stock_movements').insert({ user_id: user.id, product_id: productId, type: 'ajuste', quantity, reason });
+    if (error) { toast.error(error.message); throw error; }
     await refresh();
-  }, [user, products, refresh]);
+  }, [user, refresh]);
 
   const addRecipe = useCallback(async (r: { name: string; instructions: string; notes: string; ingredients: { productId: string; productName: string; quantity: number; unit: string }[] }) => {
     if (!user) return;
