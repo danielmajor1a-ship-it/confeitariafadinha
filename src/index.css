@@ -57,6 +57,12 @@
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
 
+    /* PDV palette */
+    --pos-pink-soft: 340 60% 97%;
+    --pos-pink-muted: 330 12% 95%;
+    --pos-green: 152 55% 38%;
+    --pos-amber: 38 92% 45%;
+
     --font-display: 'Playfair Display', serif;
     --font-body: 'Nunito', sans-serif;
   }
