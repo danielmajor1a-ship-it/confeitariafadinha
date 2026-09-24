@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useApp } from "@/contexts/AppContext";
 import { CATEGORY_LABELS } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,13 @@ export default function Products() {
   const { products, addProduct, updateProduct, deleteProduct, refresh } = useApp();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<ProductWithHistory | null>(null);
+  const [sells, setSells] = useState(true);
+  const [usedInRecipes, setUsedInRecipes] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    setSells(editing ? (editing as any).sells !== false : true);
+    setUsedInRecipes(editing ? !!(editing as any).used_in_recipes : false);
+  }, [open, editing]);
   const [historyProduct, setHistoryProduct] = useState<ProductWithHistory | null>(null);
   const [search, setSearch] = useState("");
   const [importing, setImporting] = useState(false);
@@ -233,6 +240,13 @@ export default function Products() {
       stock: parseInt(fd.get('stock') as string) || 0,
       lowStockThreshold: parseInt(fd.get('lowStockThreshold') as string) || 5,
     };
+    const unitFields = {
+      sells,
+      used_in_recipes: usedInRecipes,
+      purchase_unit: usedInRecipes ? ((fd.get('purchaseUnit') as string) || 'un').trim() || 'un' : 'un',
+      usage_unit: usedInRecipes ? ((fd.get('usageUnit') as string) || 'un').trim() || 'un' : 'un',
+      conversion_factor: usedInRecipes ? Math.max(0.001, parseFloat(fd.get('conversionFactor') as string) || 1) : 1,
+    };
     if (editing) {
       let imageUrl = (editing as any).image_url;
       if (imageFile) {
@@ -245,6 +259,7 @@ export default function Products() {
         stock: data.stock, low_stock_threshold: data.lowStockThreshold,
         image_url: imageUrl,
         needs_review: false,
+        ...unitFields,
       } as any).eq('id', editing.id);
       if (error) { toast.error(error.message); return; }
       if (editing.purchase_price !== data.purchasePrice || editing.sale_price !== data.salePrice) {
@@ -253,15 +268,15 @@ export default function Products() {
       await refresh();
     } else {
       await addProduct(data);
-      if (imageFile) {
-        const { data: newProducts } = await supabase.from('products').select('id').eq('name', data.name).order('created_at', { ascending: false }).limit(1);
-        if (newProducts && newProducts.length > 0) {
+      const { data: newProducts } = await supabase.from('products').select('id').eq('name', data.name).order('created_at', { ascending: false }).limit(1);
+      if (newProducts && newProducts.length > 0) {
+        const update: Record<string, unknown> = { ...unitFields };
+        if (imageFile) {
           const url = await uploadImage(newProducts[0].id);
-          if (url) {
-            await supabase.from('products').update({ image_url: url }).eq('id', newProducts[0].id);
-            await refresh();
-          }
+          if (url) update.image_url = url;
         }
+        await supabase.from('products').update(update as any).eq('id', newProducts[0].id);
+        await refresh();
       }
     }
     clearImage();
@@ -366,6 +381,26 @@ export default function Products() {
                   <div><Label>Estoque</Label><Input name="stock" type="number" defaultValue={editing?.stock || 0} /></div>
                   <div><Label>Alerta Mínimo</Label><Input name="lowStockThreshold" type="number" defaultValue={editing?.low_stock_threshold || 5} /></div>
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="flex items-center gap-2 min-h-[44px] rounded-xl border px-3 cursor-pointer">
+                    <input type="checkbox" className="h-5 w-5 accent-primary" checked={sells} onChange={e => setSells(e.target.checked)} />
+                    <span>Vende direto</span>
+                  </label>
+                  <label className="flex items-center gap-2 min-h-[44px] rounded-xl border px-3 cursor-pointer">
+                    <input type="checkbox" className="h-5 w-5 accent-primary" checked={usedInRecipes} onChange={e => setUsedInRecipes(e.target.checked)} />
+                    <span>Usa em receita</span>
+                  </label>
+                </div>
+                {usedInRecipes && (
+                  <div className="space-y-2 rounded-xl bg-muted/50 p-3">
+                    <div className="grid grid-cols-3 gap-3">
+                      <div><Label>Compro em</Label><Input name="purchaseUnit" placeholder="bandeja" defaultValue={(editing as any)?.purchase_unit || 'un'} /></div>
+                      <div><Label>Uso em</Label><Input name="usageUnit" placeholder="ovo" defaultValue={(editing as any)?.usage_unit || 'un'} /></div>
+                      <div><Label>Qtd por compra</Label><Input name="conversionFactor" type="number" step="0.001" min="0.001" defaultValue={(editing as any)?.conversion_factor || 1} /></div>
+                    </div>
+                    <p className="text-sm text-muted-foreground">Ex.: compro em bandeja, uso em ovo, 30 por bandeja. O custo de uso é o preço de compra dividido por esse número.</p>
+                  </div>
+                )}
                 <Button type="submit" className="w-full min-h-[48px]" disabled={uploadingImage}>
                   {uploadingImage ? "Enviando imagem..." : "Salvar"}
                 </Button>

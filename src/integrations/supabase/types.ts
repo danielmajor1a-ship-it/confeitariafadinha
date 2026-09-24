@@ -302,6 +302,7 @@ export type Database = {
         Row: {
           brand: string | null
           category: string
+          conversion_factor: number
           created_at: string
           description: string | null
           id: string
@@ -310,14 +311,19 @@ export type Database = {
           name: string
           needs_review: boolean
           purchase_price: number
+          purchase_unit: string
           sale_price: number
+          sells: boolean
           stock: number
           updated_at: string
+          usage_unit: string
+          used_in_recipes: boolean
           user_id: string
         }
         Insert: {
           brand?: string | null
           category?: string
+          conversion_factor?: number
           created_at?: string
           description?: string | null
           id?: string
@@ -326,14 +332,19 @@ export type Database = {
           name: string
           needs_review?: boolean
           purchase_price?: number
+          purchase_unit?: string
           sale_price?: number
+          sells?: boolean
           stock?: number
           updated_at?: string
+          usage_unit?: string
+          used_in_recipes?: boolean
           user_id: string
         }
         Update: {
           brand?: string | null
           category?: string
+          conversion_factor?: number
           created_at?: string
           description?: string | null
           id?: string
@@ -342,9 +353,13 @@ export type Database = {
           name?: string
           needs_review?: boolean
           purchase_price?: number
+          purchase_unit?: string
           sale_price?: number
+          sells?: boolean
           stock?: number
           updated_at?: string
+          usage_unit?: string
+          used_in_recipes?: boolean
           user_id?: string
         }
         Relationships: []
