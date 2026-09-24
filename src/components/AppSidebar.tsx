@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
-import logoAsset from "@/assets/confeitaria-fadinha-logo.jpg.asset.json";
+import transparentLogo from "@/assets/confeitaria-fadinha-logo-transparent.png";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarHeader,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar,
@@ -49,11 +49,11 @@ function BrandHeader({ collapsed }: { collapsed: boolean }) {
       }
     >
       <img
-        src={logoAsset.url}
+        src={transparentLogo}
         alt="Confeitaria Fadinha"
         className={collapsed
-          ? "h-10 w-10 shrink-0 rounded-full object-cover"
-          : "h-full w-full object-cover"
+          ? "h-10 w-10 shrink-0 object-contain p-0.5"
+          : "h-full w-full object-contain px-3 py-2"
         }
       />
     </SidebarHeader>
