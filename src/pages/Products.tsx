@@ -378,7 +378,9 @@ export default function Products() {
                   <div><Label>Preço Venda</Label><Input name="salePrice" type="number" step="0.01" defaultValue={editing?.sale_price} /></div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div><Label>Estoque</Label><Input name="stock" type="number" defaultValue={editing?.stock || 0} /></div>
+                  {editing
+                    ? <div><Label>Estoque</Label><Input value={editing.stock} disabled title="Altere pelo Estoque → Ajustar estoque" /></div>
+                    : <div><Label>Estoque inicial</Label><Input name="stock" type="number" defaultValue={0} /></div>}
                   <div><Label>Alerta Mínimo</Label><Input name="lowStockThreshold" type="number" defaultValue={editing?.low_stock_threshold || 5} /></div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">

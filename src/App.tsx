@@ -10,6 +10,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import Dashboard from "@/pages/Dashboard";
 import Products from "@/pages/Products";
 import Stock from "@/pages/Stock";
+import Purchases from "@/pages/Purchases";
 import Sales from "@/pages/Sales";
 import Clients from "@/pages/Clients";
 import Financial from "@/pages/Financial";
@@ -48,6 +49,7 @@ function ProtectedRoutes() {
           <Route path="/" element={<ProtectedRoute tabKey="dashboard"><Dashboard /></ProtectedRoute>} />
           <Route path="/produtos" element={<ProtectedRoute tabKey="produtos"><Products /></ProtectedRoute>} />
           <Route path="/estoque" element={<ProtectedRoute tabKey="estoque"><Stock /></ProtectedRoute>} />
+          <Route path="/compras" element={<ProtectedRoute tabKey="compras"><Purchases /></ProtectedRoute>} />
           <Route path="/vendas" element={<ProtectedRoute tabKey="vendas"><Sales /></ProtectedRoute>} />
           <Route path="/clientes" element={<ProtectedRoute tabKey="clientes"><Clients /></ProtectedRoute>} />
           <Route path="/financeiro" element={<ProtectedRoute tabKey="financeiro"><Financial /></ProtectedRoute>} />

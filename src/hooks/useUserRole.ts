@@ -50,7 +50,7 @@ export function useUserRole() {
 
   const canAccess = (tab: string): boolean => {
     if (isAdmin) return true;
-    if (tab === "usuarios") return false; // Only admins
+    if (["usuarios", "compras", "custos", "precificacao"].includes(tab)) return false; // Only admins
     if (!profile) return false;
     if (!profile.is_active) return false;
     return profile.allowed_tabs.includes(tab);

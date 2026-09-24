@@ -832,6 +832,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      register_purchase: {
+        Args: { _items: Json; _source: string; _supplier: string }
+        Returns: Json
+      }
+      stock_movement_delta: {
+        Args: { _qty: number; _type: string }
+        Returns: number
+      }
     }
     Enums: {
       app_role: "admin" | "funcionario"

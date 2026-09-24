@@ -7,23 +7,34 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { PackagePlus } from "lucide-react";
+import { SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
-import PurchaseEntry from "@/components/NfeImportDialog";
 
 export default function Stock() {
   const { products, stockMovements, addStockEntry } = useApp();
   const [open, setOpen] = useState(false);
   const [productId, setProductId] = useState("");
   const [quantity, setQuantity] = useState(1);
-  const [reason, setReason] = useState("Compra/Reposição");
+  const [reason, setReason] = useState("");
+  const [direction, setDirection] = useState<"mais" | "menos">("mais");
+  const [saving, setSaving] = useState(false);
 
   async function handleEntry() {
     if (!productId) { toast.error("Selecione um produto"); return; }
-    await addStockEntry(productId, quantity, reason);
-    setOpen(false);
-    toast.success("Entrada registrada!");
+    if (!(quantity > 0)) { toast.error("Informe a quantidade"); return; }
+    if (!reason.trim()) { toast.error("Informe o motivo do ajuste"); return; }
+    setSaving(true);
+    try {
+      await addStockEntry(productId, direction === "mais" ? quantity : -quantity, reason.trim());
+      setOpen(false); setReason(""); setQuantity(1); setProductId("");
+      toast.success("Ajuste registrado!");
+    } catch { /* erro já exibido */ } finally { setSaving(false); }
   }
+
+  const TYPE_LABEL: Record<string, string> = {
+    compra: "↑ Compra", venda: "↓ Venda", consumo_receita: "↓ Consumo receita",
+    ajuste: "± Ajuste", perda: "↓ Perda", ajuste_contagem: "± Contagem",
+  };
 
   const getProductName = (id: string) => products.find(p => p.id === id)?.name || 'Produto removido';
 
@@ -32,13 +43,12 @@ export default function Stock() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <h1 className="page-header">Estoque</h1>
         <div className="flex flex-wrap gap-2">
-        <PurchaseEntry />
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button><PackagePlus className="h-4 w-4 mr-1" /> Entrada de Estoque</Button>
+            <Button className="min-h-[44px]"><SlidersHorizontal className="h-4 w-4 mr-1" /> Ajustar estoque</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>Entrada de Estoque</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>Ajustar estoque</DialogTitle></DialogHeader>
             <div className="space-y-3">
               <div><Label>Produto</Label>
                 <Select value={productId} onValueChange={setProductId}>
@@ -46,9 +56,19 @@ export default function Stock() {
                   <SelectContent>{products.map(p => <SelectItem key={p.id} value={p.id}>{p.name} (atual: {p.stock})</SelectItem>)}</SelectContent>
                 </Select>
               </div>
+              <div><Label>Tipo</Label>
+                <Select value={direction} onValueChange={v => setDirection(v as "mais" | "menos")}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="mais">Somar ao estoque</SelectItem>
+                    <SelectItem value="menos">Tirar do estoque</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div><Label>Quantidade</Label><Input type="number" min={1} value={quantity} onChange={e => setQuantity(parseInt(e.target.value) || 1)} /></div>
-              <div><Label>Motivo</Label><Input value={reason} onChange={e => setReason(e.target.value)} /></div>
-              <Button onClick={handleEntry} className="w-full">Confirmar Entrada</Button>
+              <div><Label>Motivo (obrigatório)</Label><Input value={reason} onChange={e => setReason(e.target.value)} placeholder="Ex: correção de contagem" /></div>
+              <p className="text-xs text-muted-foreground">Ajuste não altera custo. Para entrada com custo, use a tela Compras.</p>
+              <Button onClick={handleEntry} className="w-full" disabled={saving}>{saving ? "Salvando..." : "Confirmar ajuste"}</Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -90,9 +110,7 @@ export default function Stock() {
                     <TableCell>{new Date(m.created_at).toLocaleDateString('pt-BR')}</TableCell>
                     <TableCell>{getProductName(m.product_id)}</TableCell>
                     <TableCell>
-                      <Badge variant={m.type === 'entrada' || m.type === 'compra' ? 'default' : 'secondary'}>
-                        {m.type === 'compra' ? '↑ Compra' : m.type === 'entrada' ? '↑ Entrada' : '↓ Saída'}
-                      </Badge>
+                      <Badge variant={m.type === 'compra' ? 'default' : 'secondary'}>{TYPE_LABEL[m.type] || m.type}</Badge>
                     </TableCell>
                     <TableCell>{m.quantity}</TableCell>
                   </TableRow>

@@ -144,32 +144,15 @@ export default function PurchaseEntry() {
 
   async function savePurchase(src: Source, sup: string, rows: Line[]) {
     if (!user) return false;
-    // 1. Create new items in one step
-    const resolved: { line: Line; productId: string }[] = [];
-    for (const l of rows) {
-      if (l.targetId !== NEW_PRODUCT) { resolved.push({ line: l, productId: l.targetId }); continue; }
-      const { data, error } = await supabase.from("products").insert({
-        user_id: user.id, name: l.description, description: "", brand: "", category: "outro",
-        purchase_price: 0, sale_price: 0, stock: 0, low_stock_threshold: 5,
-        needs_review: true, sells: false, used_in_recipes: true, purchase_unit: l.unit || "un",
-      }).select("id").single();
-      if (error) { toast.error(error.message); return false; }
-      resolved.push({ line: l, productId: data.id });
-    }
-    // 2. Draft purchase
-    const total = rows.reduce((s, l) => s + l.total, 0);
-    const { data: purchase, error: pErr } = await supabase.from("purchases").insert({
-      user_id: user.id, supplier: sup, source: src, total, status: "rascunho",
-    }).select("id").single();
-    if (pErr) { toast.error(pErr.message); return false; }
-    const { error: iErr } = await supabase.from("purchase_items").insert(resolved.map(r => ({
-      purchase_id: purchase.id, product_id: r.productId, original_description: r.line.description,
-      quantity: r.line.quantity, unit: r.line.unit, total_value: r.line.total,
-    })));
-    if (iErr) { toast.error(iErr.message); return false; }
-    // 3. Confirm (stock + average cost, atomic)
-    const { data: res, error: cErr } = await supabase.rpc("confirm_purchase", { _purchase_id: purchase.id });
-    if (cErr) { toast.error(cErr.message); return false; }
+    // Compra, itens novos, itens da compra, movimento de estoque e custo médio: uma única transação
+    const { data: res, error } = await supabase.rpc("register_purchase" as any, {
+      _supplier: sup, _source: src,
+      _items: rows.map(l => ({
+        product_id: l.targetId === NEW_PRODUCT ? null : l.targetId,
+        description: l.description, quantity: l.quantity, unit: l.unit || "", total_value: l.total,
+      })),
+    } as any);
+    if (error) { toast.error(`Compra não registrada (nada foi salvo): ${error.message}`); return false; }
     const r = res as { items: number; alerts: number };
     toast.success(`Compra registrada: ${r.items} item(ns) no estoque`);
     if (r.alerts > 0) toast.warning(`${r.alerts} item(ns) mudaram de custo mais de 5%`);
@@ -241,8 +224,13 @@ export default function PurchaseEntry() {
               {lines.map((l, idx) => {
                 const prod = products.find(p => p.id === l.targetId);
                 const unit = l.quantity > 0 ? l.total / l.quantity : 0;
+                const cur = prod?.purchase_price || 0;
+                const projected = prod && cur > 0 && prod.stock > 0
+                  ? (prod.stock * cur + l.quantity * unit) / (prod.stock + l.quantity) : unit;
+                const pct = cur > 0 ? ((projected - cur) / cur) * 100 : 0;
+                const bigChange = Math.abs(pct) > 5;
                 return (
-                  <TableRow key={l.key}>
+                  <TableRow key={l.key} className={bigChange ? "bg-destructive/10" : undefined}>
                     <TableCell className="max-w-[220px]">
                       <p className="font-medium text-sm">{l.description}</p>
                       {l.unit && <p className="text-xs text-muted-foreground">{l.unit}</p>}
@@ -257,7 +245,8 @@ export default function PurchaseEntry() {
                     </TableCell>
                     <TableCell className="text-sm">
                       <p className="font-semibold">{fmt(unit)}</p>
-                      {prod && <p className="text-xs text-muted-foreground">atual {fmt(prod.purchase_price)}</p>}
+                      {prod && <p className="text-xs text-muted-foreground">atual {cur > 0 ? fmt(cur) : "sem custo"} → novo {fmt(projected)}</p>}
+                      {bigChange && <Badge variant="destructive" className="mt-1">{pct > 0 ? "+" : ""}{pct.toFixed(1)}%</Badge>}
                     </TableCell>
                     <TableCell>
                       <Select value={l.targetId} onValueChange={v => update(idx, { targetId: v, fromHistory: false })}>
