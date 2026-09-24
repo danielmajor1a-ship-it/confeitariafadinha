@@ -15,6 +15,13 @@
       "when": 1790264437596,
       "tag": "0001_purchases_and_average_cost",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790279586036,
+      "tag": "0002_allow_purchase_stock_movement",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,2 @@
+ALTER TABLE public.stock_movements DROP CONSTRAINT stock_movements_type_check;
+ALTER TABLE public.stock_movements ADD CONSTRAINT stock_movements_type_check CHECK (type = ANY (ARRAY['entrada','saida','compra','ajuste','contagem']));
