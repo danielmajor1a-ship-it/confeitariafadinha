@@ -109,6 +109,7 @@ export default function Sales() {
 
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
+      if ((p as any).sells === false) return false;
       const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
       const matchCategory = categoryFilter === "todos" || p.category === categoryFilter;
       return matchSearch && matchCategory;
