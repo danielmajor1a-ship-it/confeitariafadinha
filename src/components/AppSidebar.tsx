@@ -3,9 +3,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
-import logo from "@/assets/logo.png";
+import logoAsset from "@/assets/confeitaria-fadinha-logo.jpg.asset.json";
 import {
-  Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
+  Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarHeader,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar,
 } from "@/components/ui/sidebar";
 
@@ -40,6 +40,26 @@ const items = [
   { title: "Alertas Estoque", url: "/alertas-estoque", icon: AlertTriangle, key: "alertas-estoque" },
 ];
 
+function BrandHeader({ collapsed }: { collapsed: boolean }) {
+  return (
+    <SidebarHeader
+      className={collapsed
+        ? "h-14 items-center justify-center overflow-hidden border-b border-sidebar-border bg-chocolate-dark p-1"
+        : "h-48 items-center justify-center overflow-hidden border-b border-chocolate bg-chocolate-dark p-0"
+      }
+    >
+      <img
+        src={logoAsset.url}
+        alt="Confeitaria Fadinha"
+        className={collapsed
+          ? "h-10 w-10 shrink-0 rounded-full object-cover"
+          : "h-full w-full object-cover"
+        }
+      />
+    </SidebarHeader>
+  );
+}
+
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
@@ -50,11 +70,9 @@ export function AppSidebar() {
   if (loading) {
     return (
       <Sidebar collapsible="icon">
+        <BrandHeader collapsed={collapsed} />
         <SidebarContent>
           <SidebarGroup>
-          <SidebarGroupLabel className="gap-2 text-sm py-4">
-              <img src={logo} alt="Confeitaria Fadinha" className={collapsed ? "h-8 w-8 object-contain" : "h-10 object-contain"} />
-            </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {[1,2,3,4].map(i => (
@@ -77,11 +95,9 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
+      <BrandHeader collapsed={collapsed} />
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="gap-2 text-sm py-4">
-            <img src={logo} alt="Confeitaria Fadinha" className={collapsed ? "h-8 w-8 object-contain" : "h-10 object-contain"} />
-          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {visibleItems.map((item) => (
