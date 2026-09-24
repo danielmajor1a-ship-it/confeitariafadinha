@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search, ShoppingCart, Trash2, Plus, Minus, CreditCard, Banknote, HandCoins, Receipt, X, History, FileText } from "lucide-react";
 import { toast } from "sonner";
@@ -367,6 +368,7 @@ export default function Sales() {
   // ===== MAIN PDV VIEW =====
   const multiPaid = payments.reduce((s, p) => s + p.amount, 0);
   const multiRemaining = total - multiPaid;
+  const needsClient = paymentMode === 'multi' ? payments.some(p => p.method === 'fiado') : paymentMethod === 'fiado';
 
   return (
     <div className="animate-fade-in h-[calc(100vh-5rem)] flex flex-col lg:flex-row gap-4">
@@ -397,41 +399,42 @@ export default function Sales() {
         <div className="flex gap-2 mb-3 flex-wrap">
           <div className="relative flex-1 min-w-[180px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Buscar produto..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 rounded-xl" />
+            <Input placeholder="Buscar produto..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
           </div>
           <div className="flex gap-1 flex-wrap">
-            <Button size="sm" variant={categoryFilter === "todos" ? "default" : "outline"} onClick={() => setCategoryFilter("todos")} className="text-xs rounded-full">Todos</Button>
+            <Button size="sm" variant={categoryFilter === "todos" ? "default" : "outline"} onClick={() => setCategoryFilter("todos")} className="text-xs">Todos</Button>
             {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
-              <Button key={k} size="sm" variant={categoryFilter === k ? "default" : "outline"} onClick={() => setCategoryFilter(k)} className="text-xs rounded-full">{v}</Button>
+              <Button key={k} size="sm" variant={categoryFilter === k ? "default" : "outline"} onClick={() => setCategoryFilter(k)} className="text-xs">{v}</Button>
             ))}
           </div>
         </div>
 
         <ScrollArea className="flex-1">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-5 p-1 pb-4">
             {filteredProducts.map(p => {
               const inCart = cart.find(i => i.productId === p.id);
               const outOfStock = p.stock <= 0;
               return (
                 <button key={p.id} onClick={() => !outOfStock && addToCart(p.id)} disabled={outOfStock}
-                  className={`relative flex flex-col p-3 rounded-2xl border text-left transition-all duration-150 overflow-hidden
-                    ${outOfStock ? 'opacity-40 cursor-not-allowed bg-muted' : 'bg-card hover:shadow-md hover:border-pink-dark/40 active:scale-95 cursor-pointer'}
-                    ${inCart ? 'ring-2 ring-pink-dark/60 border-pink-dark/40' : ''}
+                  className={`relative flex flex-col items-stretch p-4 rounded-[18px] border border-border text-center transition-all duration-300 shadow-[0_4px_10px_hsl(var(--chocolate)/0.03)]
+                    ${outOfStock ? 'opacity-40 cursor-not-allowed bg-muted' : 'bg-card hover:-translate-y-1 hover:border-pink-dark hover:shadow-[0_10px_20px_hsl(var(--chocolate)/0.08)] active:scale-95 cursor-pointer'}
+                    ${inCart ? 'border-pink-dark ring-2 ring-pink-dark/30' : ''}
                   `}>
                   {inCart && (
-                    <span className="absolute top-2 right-2 bg-pink-dark text-primary-foreground text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center z-10">
+                    <span className="absolute -top-2 -right-2 bg-pink-dark text-primary-foreground text-xs font-bold rounded-full h-7 w-7 flex items-center justify-center z-10 shadow">
                       {inCart.quantity}
                     </span>
                   )}
                   {(p as any).image_url ? (
-                    <img src={(p as any).image_url} alt={p.name} className="w-full h-24 rounded-xl object-cover mb-2 border border-border" />
+                    <img src={(p as any).image_url} alt={p.name} className="w-full h-[100px] rounded-xl object-cover mb-3" />
                   ) : (
-                    <div className="w-full h-24 rounded-xl flex items-center justify-center mb-2" style={{ backgroundColor: 'hsl(var(--pos-pink-muted))' }}>
-                      <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                    <div className="w-full h-[100px] rounded-xl bg-pink-light flex flex-col items-center justify-center mb-3 text-muted-foreground">
+                      <ImageIcon className="h-6 w-6 mb-1 opacity-60" />
+                      <span className="text-xs">Sem foto</span>
                     </div>
                   )}
-                  <span className="font-semibold text-sm leading-tight line-clamp-2">{p.name}</span>
-                  <span className="font-bold text-lg mt-1 text-pink-dark">{fmt(p.sale_price)}</span>
+                  <span className="font-semibold text-sm leading-tight line-clamp-2 min-h-[2.5em]">{p.name}</span>
+                  <span className="font-extrabold text-lg mt-1 text-pink-dark">{fmt(p.sale_price)}</span>
                   <span className={`text-xs mt-0.5 ${p.stock <= p.low_stock_threshold ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
                     {outOfStock ? 'Sem estoque' : `${p.stock} un`}
                   </span>
@@ -446,15 +449,15 @@ export default function Sales() {
       </div>
 
       {/* Right: Cart / Checkout */}
-      <div className="w-full lg:w-[340px] xl:w-[380px] flex flex-col border-2 border-border shadow-lg rounded-2xl overflow-hidden shrink-0 bg-card">
-        <div className="flex items-center justify-between p-4 border-b" style={{ backgroundColor: 'hsl(var(--pos-pink-soft))' }}>
+      <Card className="w-full lg:w-[380px] flex flex-col border border-border bg-card shadow-[-5px_0_20px_hsl(var(--chocolate)/0.05)] rounded-2xl overflow-hidden shrink-0">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-border">
           <div className="flex items-center gap-2">
-            <ShoppingCart className="h-5 w-5 text-pink-dark" />
-            <span className="font-display font-bold text-lg">Carrinho</span>
+            <ShoppingCart className="h-5 w-5 text-chocolate" />
+            <span className="font-display font-bold text-xl text-chocolate">Carrinho</span>
             {totalItems > 0 && <Badge variant="secondary" className="ml-1">{totalItems}</Badge>}
           </div>
           {cart.length > 0 && (
-            <Button variant="ghost" size="sm" onClick={clearCart} className="text-xs text-muted-foreground hover:text-destructive">
+            <Button variant="ghost" size="sm" onClick={clearCart} className="text-xs font-semibold text-pink-dark hover:text-destructive">
               <X className="h-3 w-3 mr-1" /> Limpar tudo
             </Button>
           )}
@@ -468,18 +471,18 @@ export default function Sales() {
               <p className="text-xs mt-1">Clique em um produto para adicionar</p>
             </div>
           ) : (
-            <div className="p-3 space-y-2">
+            <div className="px-5 py-2">
               {cart.map(item => (
-                <div key={item.productId} className="flex items-center gap-2 p-2 rounded-xl border" style={{ backgroundColor: 'hsl(var(--pos-pink-muted))' }}>
+                <div key={item.productId} className="flex items-center gap-3 py-3 border-b border-dashed border-border last:border-b-0">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold leading-tight truncate">{item.productName}</p>
-                    <p className="text-xs text-muted-foreground">{fmt(item.unitPrice)} un</p>
+                    <p className="text-sm font-bold leading-tight truncate">{item.productName}</p>
+                    <p className="text-xs text-muted-foreground">{fmt(item.unitPrice)} un · <span className="font-semibold text-foreground">{fmt(item.subtotal)}</span></p>
                   </div>
-                  <div className="flex items-center gap-1 rounded-full border bg-card px-1 py-0.5">
-                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full"
+                  <div className="flex items-center gap-1 bg-muted rounded-full px-1.5 py-1">
+                    <button type="button" className="h-7 w-7 rounded-full flex items-center justify-center text-chocolate hover:bg-card transition-colors"
                       onClick={() => item.quantity === 1 ? removeFromCart(item.productId) : updateQty(item.productId, -1)}>
-                      {item.quantity === 1 ? <Trash2 className="h-3 w-3 text-destructive" /> : <Minus className="h-3 w-3" />}
-                    </Button>
+                      {item.quantity === 1 ? <Trash2 className="h-3.5 w-3.5 text-destructive" /> : <Minus className="h-3.5 w-3.5" />}
+                    </button>
                     <Input
                       type="number"
                       min={1}
@@ -487,13 +490,13 @@ export default function Sales() {
                       value={item.quantity}
                       onChange={e => setQty(item.productId, parseInt(e.target.value) || 1)}
                       onFocus={e => e.target.select()}
-                      className="w-12 h-7 text-center text-sm font-bold px-1 border-0 bg-transparent focus-visible:ring-0"
+                      className="w-12 h-7 text-center text-sm font-bold px-0 border-0 bg-transparent shadow-none focus-visible:ring-1 focus-visible:ring-pink-dark"
                     />
-                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => updateQty(item.productId, 1)}>
-                      <Plus className="h-3 w-3" />
-                    </Button>
+                    <button type="button" className="h-7 w-7 rounded-full flex items-center justify-center text-chocolate hover:bg-card transition-colors"
+                      onClick={() => updateQty(item.productId, 1)}>
+                      <Plus className="h-3.5 w-3.5" />
+                    </button>
                   </div>
-                  <span className="font-bold text-sm w-16 text-right">{fmt(item.subtotal)}</span>
                 </div>
               ))}
             </div>
@@ -502,11 +505,11 @@ export default function Sales() {
 
         {/* ===== CHECKOUT SECTION ===== */}
         {cart.length > 0 && (
-          <div className="border-t p-4 space-y-3 bg-card max-h-[55vh] overflow-y-auto">
+          <div className="border-t-2 border-border p-5 space-y-4 bg-muted/30 max-h-[60vh] overflow-y-auto">
             {/* Total */}
-            <div className="flex items-center justify-between p-4 rounded-2xl" style={{ backgroundColor: 'hsl(var(--pos-pink-soft))' }}>
-              <span className="font-semibold text-sm">Total</span>
-              <span className="text-3xl font-bold font-display text-pink-dark">{fmt(total)}</span>
+            <div className="p-5 rounded-2xl bg-pink-dark text-primary-foreground text-center shadow-sm">
+              <span className="text-sm opacity-90">Total a pagar</span>
+              <p className="text-4xl font-extrabold leading-tight">{fmt(total)}</p>
             </div>
 
             {/* Payment mode toggle */}
@@ -524,13 +527,13 @@ export default function Sales() {
             {paymentMode === 'single' ? (
               <>
                 {/* Payment method buttons */}
-                <div className="grid grid-cols-3 gap-1.5">
+                <div className="grid grid-cols-3 gap-2">
                   {SINGLE_METHODS.map(k => (
                     <button key={k} onClick={() => { setPaymentMethod(k); setAmountReceived(''); }}
-                      className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border-2 transition-all text-[11px] font-semibold
-                        ${paymentMethod === k ? 'border-pink-dark bg-pink-light text-pink-dark' : 'border-border hover:border-muted-foreground/30'}
+                      className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-xl border transition-all text-xs min-h-[56px]
+                        ${paymentMethod === k ? 'border-pink-dark bg-pink-light text-pink-dark font-bold' : 'border-border bg-card font-medium hover:border-pink-dark/40'}
                       `}>
-                      <PaymentIcon method={k} className="h-4 w-4" />
+                      <PaymentIcon method={k} className="h-5 w-5" />
                       {PAYMENT_LABELS[k]}
                     </button>
                   ))}
@@ -565,26 +568,25 @@ export default function Sales() {
 
                 {/* Change calculator for cash */}
                 {paymentMethod === 'dinheiro' && (
-                  <div className="space-y-2 p-3 rounded-xl border" style={{ backgroundColor: 'hsl(var(--pos-pink-muted))' }}>
-                    <div className="flex items-center gap-2 text-sm font-semibold">
+                  <div className="space-y-3 p-4 rounded-xl bg-card border border-border">
+                    <div className="flex items-center gap-2 text-sm font-bold text-chocolate">
                       <Calculator className="h-4 w-4" /> Calculadora de Troco
                     </div>
                     <div>
-                      <label className="text-xs text-muted-foreground">Valor Recebido</label>
+                      <label className="text-xs text-muted-foreground">Valor recebido</label>
                       <Input placeholder="0,00" value={amountReceived}
                         onChange={e => setAmountReceived(e.target.value)}
-                        className="text-xl font-bold h-12 rounded-xl" inputMode="decimal" />
+                        className="h-14 text-2xl font-extrabold text-center rounded-xl border-2 focus-visible:ring-pink-dark" inputMode="decimal" />
                     </div>
                     {amountReceived && (() => {
                       const received = parseFloat(amountReceived.replace(",", ".")) || 0;
                       const change = received - total;
                       return (
-                        <div className="p-2 rounded-lg text-center"
-                          style={{ backgroundColor: change >= 0 ? 'hsl(var(--pos-green) / 0.12)' : 'hsl(var(--destructive) / 0.1)' }}>
+                        <div className={`p-2 rounded-lg text-center ${change >= 0 ? 'bg-green-100 dark:bg-green-950/30' : 'bg-red-100 dark:bg-red-950/30'}`}>
                           {change >= 0 ? (
                             <>
                               <p className="text-xs text-muted-foreground">Troco</p>
-                              <p className="text-2xl font-bold" style={{ color: 'hsl(var(--pos-green))' }}>{fmt(change)}</p>
+                              <p className="text-2xl font-bold text-green-600">{fmt(change)}</p>
                             </>
                           ) : (
                             <p className="text-sm font-semibold text-destructive">
@@ -594,14 +596,14 @@ export default function Sales() {
                         </div>
                       );
                     })()}
-                    <div className="grid grid-cols-3 gap-1">
+                    <div className="grid grid-cols-5 gap-1.5">
                       {[5, 10, 20, 50].map(v => (
-                        <Button key={v} size="sm" variant="outline" className="text-xs rounded-lg"
+                        <Button key={v} size="sm" variant="outline" className="text-xs font-bold rounded-lg hover:border-pink-dark hover:text-pink-dark"
                           onClick={() => setAmountReceived(String(v))}>
-                          R${v}
+                          R$ {v}
                         </Button>
                       ))}
-                      <Button size="sm" variant="outline" className="text-xs rounded-lg col-span-2"
+                      <Button size="sm" variant="outline" className="text-xs font-bold rounded-lg hover:border-pink-dark hover:text-pink-dark"
                         onClick={() => setAmountReceived(total.toFixed(2).replace(".", ","))}>
                         Exato
                       </Button>
@@ -626,7 +628,7 @@ export default function Sales() {
                 {payments.length > 0 && (
                   <div className="space-y-1">
                     {payments.map((p, i) => (
-                      <div key={i} className="flex items-center justify-between p-2 rounded-lg border text-sm" style={{ backgroundColor: 'hsl(var(--pos-pink-muted))' }}>
+                      <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border text-sm">
                         <div className="flex items-center gap-2">
                           <PaymentIcon method={p.method} className="h-4 w-4" />
                           <span className="font-medium text-xs">{PAYMENT_LABELS[p.method]}</span>
@@ -648,17 +650,17 @@ export default function Sales() {
 
                 {/* Remaining / Status */}
                 {multiRemaining > 0.01 ? (
-                  <div className="p-2 rounded-lg text-center" style={{ backgroundColor: 'hsl(var(--pos-amber) / 0.1)', border: '1px solid hsl(var(--pos-amber) / 0.3)' }}>
+                  <div className="p-2 rounded-lg bg-warning/10 border border-warning/30 text-center">
                     <p className="text-xs text-muted-foreground">Restante</p>
-                    <p className="text-lg font-bold" style={{ color: 'hsl(var(--pos-amber))' }}>{fmt(multiRemaining)}</p>
+                    <p className="text-lg font-bold text-warning">{fmt(multiRemaining)}</p>
                   </div>
                 ) : multiRemaining < -0.01 ? (
                   <div className="p-2 rounded-lg bg-destructive/10 border border-destructive/30 text-center">
                     <p className="text-sm font-semibold text-destructive">Excede em {fmt(Math.abs(multiRemaining))}</p>
                   </div>
                 ) : payments.length > 0 ? (
-                  <div className="p-2 rounded-lg text-center" style={{ backgroundColor: 'hsl(var(--pos-green) / 0.12)' }}>
-                    <p className="text-sm font-semibold" style={{ color: 'hsl(var(--pos-green))' }}>✓ Pagamento completo</p>
+                  <div className="p-2 rounded-lg bg-green-100 dark:bg-green-950/30 text-center">
+                    <p className="text-sm font-semibold text-green-600">✓ Pagamento completo</p>
                   </div>
                 ) : null}
 
@@ -730,14 +732,14 @@ export default function Sales() {
 
             {/* Finalize Button */}
             <Button onClick={finalizeSale} size="lg"
-              className="w-full h-14 text-base font-bold rounded-2xl bg-chocolate hover:bg-chocolate-dark text-primary-foreground"
+              className="w-full h-14 rounded-2xl text-base font-extrabold tracking-wide bg-chocolate text-primary-foreground hover:bg-chocolate-dark shadow-[0_10px_20px_-6px_hsl(var(--chocolate)/0.45)] transition-all hover:-translate-y-0.5"
               disabled={isProcessing || (paymentMode === 'multi' && Math.abs(multiRemaining) > 0.01)}>
               {isProcessing ? <span className="animate-spin mr-2">⏳</span> : <Receipt className="h-5 w-5 mr-2" />}
-              {isProcessing ? 'Processando...' : `FINALIZAR VENDA • ${fmt(total)}`}
+              {isProcessing ? 'PROCESSANDO...' : 'FINALIZAR VENDA'}
             </Button>
           </div>
         )}
-      </div>
+      </Card>
       <ReceiptDialog open={showReceipt} onOpenChange={setShowReceipt} data={receiptData} />
     </div>
   );
