@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { PackagePlus } from "lucide-react";
 import { toast } from "sonner";
+import PurchaseEntry from "@/components/NfeImportDialog";
 
 export default function Stock() {
   const { products, stockMovements, addStockEntry } = useApp();
@@ -30,6 +31,8 @@ export default function Stock() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <h1 className="page-header">Estoque</h1>
+        <div className="flex flex-wrap gap-2">
+        <PurchaseEntry />
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button><PackagePlus className="h-4 w-4 mr-1" /> Entrada de Estoque</Button>
@@ -49,6 +52,7 @@ export default function Stock() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

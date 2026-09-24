@@ -8,6 +8,13 @@
       "when": 1790263393565,
       "tag": "0000_items_units",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790264437596,
+      "tag": "0001_purchases_and_average_cost",
+      "breakpoints": true
     }
   ]
 }
