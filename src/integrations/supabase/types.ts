@@ -228,6 +228,54 @@ export type Database = {
         }
         Relationships: []
       }
+      cost_change_events: {
+        Row: {
+          acknowledged: boolean
+          change_pct: number
+          created_at: string
+          id: string
+          new_cost: number
+          old_cost: number
+          product_id: string
+          purchase_id: string | null
+        }
+        Insert: {
+          acknowledged?: boolean
+          change_pct: number
+          created_at?: string
+          id?: string
+          new_cost: number
+          old_cost: number
+          product_id: string
+          purchase_id?: string | null
+        }
+        Update: {
+          acknowledged?: boolean
+          change_pct?: number
+          created_at?: string
+          id?: string
+          new_cost?: number
+          old_cost?: number
+          product_id?: string
+          purchase_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cost_change_events_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cost_change_events_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       costs: {
         Row: {
           created_at: string
@@ -405,6 +453,93 @@ export type Database = {
           id?: string
           is_active?: boolean
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      purchase_items: {
+        Row: {
+          created_at: string
+          id: string
+          original_description: string
+          product_id: string | null
+          purchase_id: string
+          quantity: number
+          total_value: number
+          unit: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          original_description?: string
+          product_id?: string | null
+          purchase_id: string
+          quantity?: number
+          total_value?: number
+          unit?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          original_description?: string
+          product_id?: string | null
+          purchase_id?: string
+          quantity?: number
+          total_value?: number
+          unit?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_items_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchases: {
+        Row: {
+          confirmed_at: string | null
+          created_at: string
+          document_url: string | null
+          id: string
+          purchase_date: string
+          source: string
+          status: string
+          supplier: string
+          total: number
+          user_id: string
+        }
+        Insert: {
+          confirmed_at?: string | null
+          created_at?: string
+          document_url?: string | null
+          id?: string
+          purchase_date?: string
+          source?: string
+          status?: string
+          supplier?: string
+          total?: number
+          user_id: string
+        }
+        Update: {
+          confirmed_at?: string | null
+          created_at?: string
+          document_url?: string | null
+          id?: string
+          purchase_date?: string
+          source?: string
+          status?: string
+          supplier?: string
+          total?: number
           user_id?: string
         }
         Relationships: []
@@ -617,6 +752,7 @@ export type Database = {
           reason: string | null
           reference: string | null
           type: string
+          unit_cost: number | null
           user_id: string
         }
         Insert: {
@@ -627,6 +763,7 @@ export type Database = {
           reason?: string | null
           reference?: string | null
           type: string
+          unit_cost?: number | null
           user_id: string
         }
         Update: {
@@ -637,6 +774,7 @@ export type Database = {
           reason?: string | null
           reference?: string | null
           type?: string
+          unit_cost?: number | null
           user_id?: string
         }
         Relationships: [
@@ -672,6 +810,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      confirm_purchase: { Args: { _purchase_id: string }; Returns: Json }
       create_sale_with_items:
         | {
             Args: { _client_id?: string; _items: Json; _payment_method: string }
