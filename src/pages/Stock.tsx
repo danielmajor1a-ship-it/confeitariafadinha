@@ -90,8 +90,8 @@ export default function Stock() {
                     <TableCell>{new Date(m.created_at).toLocaleDateString('pt-BR')}</TableCell>
                     <TableCell>{getProductName(m.product_id)}</TableCell>
                     <TableCell>
-                      <Badge variant={m.type === 'entrada' ? 'default' : 'secondary'}>
-                        {m.type === 'entrada' ? '↑ Entrada' : '↓ Saída'}
+                      <Badge variant={m.type === 'entrada' || m.type === 'compra' ? 'default' : 'secondary'}>
+                        {m.type === 'compra' ? '↑ Compra' : m.type === 'entrada' ? '↑ Entrada' : '↓ Saída'}
                       </Badge>
                     </TableCell>
                     <TableCell>{m.quantity}</TableCell>
