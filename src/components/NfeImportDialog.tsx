@@ -23,6 +23,25 @@ interface Line {
   total: number;
   targetId: string;
   fromHistory: boolean;
+  xmlQty?: number;
+  xmlUnit?: string;
+  tribQty?: number;
+  tribUnit?: string;
+  stockUnit?: string;
+  factor?: string;
+}
+
+const U = (u?: string) => (u || "").trim().toUpperCase();
+
+// Conversão da unidade do XML para a unidade de estoque do produto
+function convert(l: Line) {
+  if (l.xmlQty === undefined) return { qty: l.quantity, blocked: false, note: "" };
+  const su = U(l.stockUnit), xu = U(l.xmlUnit);
+  if (!su || su === xu) return { qty: l.xmlQty, blocked: false, note: "" };
+  if (U(l.tribUnit) === su && (l.tribQty || 0) > 0) return { qty: l.tribQty!, blocked: false, note: `${l.xmlQty} ${xu} → ${l.tribQty} ${su} (unidade tributável da nota)` };
+  const f = parseFloat((l.factor || "").replace(",", "."));
+  if (f > 0) return { qty: l.xmlQty * f, blocked: false, note: `${l.xmlQty} ${xu} × ${f} → ${l.xmlQty * f} ${su}` };
+  return { qty: 0, blocked: true, note: `Nota em ${xu}, estoque em ${su}: informe quantos ${su} vêm em 1 ${xu}` };
 }
 
 export function normalize(s: string) {
@@ -62,6 +81,10 @@ function parseXml(text: string) {
       quantity: parseFloat(get("qCom")) || 0,
       unit: get("uCom"),
       total: parseFloat(get("vProd")) || 0,
+      xmlQty: parseFloat(get("qCom")) || 0,
+      xmlUnit: get("uCom"),
+      tribQty: parseFloat(get("qTrib")) || 0,
+      tribUnit: get("uTrib"),
     };
   });
   return { supplier, items };
@@ -88,6 +111,12 @@ export default function PurchaseEntry() {
   const [mQty, setMQty] = useState("");
   const [mTotal, setMTotal] = useState("");
 
+  function withUnits(l: Line): Line {
+    if (l.xmlQty === undefined) return l;
+    const p: any = products.find(x => x.id === l.targetId);
+    return { ...l, stockUnit: p?.stock_unit || "", factor: p?.purchase_factor ? String(p.purchase_factor) : "" };
+  }
+
   async function suggest(items: { description: string; quantity: number; unit: string; total: number }[]) {
     // Past matches: confirmed purchase lines with same description
     const { data: hist } = await supabase.from("purchase_items").select("original_description, product_id").not("product_id", "is", null);
@@ -97,14 +126,14 @@ export default function PurchaseEntry() {
     return items.map((it, i): Line => {
       const past = histMap.get(normalize(it.description));
       if (past && products.some(p => p.id === past)) {
-        return { key: `${i}`, ...it, targetId: past, fromHistory: true };
+        return withUnits({ key: `${i}`, ...it, targetId: past, fromHistory: true });
       }
       let bestId = NEW_PRODUCT, best = 0;
       for (const p of products) {
         const s = score(it.description, p.name);
         if (s > best) { best = s; bestId = p.id; }
       }
-      return { key: `${i}`, ...it, targetId: best >= 0.5 ? bestId : NEW_PRODUCT, fromHistory: false };
+      return withUnits({ key: `${i}`, ...it, targetId: best >= 0.5 ? bestId : NEW_PRODUCT, fromHistory: false });
     });
   }
 
@@ -182,12 +211,24 @@ export default function PurchaseEntry() {
       const { error: upErr } = await supabase.storage.from("purchase-documents").upload(docPath, docFile, { contentType: docFile.type || "image/jpeg" });
       if (upErr) { toast.error(`Não foi possível guardar a foto do cupom (nada foi salvo): ${upErr.message}`); return false; }
     }
+    // Grava unidade de estoque e fator definidos na conferência (XML)
+    for (const l of rows) {
+      if (l.xmlQty === undefined || l.targetId === NEW_PRODUCT) continue;
+      const p: any = products.find(x => x.id === l.targetId);
+      const f = parseFloat((l.factor || "").replace(",", "."));
+      const su = U(l.stockUnit) || null;
+      const pf = f > 0 ? f : null;
+      if ((p?.stock_unit || null) !== su || (p?.purchase_factor ?? null) !== pf) {
+        const { error: uErr } = await supabase.from("products").update({ stock_unit: su, purchase_factor: pf } as any).eq("id", l.targetId);
+        if (uErr) { toast.error(`Não foi possível salvar a unidade de ${l.description} (nada foi salvo): ${uErr.message}`); return false; }
+      }
+    }
     // Compra, itens novos, itens da compra, movimento de estoque e custo médio: uma única transação
     const { data: res, error } = await supabase.rpc("register_purchase" as any, {
       _supplier: sup, _source: src,
       _items: rows.map(l => ({
         product_id: l.targetId === NEW_PRODUCT ? null : l.targetId,
-        description: l.description, quantity: l.quantity, unit: l.unit || "", total_value: l.total,
+        description: l.description, quantity: convert(l).qty, unit: l.xmlQty !== undefined ? (U(l.stockUnit) || l.unit || "") : (l.unit || ""), total_value: l.total,
       })),
       ...(src === "cupom_fiscal" ? { _document_url: docPath, _purchase_date: purchaseDate || null } : {}),
     } as any);
@@ -201,7 +242,8 @@ export default function PurchaseEntry() {
   }
 
   async function confirm() {
-    if (lines.some(l => l.quantity <= 0)) { toast.error("Quantidade deve ser maior que zero"); return; }
+    if (lines.some(l => convert(l).blocked)) { toast.error("Defina o fator de conversão dos itens destacados antes de confirmar"); return; }
+    if (lines.some(l => convert(l).qty <= 0)) { toast.error("Quantidade deve ser maior que zero"); return; }
     if (lines.some(l => !l.description.trim())) { toast.error("Preencha a descrição de todos os itens"); return; }
     setSaving(true);
     try {
@@ -266,7 +308,7 @@ export default function PurchaseEntry() {
           <Table>
             <TableHeader><TableRow>
               <TableHead>Item da nota</TableHead>
-              <TableHead className="w-24">Qtd</TableHead>
+              <TableHead className="w-24">{source === "nf_xml" ? "Qtd (nota → estoque)" : "Qtd"}</TableHead>
               <TableHead className="w-28">Valor total</TableHead>
               <TableHead>{source === "cupom_fiscal" ? "Valor un." : "Custo un."}</TableHead>
               <TableHead>Item cadastrado</TableHead>
@@ -274,14 +316,15 @@ export default function PurchaseEntry() {
             <TableBody>
               {lines.map((l, idx) => {
                 const prod = products.find(p => p.id === l.targetId);
-                const unit = l.quantity > 0 ? l.total / l.quantity : 0;
+                const cv = convert(l);
+                const unit = cv.qty > 0 ? l.total / cv.qty : 0;
                 const cur = prod?.purchase_price || 0;
                 const projected = prod && cur > 0 && prod.stock > 0
-                  ? (prod.stock * cur + l.quantity * unit) / (prod.stock + l.quantity) : unit;
+                  ? (prod.stock * cur + cv.qty * unit) / (prod.stock + cv.qty) : unit;
                 const pct = cur > 0 ? ((projected - cur) / cur) * 100 : 0;
                 const bigChange = Math.abs(pct) > 5;
                 return (
-                  <TableRow key={l.key} className={bigChange ? "bg-destructive/10" : undefined}>
+                  <TableRow key={l.key} className={bigChange || cv.blocked ? "bg-destructive/10" : undefined}>
                     <TableCell className="max-w-[220px]">
                       {source === "cupom_fiscal"
                         ? <Input value={l.description} placeholder="Descrição do item" onChange={e => update(idx, { description: e.target.value })} />
@@ -289,8 +332,23 @@ export default function PurchaseEntry() {
                       {l.unit && <p className="text-xs text-muted-foreground">{l.unit}</p>}
                     </TableCell>
                     <TableCell>
-                      <Input type="number" min={0} step="any" value={l.quantity}
-                        onChange={e => update(idx, { quantity: parseFloat(e.target.value) || 0 })} />
+                      {l.xmlQty !== undefined ? (
+                        <div className="space-y-1 min-w-[150px]">
+                          <p className="text-sm">{l.xmlQty} {U(l.xmlUnit)}</p>
+                          {prod && (<>
+                            <Input value={l.stockUnit || ""} placeholder="Unid. estoque (ex: UN)" className="h-8 text-xs"
+                              onChange={e => update(idx, { stockUnit: e.target.value.toUpperCase() })} />
+                            {U(l.stockUnit) && U(l.stockUnit) !== U(l.xmlUnit) && U(l.tribUnit) !== U(l.stockUnit) && (
+                              <Input inputMode="decimal" value={l.factor || ""} placeholder={`${U(l.stockUnit)} por ${U(l.xmlUnit)}`} className="h-8 text-xs"
+                                onChange={e => update(idx, { factor: e.target.value })} />
+                            )}
+                          </>)}
+                          {cv.note && <p className={`text-xs ${cv.blocked ? "text-destructive font-medium" : "text-muted-foreground"}`}>{cv.note}</p>}
+                        </div>
+                      ) : (
+                        <Input type="number" min={0} step="any" value={l.quantity}
+                          onChange={e => update(idx, { quantity: parseFloat(e.target.value) || 0 })} />
+                      )}
                     </TableCell>
                     <TableCell>
                       <Input type="number" min={0} step="0.01" value={l.total}
@@ -300,12 +358,12 @@ export default function PurchaseEntry() {
                       {source === "cupom_fiscal"
                         ? <Input type="number" min={0} step="0.01" value={Number(unit.toFixed(4))} className="w-28 mb-1"
                             onChange={e => update(idx, { total: Math.round((parseFloat(e.target.value) || 0) * l.quantity * 100) / 100 })} />
-                        : <p className="font-semibold">{fmt(unit)}</p>}
+                        : <p className="font-semibold">{cv.blocked ? "—" : fmt(unit)}{l.xmlQty !== undefined && !cv.blocked && U(l.stockUnit) ? ` / ${U(l.stockUnit)}` : ""}</p>}
                       {prod && <p className="text-xs text-muted-foreground">atual {cur > 0 ? fmt(cur) : "sem custo"} → novo {fmt(projected)}</p>}
                       {bigChange && <Badge variant="destructive" className="mt-1">{pct > 0 ? "+" : ""}{pct.toFixed(1)}%</Badge>}
                     </TableCell>
                     <TableCell>
-                      <Select value={l.targetId} onValueChange={v => update(idx, { targetId: v, fromHistory: false })}>
+                      <Select value={l.targetId} onValueChange={v => setLines(prev => prev.map((x, i) => i === idx ? withUnits({ ...x, targetId: v, fromHistory: false }) : x))}>
                         <SelectTrigger className="min-w-[220px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value={NEW_PRODUCT}>+ Criar item novo com este nome</SelectItem>
