@@ -448,11 +448,13 @@ export type Database = {
           low_stock_threshold: number
           name: string
           needs_review: boolean
+          purchase_factor: number | null
           purchase_price: number
           purchase_unit: string
           sale_price: number
           sells: boolean
           stock: number
+          stock_unit: string | null
           updated_at: string
           usage_unit: string
           used_in_recipes: boolean
@@ -469,11 +471,13 @@ export type Database = {
           low_stock_threshold?: number
           name: string
           needs_review?: boolean
+          purchase_factor?: number | null
           purchase_price?: number
           purchase_unit?: string
           sale_price?: number
           sells?: boolean
           stock?: number
+          stock_unit?: string | null
           updated_at?: string
           usage_unit?: string
           used_in_recipes?: boolean
@@ -490,11 +494,13 @@ export type Database = {
           low_stock_threshold?: number
           name?: string
           needs_review?: boolean
+          purchase_factor?: number | null
           purchase_price?: number
           purchase_unit?: string
           sale_price?: number
           sells?: boolean
           stock?: number
+          stock_unit?: string | null
           updated_at?: string
           usage_unit?: string
           used_in_recipes?: boolean
@@ -557,6 +563,8 @@ export type Database = {
           quantity: number
           total_value: number
           unit: string
+          xml_quantity: number | null
+          xml_unit: string | null
         }
         Insert: {
           created_at?: string
@@ -567,6 +575,8 @@ export type Database = {
           quantity?: number
           total_value?: number
           unit?: string
+          xml_quantity?: number | null
+          xml_unit?: string | null
         }
         Update: {
           created_at?: string
@@ -577,6 +587,8 @@ export type Database = {
           quantity?: number
           total_value?: number
           unit?: string
+          xml_quantity?: number | null
+          xml_unit?: string | null
         }
         Relationships: [
           {
