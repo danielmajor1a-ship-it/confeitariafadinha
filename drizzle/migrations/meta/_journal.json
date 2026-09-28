@@ -36,6 +36,13 @@
       "when": 1790621917143,
       "tag": "0004_inventory_sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790622169144,
+      "tag": "0005_cupom_fiscal_purchases",
+      "breakpoints": true
     }
   ]
 }

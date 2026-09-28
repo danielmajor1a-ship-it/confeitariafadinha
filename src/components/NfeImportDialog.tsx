@@ -6,14 +6,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { FileUp, Loader2, PencilLine } from "lucide-react";
+import { FileUp, Loader2, PencilLine, Camera, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/contexts/AppContext";
 import { useAuth } from "@/contexts/AuthContext";
 
 const NEW_PRODUCT = "__new__";
-type Source = "nf_xml" | "nf_foto" | "nf_pdf" | "cupom_foto" | "manual";
+type Source = "nf_xml" | "nf_foto" | "nf_pdf" | "cupom_foto" | "cupom_fiscal" | "manual";
 
 interface Line {
   key: string;
@@ -71,6 +71,10 @@ export default function PurchaseEntry() {
   const { products, refresh } = useApp();
   const { user } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
+  const cupomRef = useRef<HTMLInputElement>(null);
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [purchaseDate, setPurchaseDate] = useState("");
+  const [docTotal, setDocTotal] = useState<number | null>(null);
   const [reading, setReading] = useState(false);
   const [open, setOpen] = useState(false);
   const [source, setSource] = useState<Source>("nf_xml");
@@ -138,12 +142,46 @@ export default function PurchaseEntry() {
     }
   }
 
+  async function handleCupom(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { toast.error("Foto muito grande (máx. 10 MB)"); return; }
+    setReading(true);
+    let items: any[] = []; let sup = ""; let date = ""; let total: number | null = null; let failed = false;
+    try {
+      const { data, error } = await supabase.functions.invoke("parse-purchase-document", {
+        body: { fileBase64: await readAs(file, "dataurl"), mimeType: file.type || "image/jpeg" },
+      });
+      if (error || data?.error) throw new Error(data?.error || "falha");
+      items = (data.items || []).filter((i: any) => i.description && i.quantity > 0);
+      sup = data.supplier || ""; date = /^\d{4}-\d{2}-\d{2}$/.test(data.date || "") ? data.date : "";
+      total = typeof data.document_total === "number" ? data.document_total : null;
+      if (data.legible === false || !items.length) failed = true;
+    } catch { failed = true; }
+    if (failed) toast.warning("Não consegui ler o cupom com segurança. Preencha os itens manualmente.");
+    setLines(failed ? [{ key: "n0", description: "", quantity: 1, unit: "UN", total: 0, targetId: NEW_PRODUCT, fromHistory: false }] : await suggest(items));
+    setSupplier(failed ? "" : sup); setPurchaseDate(failed ? "" : date); setDocTotal(failed ? null : total);
+    setDocFile(file); setSource("cupom_fiscal"); setOpen(true); setReading(false);
+  }
+
+  function addLine() {
+    setLines(prev => [...prev, { key: `n${Date.now()}`, description: "", quantity: 1, unit: "UN", total: 0, targetId: NEW_PRODUCT, fromHistory: false }]);
+  }
+
   function update(idx: number, patch: Partial<Line>) {
     setLines(prev => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
   }
 
   async function savePurchase(src: Source, sup: string, rows: Line[]) {
     if (!user) return false;
+    let docPath: string | null = null;
+    if (docFile && src === "cupom_fiscal") {
+      const ext = (docFile.name.split(".").pop() || "jpg").toLowerCase();
+      docPath = `${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("purchase-documents").upload(docPath, docFile, { contentType: docFile.type || "image/jpeg" });
+      if (upErr) { toast.error(`Não foi possível guardar a foto do cupom (nada foi salvo): ${upErr.message}`); return false; }
+    }
     // Compra, itens novos, itens da compra, movimento de estoque e custo médio: uma única transação
     const { data: res, error } = await supabase.rpc("register_purchase" as any, {
       _supplier: sup, _source: src,
@@ -151,8 +189,10 @@ export default function PurchaseEntry() {
         product_id: l.targetId === NEW_PRODUCT ? null : l.targetId,
         description: l.description, quantity: l.quantity, unit: l.unit || "", total_value: l.total,
       })),
+      ...(src === "cupom_fiscal" ? { _document_url: docPath, _purchase_date: purchaseDate || null } : {}),
     } as any);
-    if (error) { toast.error(`Compra não registrada (nada foi salvo): ${error.message}`); return false; }
+    if (error) {
+      if (docPath) await supabase.storage.from("purchase-documents").remove([docPath]); toast.error(`Compra não registrada (nada foi salvo): ${error.message}`); return false; }
     const r = res as { items: number; alerts: number };
     toast.success(`Compra registrada: ${r.items} item(ns) no estoque`);
     if (r.alerts > 0) toast.warning(`${r.alerts} item(ns) mudaram de custo mais de 5%`);
@@ -162,9 +202,10 @@ export default function PurchaseEntry() {
 
   async function confirm() {
     if (lines.some(l => l.quantity <= 0)) { toast.error("Quantidade deve ser maior que zero"); return; }
+    if (lines.some(l => !l.description.trim())) { toast.error("Preencha a descrição de todos os itens"); return; }
     setSaving(true);
     try {
-      if (await savePurchase(source, supplier, lines)) { setOpen(false); setLines([]); }
+      if (await savePurchase(source, supplier, lines)) { setOpen(false); setLines([]); setDocFile(null); }
     } finally { setSaving(false); }
   }
 
@@ -183,23 +224,27 @@ export default function PurchaseEntry() {
   }
 
   const sourceLabel: Record<Source, string> = {
-    nf_xml: "XML da nota", nf_pdf: "PDF da nota", nf_foto: "Foto da nota/cupom", cupom_foto: "Foto do cupom", manual: "Sem nota",
+    nf_xml: "XML da nota", nf_pdf: "PDF da nota", nf_foto: "Foto da nota/cupom", cupom_foto: "Foto do cupom", cupom_fiscal: "Cupom fiscal (foto)", manual: "Sem nota",
   };
 
   return (
     <>
       <input ref={fileRef} type="file" accept=".xml,text/xml,application/pdf,image/jpeg,image/png,image/webp" className="hidden" onChange={handleFile} />
+      <input ref={cupomRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleCupom} />
       <div className="flex flex-wrap gap-2">
         <Button className="min-h-[44px]" onClick={() => fileRef.current?.click()} disabled={reading}>
           {reading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <FileUp className="h-4 w-4 mr-1" />}
           {reading ? "Lendo nota..." : "Enviar nota"}
+        </Button>
+        <Button variant="outline" className="min-h-[44px]" onClick={() => cupomRef.current?.click()} disabled={reading}>
+          <Camera className="h-4 w-4 mr-1" /> Lançar por foto de cupom
         </Button>
         <Button variant="outline" className="min-h-[44px]" onClick={() => setManualOpen(true)}>
           <PencilLine className="h-4 w-4 mr-1" /> Compra sem nota
         </Button>
       </div>
 
-      <Dialog open={open} onOpenChange={o => { if (!saving) { setOpen(o); if (!o) setLines([]); } }}>
+      <Dialog open={open} onOpenChange={o => { if (!saving) { setOpen(o); if (!o) { setLines([]); setDocFile(null); } } }}>
         <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Conferir compra</DialogTitle></DialogHeader>
           <div className="flex flex-wrap items-end gap-3">
@@ -207,7 +252,13 @@ export default function PurchaseEntry() {
               <Label>Fornecedor</Label>
               <Input value={supplier} onChange={e => setSupplier(e.target.value)} />
             </div>
+            {source === "cupom_fiscal" && (
+              <div className="w-44"><Label>Data da compra</Label>
+                <Input type="date" value={purchaseDate} onChange={e => setPurchaseDate(e.target.value)} />
+              </div>
+            )}
             <Badge variant="secondary">{sourceLabel[source]}</Badge>
+            {source === "cupom_fiscal" && docTotal !== null && <Badge variant="outline">Total lido no cupom: {fmt(docTotal)}</Badge>}
           </div>
           <p className="text-sm text-muted-foreground">
             Confira quantidade, valor e o item de cada linha. Nada é salvo até você confirmar. Ao confirmar, o estoque aumenta e o custo médio é recalculado.
@@ -217,7 +268,7 @@ export default function PurchaseEntry() {
               <TableHead>Item da nota</TableHead>
               <TableHead className="w-24">Qtd</TableHead>
               <TableHead className="w-28">Valor total</TableHead>
-              <TableHead>Custo un.</TableHead>
+              <TableHead>{source === "cupom_fiscal" ? "Valor un." : "Custo un."}</TableHead>
               <TableHead>Item cadastrado</TableHead>
             </TableRow></TableHeader>
             <TableBody>
@@ -232,7 +283,9 @@ export default function PurchaseEntry() {
                 return (
                   <TableRow key={l.key} className={bigChange ? "bg-destructive/10" : undefined}>
                     <TableCell className="max-w-[220px]">
-                      <p className="font-medium text-sm">{l.description}</p>
+                      {source === "cupom_fiscal"
+                        ? <Input value={l.description} placeholder="Descrição do item" onChange={e => update(idx, { description: e.target.value })} />
+                        : <p className="font-medium text-sm">{l.description}</p>}
                       {l.unit && <p className="text-xs text-muted-foreground">{l.unit}</p>}
                     </TableCell>
                     <TableCell>
@@ -244,7 +297,10 @@ export default function PurchaseEntry() {
                         onChange={e => update(idx, { total: parseFloat(e.target.value) || 0 })} />
                     </TableCell>
                     <TableCell className="text-sm">
-                      <p className="font-semibold">{fmt(unit)}</p>
+                      {source === "cupom_fiscal"
+                        ? <Input type="number" min={0} step="0.01" value={Number(unit.toFixed(4))} className="w-28 mb-1"
+                            onChange={e => update(idx, { total: Math.round((parseFloat(e.target.value) || 0) * l.quantity * 100) / 100 })} />
+                        : <p className="font-semibold">{fmt(unit)}</p>}
                       {prod && <p className="text-xs text-muted-foreground">atual {cur > 0 ? fmt(cur) : "sem custo"} → novo {fmt(projected)}</p>}
                       {bigChange && <Badge variant="destructive" className="mt-1">{pct > 0 ? "+" : ""}{pct.toFixed(1)}%</Badge>}
                     </TableCell>
@@ -258,6 +314,9 @@ export default function PurchaseEntry() {
                       </Select>
                       {l.targetId === NEW_PRODUCT && <Badge variant="secondary" className="mt-1">Item novo</Badge>}
                       {l.fromHistory && <Badge variant="outline" className="mt-1">Já usado antes</Badge>}
+                      {source === "cupom_fiscal" && lines.length > 1 && (
+                        <Button variant="ghost" size="sm" className="mt-1" onClick={() => setLines(prev => prev.filter((_, i) => i !== idx))}><Trash2 className="h-4 w-4" /></Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 );
@@ -265,7 +324,10 @@ export default function PurchaseEntry() {
             </TableBody>
           </Table>
           <div className="flex justify-between items-center pt-2">
+            <div className="flex items-center gap-3">
+            {source === "cupom_fiscal" && <Button variant="outline" size="sm" onClick={addLine}><Plus className="h-4 w-4 mr-1" /> Adicionar item</Button>}
             <p className="text-sm">Total: <strong>{fmt(lines.reduce((s, l) => s + l.total, 0))}</strong></p>
+            </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>Cancelar</Button>
               <Button onClick={confirm} disabled={saving || !lines.length}>
