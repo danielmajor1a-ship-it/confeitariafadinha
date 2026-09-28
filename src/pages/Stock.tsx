@@ -33,7 +33,7 @@ export default function Stock() {
 
   const TYPE_LABEL: Record<string, string> = {
     compra: "↑ Compra", venda: "↓ Venda", consumo_receita: "↓ Consumo receita",
-    ajuste: "± Ajuste", perda: "↓ Perda", ajuste_contagem: "± Contagem",
+    ajuste: "± Ajuste", perda: "↓ Perda", ajuste_contagem: "± Contagem", ajuste_inventario: "± Inventário",
   };
 
   const getProductName = (id: string) => products.find(p => p.id === id)?.name || 'Produto removido';

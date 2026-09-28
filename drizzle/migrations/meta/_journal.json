@@ -29,6 +29,13 @@
       "when": 1790280052715,
       "tag": "0003_stock_single_source",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790621917143,
+      "tag": "0004_inventory_sessions",
+      "breakpoints": true
     }
   ]
 }

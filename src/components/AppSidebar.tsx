@@ -1,4 +1,4 @@
-import { LayoutDashboard, Package, ShoppingCart, Users, Warehouse, DollarSign, BookOpen, Calculator, TrendingUp, LogOut, Landmark, ShieldCheck, AlertTriangle, ShoppingBag } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingCart, Users, Warehouse, DollarSign, BookOpen, Calculator, TrendingUp, LogOut, Landmark, ShieldCheck, AlertTriangle, ShoppingBag, ClipboardCheck } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { NavLink } from "@/components/NavLink";
@@ -14,6 +14,7 @@ const TAB_TO_KEY: Record<string, string> = {
   "/produtos": "produtos",
   "/estoque": "estoque",
   "/compras": "compras",
+  "/inventario": "inventario",
   "/vendas": "vendas",
   "/clientes": "clientes",
   "/financeiro": "financeiro",
@@ -30,6 +31,7 @@ const items = [
   { title: "Produtos", url: "/produtos", icon: Package, key: "produtos" },
   { title: "Estoque", url: "/estoque", icon: Warehouse, key: "estoque" },
   { title: "Compras", url: "/compras", icon: ShoppingBag, key: "compras" },
+  { title: "Inventário", url: "/inventario", icon: ClipboardCheck, key: "inventario" },
   { title: "Vendas", url: "/vendas", icon: ShoppingCart, key: "vendas" },
   { title: "Clientes", url: "/clientes", icon: Users, key: "clientes" },
   { title: "Financeiro", url: "/financeiro", icon: DollarSign, key: "financeiro" },
