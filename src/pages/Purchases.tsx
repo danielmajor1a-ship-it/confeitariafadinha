@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 
 const SOURCE: Record<string, string> = {
-  nf_xml: "Nota (XML)", nf_pdf: "Nota (PDF)", nf_foto: "Nota (foto)", cupom_foto: "Cupom (foto)", manual: "Sem nota",
+  nf_xml: "Nota (XML)", nf_pdf: "Nota (PDF)", nf_foto: "Nota (foto)", cupom_foto: "Cupom (foto)", cupom_fiscal: "Cupom fiscal", manual: "Sem nota",
 };
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
