@@ -31,7 +31,8 @@ serve(async (req) => {
             role: "system",
             content: `Você lê notas fiscais e cupons de compra de uma confeitaria brasileira.
 Extraia o fornecedor e TODOS os itens comprados. Para cada item: descrição exatamente como aparece, quantidade, unidade (UN, KG, CX, BD, PCT etc.) e valor TOTAL da linha em reais.
-Não invente itens. Ignore descontos gerais, impostos e totais da nota.`,
+Não invente itens. Ignore descontos gerais, impostos e totais da nota.
+Também informe: data da compra (AAAA-MM-DD, vazio se ilegível), valor total do documento, valor unitário de cada item, e "legible": false se a imagem estiver ilegível/borrada demais para confiar na leitura.`,
           },
           { role: "user", content: [{ type: "text", text: "Leia os itens desta nota/cupom." }, filePart] },
         ],
@@ -44,6 +45,9 @@ Não invente itens. Ignore descontos gerais, impostos e totais da nota.`,
               type: "object",
               properties: {
                 supplier: { type: "string" },
+                date: { type: "string" },
+                document_total: { type: "number" },
+                legible: { type: "boolean" },
                 items: {
                   type: "array",
                   items: {
@@ -53,13 +57,14 @@ Não invente itens. Ignore descontos gerais, impostos e totais da nota.`,
                       quantity: { type: "number" },
                       unit: { type: "string" },
                       total: { type: "number" },
+                      unit_price: { type: "number" },
                     },
                     required: ["description", "quantity", "unit", "total"],
                     additionalProperties: false,
                   },
                 },
               },
-              required: ["supplier", "items"],
+              required: ["supplier", "items", "legible"],
               additionalProperties: false,
             },
           },
