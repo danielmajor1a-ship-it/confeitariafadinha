@@ -10,7 +10,7 @@ const SOURCE: Record<string, string> = {
 };
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-type Row = { id: string; purchase_date: string; created_at: string; supplier: string; source: string; total: number; status: string };
+type Row = { id: string; purchase_date: string; created_at: string; supplier: string; source: string; total: number; status: string; document_url: string | null };
 
 export default function Purchases() {
   const { products } = useApp();
@@ -18,13 +18,19 @@ export default function Purchases() {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from("purchases").select("id, purchase_date, created_at, supplier, source, total, status").order("created_at", { ascending: false }).limit(200);
+    const { data } = await supabase.from("purchases").select("id, purchase_date, created_at, supplier, source, total, status, document_url").order("created_at", { ascending: false }).limit(200);
     setRows((data as Row[]) || []);
     setLoading(false);
   }, []);
 
   // Recarrega quando uma compra é confirmada (produtos são atualizados)
   useEffect(() => { load(); }, [load, products]);
+
+  async function openDoc(path: string) {
+    const { data, error } = await supabase.storage.from("purchase-documents").createSignedUrl(path, 300);
+    if (error || !data) return;
+    window.open(data.signedUrl, "_blank");
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -38,10 +44,10 @@ export default function Purchases() {
           <Table>
             <TableHeader><TableRow>
               <TableHead>Data</TableHead><TableHead>Fornecedor</TableHead><TableHead>Origem</TableHead>
-              <TableHead className="text-right">Total</TableHead><TableHead>Status</TableHead>
+              <TableHead className="text-right">Total</TableHead><TableHead>Status</TableHead><TableHead />
             </TableRow></TableHeader>
             <TableBody>
-              {!loading && rows.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhuma compra registrada</TableCell></TableRow>}
+              {!loading && rows.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhuma compra registrada</TableCell></TableRow>}
               {rows.map(r => (
                 <TableRow key={r.id}>
                   <TableCell>{new Date(r.created_at).toLocaleDateString("pt-BR")}</TableCell>
@@ -49,6 +55,7 @@ export default function Purchases() {
                   <TableCell>{SOURCE[r.source] || r.source}</TableCell>
                   <TableCell className="text-right font-medium">{fmt(Number(r.total))}</TableCell>
                   <TableCell><Badge variant={r.status === "confirmada" ? "default" : "secondary"}>{r.status === "confirmada" ? "Confirmada" : "Rascunho"}</Badge></TableCell>
+                  <TableCell>{r.document_url && <button className="text-sm underline text-primary" onClick={() => openDoc(r.document_url!)}>Ver cupom</button>}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
