@@ -43,6 +43,13 @@
       "when": 1790622169144,
       "tag": "0005_cupom_fiscal_purchases",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790622865649,
+      "tag": "0006_product_stock_unit_factor",
+      "breakpoints": true
     }
   ]
 }
