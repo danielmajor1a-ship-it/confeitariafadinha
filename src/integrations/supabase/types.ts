@@ -314,6 +314,96 @@ export type Database = {
           },
         ]
       }
+      inventory_items: {
+        Row: {
+          counted_qty: number
+          created_at: string
+          difference: number
+          id: string
+          product_id: string
+          session_id: string
+          theoretical_qty: number
+          unit_cost: number
+          user_id: string
+        }
+        Insert: {
+          counted_qty: number
+          created_at?: string
+          difference: number
+          id?: string
+          product_id: string
+          session_id: string
+          theoretical_qty: number
+          unit_cost?: number
+          user_id: string
+        }
+        Update: {
+          counted_qty?: number
+          created_at?: string
+          difference?: number
+          id?: string
+          product_id?: string
+          session_id?: string
+          theoretical_qty?: number
+          unit_cost?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_items_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_sessions: {
+        Row: {
+          category_filter: string | null
+          closed_at: string | null
+          draft_counts: Json
+          id: string
+          items_adjusted: number
+          started_at: string
+          status: string
+          total_divergence_value: number
+          type: string
+          user_id: string
+        }
+        Insert: {
+          category_filter?: string | null
+          closed_at?: string | null
+          draft_counts?: Json
+          id?: string
+          items_adjusted?: number
+          started_at?: string
+          status?: string
+          total_divergence_value?: number
+          type?: string
+          user_id: string
+        }
+        Update: {
+          category_filter?: string | null
+          closed_at?: string | null
+          draft_counts?: Json
+          id?: string
+          items_adjusted?: number
+          started_at?: string
+          status?: string
+          total_divergence_value?: number
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       price_history: {
         Row: {
           id: string
@@ -810,6 +900,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      close_inventory: {
+        Args: { _counts: Json; _session_id: string }
+        Returns: Json
+      }
       confirm_purchase: { Args: { _purchase_id: string }; Returns: Json }
       create_sale_with_items:
         | {
