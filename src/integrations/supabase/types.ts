@@ -926,10 +926,21 @@ export type Database = {
         }
         Returns: boolean
       }
-      register_purchase: {
-        Args: { _items: Json; _source: string; _supplier: string }
-        Returns: Json
-      }
+      register_purchase:
+        | {
+            Args: { _items: Json; _source: string; _supplier: string }
+            Returns: Json
+          }
+        | {
+            Args: {
+              _document_url: string
+              _items: Json
+              _purchase_date: string
+              _source: string
+              _supplier: string
+            }
+            Returns: Json
+          }
       stock_movement_delta: {
         Args: { _qty: number; _type: string }
         Returns: number
