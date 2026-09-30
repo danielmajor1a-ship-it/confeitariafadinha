@@ -57,6 +57,13 @@
       "when": 1790788694810,
       "tag": "0007_internal_consumption",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790803211884,
+      "tag": "0008_add_buy_unit",
+      "breakpoints": true
     }
   ]
 }
