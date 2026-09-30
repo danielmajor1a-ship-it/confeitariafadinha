@@ -25,10 +25,12 @@ export default function Products() {
   const [editing, setEditing] = useState<ProductWithHistory | null>(null);
   const [sells, setSells] = useState(true);
   const [usedInRecipes, setUsedInRecipes] = useState(false);
+  const [buyUnits, setBuyUnits] = useState<{ unit: string; factor: string }[]>([]);
   useEffect(() => {
     if (!open) return;
     setSells(editing ? (editing as any).sells !== false : true);
     setUsedInRecipes(editing ? !!(editing as any).used_in_recipes : false);
+    setBuyUnits(((editing as any)?.buy_units || []).map((b: any) => ({ unit: b.unit || '', factor: String(b.factor ?? '') })));
   }, [open, editing]);
   const [historyProduct, setHistoryProduct] = useState<ProductWithHistory | null>(null);
   const [search, setSearch] = useState("");
@@ -246,15 +248,10 @@ export default function Products() {
       purchase_unit: usedInRecipes ? ((fd.get('purchaseUnit') as string) || 'un').trim() || 'un' : 'un',
       usage_unit: usedInRecipes ? ((fd.get('usageUnit') as string) || 'un').trim() || 'un' : 'un',
       conversion_factor: usedInRecipes ? Math.max(0.001, parseFloat(fd.get('conversionFactor') as string) || 1) : 1,
-      ...(() => {
-        const bu = ((fd.get('buyUnit') as string) || '').trim();
-        const bf = parseFloat(((fd.get('buyFactor') as string) || '').replace(',', '.'));
-        if (!bu || !(bf > 0)) {
-          // vazio: não mexe no fator já usado pela nota XML, só limpa a unidade de compra
-          return { buy_unit: null };
-        }
-        return { buy_unit: bu, purchase_factor: bf };
-      })(),
+      buy_units: buyUnits
+        .map(b => ({ unit: b.unit.trim(), factor: parseFloat(b.factor.replace(',', '.')) }))
+        .filter(b => b.unit && b.factor > 0),
+      buy_unit: null,
     };
     if (editing) {
       let imageUrl = (editing as any).image_url;
@@ -392,11 +389,20 @@ export default function Products() {
                     : <div><Label>Estoque inicial</Label><Input name="stock" type="number" defaultValue={0} /></div>}
                   <div><Label>Alerta Mínimo</Label><Input name="lowStockThreshold" type="number" defaultValue={editing?.low_stock_threshold || 5} /></div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div><Label>Unidade de compra (opcional)</Label><Input name="buyUnit" placeholder="Pacote, Caixa, Fardo..." defaultValue={(editing as any)?.buy_unit || ''} /></div>
-                  <div><Label>Quantidade por unidade de compra</Label><Input name="buyFactor" inputMode="decimal" placeholder="Ex: 16" defaultValue={(editing as any)?.buy_unit ? (editing as any)?.purchase_factor || '' : ''} /></div>
+                <div className="space-y-2 rounded-xl border p-3">
+                  <Label>Unidades de compra (opcional)</Label>
+                  {buyUnits.map((b, i) => (
+                    <div key={i} className="flex gap-2 items-center">
+                      <Input placeholder="Pacote, Caixa, Fardo..." value={b.unit} onChange={e => setBuyUnits(prev => prev.map((x, j) => j === i ? { ...x, unit: e.target.value } : x))} />
+                      <span className="text-sm text-muted-foreground whitespace-nowrap">=</span>
+                      <Input className="w-28" inputMode="decimal" placeholder="Ex: 16" value={b.factor} onChange={e => setBuyUnits(prev => prev.map((x, j) => j === i ? { ...x, factor: e.target.value } : x))} />
+                      <span className="text-sm text-muted-foreground whitespace-nowrap">no estoque</span>
+                      <Button type="button" variant="ghost" size="icon" onClick={() => setBuyUnits(prev => prev.filter((_, j) => j !== i))}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                  ))}
+                  <Button type="button" variant="outline" size="sm" onClick={() => setBuyUnits(prev => [...prev, { unit: '', factor: '' }])}><Plus className="h-4 w-4 mr-1" /> Adicionar unidade</Button>
+                  <p className="text-xs text-muted-foreground">Ex.: 1 Pacote = 16, 1 Caixa = 192. Na compra, 5 pacotes entram como 80 no estoque e o custo é dividido por 80. Deixe vazio se compra e vende na mesma unidade.</p>
                 </div>
-                <p className="text-xs text-muted-foreground -mt-1">Ex.: 1 pacote = 16 unidades. Na compra, 5 pacotes entram como 80 no estoque e o custo é dividido por 80. Deixe vazio se compra e vende na mesma unidade.</p>
                 <div className="grid grid-cols-2 gap-3">
                   <label className="flex items-center gap-2 min-h-[44px] rounded-xl border px-3 cursor-pointer">
                     <input type="checkbox" className="h-5 w-5 accent-primary" checked={sells} onChange={e => setSells(e.target.checked)} />
