@@ -249,10 +249,9 @@ export default function Products() {
       ...(() => {
         const bu = ((fd.get('buyUnit') as string) || '').trim();
         const bf = parseFloat(((fd.get('buyFactor') as string) || '').replace(',', '.'));
-        const orig: any = editing || {};
         if (!bu || !(bf > 0)) {
           // vazio: não mexe no fator já usado pela nota XML, só limpa a unidade de compra
-          return { buy_unit: null, ...(bu || orig.buy_unit ? {} : {}) };
+          return { buy_unit: null };
         }
         return { buy_unit: bu, purchase_factor: bf };
       })(),
