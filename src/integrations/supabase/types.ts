@@ -440,6 +440,7 @@ export type Database = {
         Row: {
           brand: string | null
           buy_unit: string | null
+          buy_units: Json
           category: string
           conversion_factor: number
           created_at: string
@@ -464,6 +465,7 @@ export type Database = {
         Insert: {
           brand?: string | null
           buy_unit?: string | null
+          buy_units?: Json
           category?: string
           conversion_factor?: number
           created_at?: string
@@ -488,6 +490,7 @@ export type Database = {
         Update: {
           brand?: string | null
           buy_unit?: string | null
+          buy_units?: Json
           category?: string
           conversion_factor?: number
           created_at?: string

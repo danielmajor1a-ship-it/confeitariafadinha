@@ -64,6 +64,13 @@
       "when": 1790803211884,
       "tag": "0008_add_buy_unit",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790803438725,
+      "tag": "0009_add_buy_units",
+      "breakpoints": true
     }
   ]
 }
