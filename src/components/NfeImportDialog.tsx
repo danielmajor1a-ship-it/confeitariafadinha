@@ -29,12 +29,19 @@ interface Line {
   tribUnit?: string;
   stockUnit?: string;
   factor?: string;
+  buyUnit?: string;
+  inBuyUnit?: boolean;
 }
 
 const U = (u?: string) => (u || "").trim().toUpperCase();
 
 // Conversão da unidade do XML para a unidade de estoque do produto
 function convert(l: Line) {
+  if (l.inBuyUnit && l.buyUnit) {
+    const f = parseFloat((l.factor || "").replace(",", "."));
+    const base = l.xmlQty ?? l.quantity;
+    if (f > 0) return { qty: base * f, blocked: false, note: `${base} ${l.buyUnit} × ${f} → ${base * f} no estoque` };
+  }
   if (l.xmlQty === undefined) return { qty: l.quantity, blocked: false, note: "" };
   const su = U(l.stockUnit), xu = U(l.xmlUnit);
   if (!su || su === xu) return { qty: l.xmlQty, blocked: false, note: "" };
@@ -110,11 +117,16 @@ export default function PurchaseEntry() {
   const [mProduct, setMProduct] = useState("");
   const [mQty, setMQty] = useState("");
   const [mTotal, setMTotal] = useState("");
+  const [mInBuy, setMInBuy] = useState(true);
 
   function withUnits(l: Line): Line {
-    if (l.xmlQty === undefined) return l;
     const p: any = products.find(x => x.id === l.targetId);
-    return { ...l, stockUnit: p?.stock_unit || "", factor: p?.purchase_factor ? String(p.purchase_factor) : "" };
+    const bu = p?.buy_unit || "";
+    const pf = p?.purchase_factor ? String(p.purchase_factor) : "";
+    const lineUnit = l.xmlQty !== undefined ? l.xmlUnit : l.unit;
+    const inBuyUnit = !!bu && !!pf && U(lineUnit) !== U(p?.stock_unit || "UN");
+    if (l.xmlQty === undefined) return { ...l, buyUnit: bu, factor: pf, inBuyUnit };
+    return { ...l, stockUnit: p?.stock_unit || "", factor: pf, buyUnit: bu, inBuyUnit };
   }
 
   async function suggest(items: { description: string; quantity: number; unit: string; total: number }[]) {
@@ -228,7 +240,7 @@ export default function PurchaseEntry() {
       _supplier: sup, _source: src,
       _items: rows.map(l => ({
         product_id: l.targetId === NEW_PRODUCT ? null : l.targetId,
-        description: l.description, quantity: convert(l).qty, unit: l.xmlQty !== undefined ? (U(l.stockUnit) || l.unit || "") : (l.unit || ""), total_value: l.total,
+        description: l.description, quantity: convert(l).qty, unit: l.inBuyUnit && l.buyUnit ? (U(l.stockUnit) || "UN") : l.xmlQty !== undefined ? (U(l.stockUnit) || l.unit || "") : (l.unit || ""), total_value: l.total,
       })),
       ...(src === "cupom_fiscal" ? { _document_url: docPath, _purchase_date: purchaseDate || null } : {}),
     } as any);
@@ -259,7 +271,8 @@ export default function PurchaseEntry() {
     setSaving(true);
     try {
       const ok = await savePurchase("manual", "", [{
-        key: "m", description: prod.name, quantity: qty, unit: prod.purchase_unit || "", total, targetId: prod.id, fromHistory: false,
+        key: "m", description: prod.name, quantity: qty, unit: (prod as any).stock_unit || "UN", total, targetId: prod.id, fromHistory: false,
+        buyUnit: (prod as any).buy_unit || "", factor: (prod as any).purchase_factor ? String((prod as any).purchase_factor) : "", inBuyUnit: mInBuy,
       }]);
       if (ok) { setManualOpen(false); setMProduct(""); setMQty(""); setMTotal(""); }
     } finally { setSaving(false); }
@@ -343,11 +356,26 @@ export default function PurchaseEntry() {
                                 onChange={e => update(idx, { factor: e.target.value })} />
                             )}
                           </>)}
+                          {l.buyUnit && l.factor && (
+                            <label className="flex items-center gap-1 text-xs cursor-pointer">
+                              <input type="checkbox" checked={!!l.inBuyUnit} onChange={e => update(idx, { inBuyUnit: e.target.checked })} />
+                              Em {l.buyUnit} (×{l.factor})
+                            </label>
+                          )}
                           {cv.note && <p className={`text-xs ${cv.blocked ? "text-destructive font-medium" : "text-muted-foreground"}`}>{cv.note}</p>}
                         </div>
                       ) : (
-                        <Input type="number" min={0} step="any" value={l.quantity}
-                          onChange={e => update(idx, { quantity: parseFloat(e.target.value) || 0 })} />
+                        <div className="space-y-1">
+                          <Input type="number" min={0} step="any" value={l.quantity}
+                            onChange={e => update(idx, { quantity: parseFloat(e.target.value) || 0 })} />
+                          {l.buyUnit && l.factor && (
+                            <label className="flex items-center gap-1 text-xs cursor-pointer">
+                              <input type="checkbox" checked={!!l.inBuyUnit} onChange={e => update(idx, { inBuyUnit: e.target.checked })} />
+                              Em {l.buyUnit} (×{l.factor})
+                            </label>
+                          )}
+                          {cv.note && <p className="text-xs text-muted-foreground">{cv.note}</p>}
+                        </div>
                       )}
                     </TableCell>
                     <TableCell>
@@ -357,7 +385,7 @@ export default function PurchaseEntry() {
                     <TableCell className="text-sm">
                       {source === "cupom_fiscal"
                         ? <Input type="number" min={0} step="0.01" value={Number(unit.toFixed(4))} className="w-28 mb-1"
-                            onChange={e => update(idx, { total: Math.round((parseFloat(e.target.value) || 0) * l.quantity * 100) / 100 })} />
+                            onChange={e => update(idx, { total: Math.round((parseFloat(e.target.value) || 0) * cv.qty * 100) / 100 })} />
                         : <p className="font-semibold">{cv.blocked ? "—" : fmt(unit)}{l.xmlQty !== undefined && !cv.blocked && U(l.stockUnit) ? ` / ${U(l.stockUnit)}` : ""}</p>}
                       {prod && <p className="text-xs text-muted-foreground">atual {cur > 0 ? fmt(cur) : "sem custo"} → novo {fmt(projected)}</p>}
                       {bigChange && <Badge variant="destructive" className="mt-1">{pct > 0 ? "+" : ""}{pct.toFixed(1)}%</Badge>}
@@ -405,7 +433,7 @@ export default function PurchaseEntry() {
               <Select value={mProduct} onValueChange={setMProduct}>
                 <SelectTrigger><SelectValue placeholder="Escolha o item" /></SelectTrigger>
                 <SelectContent>
-                  {products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}{p.purchase_unit ? ` (${p.purchase_unit})` : ""}</SelectItem>)}
+                  {products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}{(p as any).buy_unit ? ` (${(p as any).buy_unit} = ${(p as any).purchase_factor})` : ""}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -419,6 +447,11 @@ export default function PurchaseEntry() {
                 <Input inputMode="decimal" value={mTotal} onChange={e => setMTotal(e.target.value)} placeholder="Ex: 36,00" />
               </div>
             </div>
+            {(() => { const mp: any = products.find(p => p.id === mProduct); return mp?.buy_unit && mp?.purchase_factor ? (
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" className="h-4 w-4" checked={mInBuy} onChange={e => setMInBuy(e.target.checked)} />
+                Quantidade em {mp.buy_unit} (1 {mp.buy_unit} = {mp.purchase_factor} no estoque)
+              </label>) : null; })()}
             <Button className="w-full" onClick={confirmManual} disabled={saving}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Registrar compra"}
             </Button>
