@@ -938,6 +938,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      register_internal_consumption: {
+        Args: {
+          _date: string
+          _product_id: string
+          _quantity: number
+          _reason: string
+        }
+        Returns: string
+      }
       register_purchase:
         | {
             Args: { _items: Json; _source: string; _supplier: string }
