@@ -29,18 +29,18 @@ interface Line {
   tribUnit?: string;
   stockUnit?: string;
   factor?: string;
-  buyUnit?: string;
-  inBuyUnit?: boolean;
+  buyUnits?: { unit: string; factor: number }[];
+  buyChoice?: string;
 }
 
 const U = (u?: string) => (u || "").trim().toUpperCase();
 
 // Conversão da unidade do XML para a unidade de estoque do produto
 function convert(l: Line) {
-  if (l.inBuyUnit && l.buyUnit) {
-    const f = parseFloat((l.factor || "").replace(",", "."));
+  const bu = l.buyChoice ? l.buyUnits?.find(b => b.unit === l.buyChoice) : undefined;
+  if (bu && bu.factor > 0) {
     const base = l.xmlQty ?? l.quantity;
-    if (f > 0) return { qty: base * f, blocked: false, note: `${base} ${l.buyUnit} × ${f} → ${base * f} no estoque` };
+    return { qty: base * bu.factor, blocked: false, note: `${base} ${bu.unit} × ${bu.factor} → ${base * bu.factor} no estoque` };
   }
   if (l.xmlQty === undefined) return { qty: l.quantity, blocked: false, note: "" };
   const su = U(l.stockUnit), xu = U(l.xmlUnit);
@@ -117,16 +117,18 @@ export default function PurchaseEntry() {
   const [mProduct, setMProduct] = useState("");
   const [mQty, setMQty] = useState("");
   const [mTotal, setMTotal] = useState("");
-  const [mInBuy, setMInBuy] = useState(true);
+  const [mUnit, setMUnit] = useState("");
 
   function withUnits(l: Line): Line {
     const p: any = products.find(x => x.id === l.targetId);
-    const bu = p?.buy_unit || "";
     const pf = p?.purchase_factor ? String(p.purchase_factor) : "";
-    const lineUnit = l.xmlQty !== undefined ? l.xmlUnit : l.unit;
-    const inBuyUnit = !!bu && !!pf && U(lineUnit) !== U(p?.stock_unit || "UN");
-    if (l.xmlQty === undefined) return { ...l, buyUnit: bu, factor: pf, inBuyUnit };
-    return { ...l, stockUnit: p?.stock_unit || "", factor: pf, buyUnit: bu, inBuyUnit };
+    const buyUnits: { unit: string; factor: number }[] = (p?.buy_units || []).filter((b: any) => b.unit && b.factor > 0);
+    const lu = U(l.xmlQty !== undefined ? l.xmlUnit : l.unit);
+    const match = lu && lu !== U(p?.stock_unit || "UN")
+      ? buyUnits.find(b => U(b.unit) === lu || U(b.unit).startsWith(lu) || lu.startsWith(U(b.unit).slice(0, 2))) : undefined;
+    const buyChoice = match?.unit || "";
+    if (l.xmlQty === undefined) return { ...l, buyUnits, buyChoice };
+    return { ...l, stockUnit: p?.stock_unit || "", factor: pf, buyUnits, buyChoice };
   }
 
   async function suggest(items: { description: string; quantity: number; unit: string; total: number }[]) {
@@ -240,7 +242,7 @@ export default function PurchaseEntry() {
       _supplier: sup, _source: src,
       _items: rows.map(l => ({
         product_id: l.targetId === NEW_PRODUCT ? null : l.targetId,
-        description: l.description, quantity: convert(l).qty, unit: l.inBuyUnit && l.buyUnit ? (U(l.stockUnit) || "UN") : l.xmlQty !== undefined ? (U(l.stockUnit) || l.unit || "") : (l.unit || ""), total_value: l.total,
+        description: l.description, quantity: convert(l).qty, unit: l.buyChoice ? (U(l.stockUnit) || "UN") : l.xmlQty !== undefined ? (U(l.stockUnit) || l.unit || "") : (l.unit || ""), total_value: l.total,
       })),
       ...(src === "cupom_fiscal" ? { _document_url: docPath, _purchase_date: purchaseDate || null } : {}),
     } as any);
@@ -272,7 +274,7 @@ export default function PurchaseEntry() {
     try {
       const ok = await savePurchase("manual", "", [{
         key: "m", description: prod.name, quantity: qty, unit: (prod as any).stock_unit || "UN", total, targetId: prod.id, fromHistory: false,
-        buyUnit: (prod as any).buy_unit || "", factor: (prod as any).purchase_factor ? String((prod as any).purchase_factor) : "", inBuyUnit: mInBuy,
+        buyUnits: ((prod as any).buy_units || []), buyChoice: mUnit,
       }]);
       if (ok) { setManualOpen(false); setMProduct(""); setMQty(""); setMTotal(""); }
     } finally { setSaving(false); }
@@ -356,11 +358,11 @@ export default function PurchaseEntry() {
                                 onChange={e => update(idx, { factor: e.target.value })} />
                             )}
                           </>)}
-                          {l.buyUnit && l.factor && (
-                            <label className="flex items-center gap-1 text-xs cursor-pointer">
-                              <input type="checkbox" checked={!!l.inBuyUnit} onChange={e => update(idx, { inBuyUnit: e.target.checked })} />
-                              Em {l.buyUnit} (×{l.factor})
-                            </label>
+                          {!!l.buyUnits?.length && (
+                            <select className="h-8 w-full rounded-md border bg-background px-2 text-xs" value={l.buyChoice || ""} onChange={e => update(idx, { buyChoice: e.target.value })}>
+                              <option value="">Unidade do estoque</option>
+                              {l.buyUnits.map(b => <option key={b.unit} value={b.unit}>{b.unit} (×{b.factor})</option>)}
+                            </select>
                           )}
                           {cv.note && <p className={`text-xs ${cv.blocked ? "text-destructive font-medium" : "text-muted-foreground"}`}>{cv.note}</p>}
                         </div>
@@ -368,11 +370,11 @@ export default function PurchaseEntry() {
                         <div className="space-y-1">
                           <Input type="number" min={0} step="any" value={l.quantity}
                             onChange={e => update(idx, { quantity: parseFloat(e.target.value) || 0 })} />
-                          {l.buyUnit && l.factor && (
-                            <label className="flex items-center gap-1 text-xs cursor-pointer">
-                              <input type="checkbox" checked={!!l.inBuyUnit} onChange={e => update(idx, { inBuyUnit: e.target.checked })} />
-                              Em {l.buyUnit} (×{l.factor})
-                            </label>
+                          {!!l.buyUnits?.length && (
+                            <select className="h-8 w-full rounded-md border bg-background px-2 text-xs" value={l.buyChoice || ""} onChange={e => update(idx, { buyChoice: e.target.value })}>
+                              <option value="">Unidade do estoque</option>
+                              {l.buyUnits.map(b => <option key={b.unit} value={b.unit}>{b.unit} (×{b.factor})</option>)}
+                            </select>
                           )}
                           {cv.note && <p className="text-xs text-muted-foreground">{cv.note}</p>}
                         </div>
@@ -430,10 +432,10 @@ export default function PurchaseEntry() {
           <div className="space-y-3">
             <div>
               <Label>Item</Label>
-              <Select value={mProduct} onValueChange={setMProduct}>
+              <Select value={mProduct} onValueChange={v => { setMProduct(v); setMUnit(""); }}>
                 <SelectTrigger><SelectValue placeholder="Escolha o item" /></SelectTrigger>
                 <SelectContent>
-                  {products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}{(p as any).buy_unit ? ` (${(p as any).buy_unit} = ${(p as any).purchase_factor})` : ""}</SelectItem>)}
+                  {products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -447,11 +449,13 @@ export default function PurchaseEntry() {
                 <Input inputMode="decimal" value={mTotal} onChange={e => setMTotal(e.target.value)} placeholder="Ex: 36,00" />
               </div>
             </div>
-            {(() => { const mp: any = products.find(p => p.id === mProduct); return mp?.buy_unit && mp?.purchase_factor ? (
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <input type="checkbox" className="h-4 w-4" checked={mInBuy} onChange={e => setMInBuy(e.target.checked)} />
-                Quantidade em {mp.buy_unit} (1 {mp.buy_unit} = {mp.purchase_factor} no estoque)
-              </label>) : null; })()}
+            {(() => { const mp: any = products.find(p => p.id === mProduct); return mp?.buy_units?.length ? (
+              <div><Label>Unidade da quantidade</Label>
+                <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={mUnit} onChange={e => setMUnit(e.target.value)}>
+                  <option value="">Unidade do estoque</option>
+                  {mp.buy_units.map((b: any) => <option key={b.unit} value={b.unit}>{b.unit} (1 = {b.factor} no estoque)</option>)}
+                </select>
+              </div>) : null; })()}
             <Button className="w-full" onClick={confirmManual} disabled={saving}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Registrar compra"}
             </Button>
