@@ -246,6 +246,16 @@ export default function Products() {
       purchase_unit: usedInRecipes ? ((fd.get('purchaseUnit') as string) || 'un').trim() || 'un' : 'un',
       usage_unit: usedInRecipes ? ((fd.get('usageUnit') as string) || 'un').trim() || 'un' : 'un',
       conversion_factor: usedInRecipes ? Math.max(0.001, parseFloat(fd.get('conversionFactor') as string) || 1) : 1,
+      ...(() => {
+        const bu = ((fd.get('buyUnit') as string) || '').trim();
+        const bf = parseFloat(((fd.get('buyFactor') as string) || '').replace(',', '.'));
+        const orig: any = editing || {};
+        if (!bu || !(bf > 0)) {
+          // vazio: não mexe no fator já usado pela nota XML, só limpa a unidade de compra
+          return { buy_unit: null, ...(bu || orig.buy_unit ? {} : {}) };
+        }
+        return { buy_unit: bu, purchase_factor: bf };
+      })(),
     };
     if (editing) {
       let imageUrl = (editing as any).image_url;
@@ -383,6 +393,11 @@ export default function Products() {
                     : <div><Label>Estoque inicial</Label><Input name="stock" type="number" defaultValue={0} /></div>}
                   <div><Label>Alerta Mínimo</Label><Input name="lowStockThreshold" type="number" defaultValue={editing?.low_stock_threshold || 5} /></div>
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><Label>Unidade de compra (opcional)</Label><Input name="buyUnit" placeholder="Pacote, Caixa, Fardo..." defaultValue={(editing as any)?.buy_unit || ''} /></div>
+                  <div><Label>Quantidade por unidade de compra</Label><Input name="buyFactor" inputMode="decimal" placeholder="Ex: 16" defaultValue={(editing as any)?.buy_unit ? (editing as any)?.purchase_factor || '' : ''} /></div>
+                </div>
+                <p className="text-xs text-muted-foreground -mt-1">Ex.: 1 pacote = 16 unidades. Na compra, 5 pacotes entram como 80 no estoque e o custo é dividido por 80. Deixe vazio se compra e vende na mesma unidade.</p>
                 <div className="grid grid-cols-2 gap-3">
                   <label className="flex items-center gap-2 min-h-[44px] rounded-xl border px-3 cursor-pointer">
                     <input type="checkbox" className="h-5 w-5 accent-primary" checked={sells} onChange={e => setSells(e.target.checked)} />
