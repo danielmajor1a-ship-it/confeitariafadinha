@@ -15,7 +15,11 @@ import { PieChart as RePie, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGri
 import NfeImportDialog from "@/components/NfeImportDialog";
 
 export default function Costs() {
-  const { costs, products, sales, addCost, deleteCost } = useApp();
+  const { costs, products, sales, addCost, deleteCost, stockMovements } = useApp();
+  const internalConsumption = stockMovements.filter(m => m.type === 'consumo_interno');
+  const internalConsumptionTotal = internalConsumption.reduce((s, m) => s + Math.abs(m.quantity) * Number(m.unit_cost || 0), 0);
+  const internalMonthKey = new Date().toISOString().slice(0, 7);
+  const internalConsumptionMonth = internalConsumption.filter(m => m.created_at.slice(0, 7) === internalMonthKey).reduce((s, m) => s + Math.abs(m.quantity) * Number(m.unit_cost || 0), 0);
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
@@ -229,6 +233,7 @@ export default function Costs() {
             <TabsTrigger value="charts"><BarChart3 className="h-4 w-4 mr-1" /> Gráficos</TabsTrigger>
             <TabsTrigger value="abc"><PieChart className="h-4 w-4 mr-1" /> Curva ABC</TabsTrigger>
             <TabsTrigger value="list">Todos os Custos</TabsTrigger>
+            <TabsTrigger value="internal">Custo de Consumo Interno</TabsTrigger>
           </TabsList>
 
           {/* Fixed Costs Control Tab */}
@@ -455,6 +460,31 @@ export default function Costs() {
           </TabsContent>
 
           {/* List Tab */}
+          <TabsContent value="internal" className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Este mês</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{fmt(internalConsumptionMonth)}</CardContent></Card>
+              <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total acumulado</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{fmt(internalConsumptionTotal)}</CardContent></Card>
+            </div>
+            <p className="text-xs text-muted-foreground">Mercadoria que saiu do estoque para uso interno (produção), sem venda. Separado do custo dos produtos vendidos. Valor = quantidade × custo do produto no dia do registro.</p>
+            <div className="rounded-2xl border bg-card overflow-hidden">
+              <Table>
+                <TableHeader><TableRow><TableHead>Data</TableHead><TableHead>Produto</TableHead><TableHead>Qtd</TableHead><TableHead>Motivo</TableHead><TableHead className="text-right">Valor</TableHead></TableRow></TableHeader>
+                <TableBody>
+                  {internalConsumption.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhum consumo registrado</TableCell></TableRow>}
+                  {internalConsumption.map(m => (
+                    <TableRow key={m.id}>
+                      <TableCell>{new Date(m.created_at).toLocaleDateString('pt-BR')}</TableCell>
+                      <TableCell>{products.find(p => p.id === m.product_id)?.name || 'Produto removido'}</TableCell>
+                      <TableCell>{Math.abs(m.quantity)}</TableCell>
+                      <TableCell>{m.reason}</TableCell>
+                      <TableCell className="text-right">{fmt(Math.abs(m.quantity) * Number(m.unit_cost || 0))}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </TabsContent>
+
           <TabsContent value="list">
             <div className="rounded-2xl border bg-card overflow-hidden">
               <Table>
