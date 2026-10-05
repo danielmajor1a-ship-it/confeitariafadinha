@@ -2,6 +2,7 @@ import { useApp } from "@/contexts/AppContext";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import BulkSheetDialog from "@/components/BulkSheetDialog";
 
 export default function Pricing() {
   const { products, costs } = useApp();
@@ -13,7 +14,10 @@ export default function Pricing() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <h1 className="page-header">Precificação</h1>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <h1 className="page-header">Precificação</h1>
+        <div className="flex gap-2"><BulkSheetDialog mode="price" /></div>
+      </div>
       <p className="text-muted-foreground text-sm">Análise de margem de lucro por produto. Custos vinculados são somados ao preço de compra.</p>
 
       <div className="rounded-2xl border bg-card overflow-hidden">
