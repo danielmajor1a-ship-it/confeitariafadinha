@@ -3,6 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import BulkSheetDialog from "@/components/BulkSheetDialog";
+import PriceHistory from "@/components/PriceHistory";
 
 export default function Pricing() {
   const { products, costs } = useApp();
@@ -63,6 +64,7 @@ export default function Pricing() {
           </TableBody>
         </Table>
       </div>
+      <PriceHistory />
     </div>
   );
 }
