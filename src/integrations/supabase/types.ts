@@ -228,6 +228,47 @@ export type Database = {
         }
         Relationships: []
       }
+      cost_adjustments: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          new_cost: number
+          old_cost: number
+          product_id: string
+          reason: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: string
+          new_cost: number
+          old_cost: number
+          product_id: string
+          reason?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          new_cost?: number
+          old_cost?: number
+          product_id?: string
+          reason?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cost_adjustments_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cost_change_events: {
         Row: {
           acknowledged: boolean
@@ -918,6 +959,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      bulk_update_costs: {
+        Args: { _items: Json; _reason: string }
+        Returns: Json
+      }
+      bulk_update_prices: { Args: { _items: Json }; Returns: Json }
       close_inventory: {
         Args: { _counts: Json; _session_id: string }
         Returns: Json
