@@ -22,6 +22,10 @@ const parseNum = (v: unknown): number | null => {
   const n = Number(s.includes(",") ? s.replace(/\./g, "").replace(",", ".") : s);
   return isNaN(n) ? null : n;
 };
+// Normaliza títulos de coluna: o Excel pode gravar espaços invisíveis nos
+// cabeçalhos (ex.: ao aplicar formato moeda), o que quebrava a leitura.
+const normKey = (s: string) =>
+  s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
 
 export default function BulkSheetDialog({ mode }: { mode: Mode }) {
   const { products, refresh } = useApp();
