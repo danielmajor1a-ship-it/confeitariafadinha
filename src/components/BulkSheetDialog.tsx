@@ -56,14 +56,16 @@ export default function BulkSheetDialog({ mode }: { mode: Mode }) {
     if (!f) return;
     try {
       const wb = XLSX.read(await f.arrayBuffer());
-      const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets[wb.SheetNames[0]]);
+      const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets[wb.SheetNames[0]]);
+      const json = raw.map(r => Object.fromEntries(Object.entries(r).map(([k, v]) => [normKey(k), v])));
+      const labelKey = normKey(newLabel);
       const byId = new Map(products.map(p => [p.id, p]));
       const byName = new Map(products.map(p => [p.name.trim().toLowerCase(), p]));
       const out: Row[] = []; let skip = 0;
       for (const r of json) {
-        const next = parseNum(r[newLabel]);
+        const next = parseNum(r[labelKey]);
         if (next === null) continue;
-        const p = byId.get(String(r.ID || "")) || byName.get(String(r.Produto || "").trim().toLowerCase());
+        const p = byId.get(String(r.id || "")) || byName.get(String(r.produto || "").trim().toLowerCase());
         if (!p || next < 0) { skip++; continue; }
         const current = Number(isCost ? p.purchase_price : p.sale_price);
         if (current === next) continue;
