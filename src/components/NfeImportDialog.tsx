@@ -31,6 +31,7 @@ interface Line {
   factor?: string;
   buyUnits?: { unit: string; factor: number }[];
   buyChoice?: string;
+  newBuyUnit?: { unit: string; factor: number };
 }
 
 const U = (u?: string) => (u || "").trim().toUpperCase();
@@ -119,16 +120,44 @@ export default function PurchaseEntry() {
   const [mTotal, setMTotal] = useState("");
   const [mUnit, setMUnit] = useState("");
 
+  // Detecta embalagem escrita na nota: "CX/12", "PC/12", "PCT/15" ou "C/12" na descrição
+  function detectPack(unitRaw: string, desc: string): { unit: string; factor: number } | null {
+    const u = U(unitRaw);
+    const m = u.match(/^([A-Z]+)\s*\/\s*(\d+)$/);
+    if (m && Number(m[2]) > 1) return { unit: m[1], factor: Number(m[2]) };
+    const d = (desc || "").toUpperCase().match(/\b(?:C|CX|COM)\s*\/\s*(\d+)\b/);
+    if (d && Number(d[1]) > 1) {
+      const base = u.replace(/\s*\/.*$/, "");
+      return { unit: base && base !== "UN" ? base : "CX", factor: Number(d[1]) };
+    }
+    return null;
+  }
+
   function withUnits(l: Line): Line {
     const p: any = products.find(x => x.id === l.targetId);
     const pf = p?.purchase_factor ? String(p.purchase_factor) : "";
-    const buyUnits: { unit: string; factor: number }[] = (p?.buy_units || []).filter((b: any) => b.unit && b.factor > 0);
-    const lu = U(l.xmlQty !== undefined ? l.xmlUnit : l.unit);
-    const match = lu && lu !== U(p?.stock_unit || "UN")
+    let buyUnits: { unit: string; factor: number }[] = (p?.buy_units || []).filter((b: any) => b.unit && b.factor > 0);
+    const rawUnit = l.xmlQty !== undefined ? (l.xmlUnit || "") : l.unit;
+    const lu = U(rawUnit).replace(/\s*\/.*$/, "");
+    let match = lu && lu !== U(p?.stock_unit || "UN")
       ? buyUnits.find(b => U(b.unit) === lu || U(b.unit).startsWith(lu) || lu.startsWith(U(b.unit).slice(0, 2))) : undefined;
+    let newBuyUnit: { unit: string; factor: number } | undefined;
+    if (!match) {
+      const pack = detectPack(rawUnit, l.description);
+      if (pack) {
+        const same = buyUnits.find(b => U(b.unit) === pack.unit && b.factor === pack.factor);
+        if (same) match = same;
+        else {
+          const name = buyUnits.some(b => U(b.unit) === pack.unit) ? `${pack.unit} ${pack.factor}` : pack.unit;
+          newBuyUnit = { unit: name, factor: pack.factor };
+          buyUnits = [...buyUnits, newBuyUnit];
+          match = newBuyUnit;
+        }
+      }
+    }
     const buyChoice = match?.unit || "";
-    if (l.xmlQty === undefined) return { ...l, buyUnits, buyChoice };
-    return { ...l, stockUnit: p?.stock_unit || "", factor: pf, buyUnits, buyChoice };
+    if (l.xmlQty === undefined) return { ...l, buyUnits, buyChoice, newBuyUnit };
+    return { ...l, stockUnit: p?.stock_unit || "", factor: pf, buyUnits, buyChoice, newBuyUnit };
   }
 
   async function suggest(items: { description: string; quantity: number; unit: string; total: number }[]) {
