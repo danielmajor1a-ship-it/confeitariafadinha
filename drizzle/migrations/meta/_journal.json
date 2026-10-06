@@ -85,6 +85,13 @@
       "when": 1791248538876,
       "tag": "0011_allow_negative_stock_on_sales",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791321019710,
+      "tag": "0012_allow_pix_misto_sales",
+      "breakpoints": true
     }
   ]
 }

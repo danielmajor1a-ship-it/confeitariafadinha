@@ -1,0 +1,2 @@
+ALTER TABLE public.sales DROP CONSTRAINT IF EXISTS sales_payment_method_check;
+ALTER TABLE public.sales ADD CONSTRAINT sales_payment_method_check CHECK (payment_method = ANY (ARRAY['dinheiro','credito','debito','cartao','fiado','pix','misto']));
