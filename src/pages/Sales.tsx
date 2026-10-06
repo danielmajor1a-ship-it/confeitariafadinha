@@ -34,7 +34,6 @@ interface CartItem {
   quantity: number;
   unitPrice: number;
   subtotal: number;
-  maxStock: number;
 }
 
 export default function Sales() {
@@ -122,8 +121,6 @@ export default function Sales() {
     const product = products.find(p => p.id === productId);
     if (!product) return;
     const existing = cart.find(i => i.productId === productId);
-    const currentQty = existing?.quantity || 0;
-    if (currentQty >= product.stock) { toast.error("Estoque insuficiente!"); return; }
     if (existing) {
       setCart(cart.map(i => i.productId === productId
         ? { ...i, quantity: i.quantity + 1, subtotal: (i.quantity + 1) * i.unitPrice } : i));
@@ -131,7 +128,6 @@ export default function Sales() {
       setCart([...cart, {
         productId: product.id, productName: product.name,
         quantity: 1, unitPrice: product.sale_price, subtotal: product.sale_price,
-        maxStock: product.stock,
       }]);
     }
   }
@@ -141,7 +137,6 @@ export default function Sales() {
       if (i.productId !== productId) return i;
       const newQty = i.quantity + delta;
       if (newQty <= 0) return i;
-      if (newQty > i.maxStock) { toast.error("Estoque insuficiente!"); return i; }
       return { ...i, quantity: newQty, subtotal: newQty * i.unitPrice };
     }).filter(i => i.quantity > 0));
   }
@@ -150,7 +145,6 @@ export default function Sales() {
     setCart(prev => prev.map(i => {
       if (i.productId !== productId) return i;
       if (!Number.isFinite(value) || value < 1) return { ...i, quantity: 1, subtotal: i.unitPrice };
-      if (value > i.maxStock) { toast.error("Estoque insuficiente!"); return { ...i, quantity: i.maxStock, subtotal: i.maxStock * i.unitPrice }; }
       return { ...i, quantity: value, subtotal: value * i.unitPrice };
     }));
   }
@@ -413,11 +407,10 @@ export default function Sales() {
           <div className="grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-5 p-1 pb-4">
             {filteredProducts.map(p => {
               const inCart = cart.find(i => i.productId === p.id);
-              const outOfStock = p.stock <= 0;
               return (
-                <button key={p.id} onClick={() => !outOfStock && addToCart(p.id)} disabled={outOfStock}
+                <button key={p.id} onClick={() => addToCart(p.id)}
                   className={`relative flex flex-col items-stretch p-4 rounded-[18px] border border-border text-center transition-all duration-300 shadow-[0_4px_10px_hsl(var(--chocolate)/0.03)]
-                    ${outOfStock ? 'opacity-40 cursor-not-allowed bg-muted' : 'bg-card hover:-translate-y-1 hover:border-pink-dark hover:shadow-[0_10px_20px_hsl(var(--chocolate)/0.08)] active:scale-95 cursor-pointer'}
+                    bg-card hover:-translate-y-1 hover:border-pink-dark hover:shadow-[0_10px_20px_hsl(var(--chocolate)/0.08)] active:scale-95 cursor-pointer
                     ${inCart ? 'border-pink-dark ring-2 ring-pink-dark/30' : ''}
                   `}>
                   {inCart && (
@@ -436,7 +429,7 @@ export default function Sales() {
                   <span className="font-semibold text-sm leading-tight line-clamp-2 min-h-[2.5em]">{p.name}</span>
                   <span className="font-extrabold text-lg mt-1 text-pink-dark">{fmt(p.sale_price)}</span>
                   <span className={`text-xs mt-0.5 ${p.stock <= p.low_stock_threshold ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
-                    {outOfStock ? 'Sem estoque' : `${p.stock} un`}
+                    {`${p.stock} un`}
                   </span>
                 </button>
               );
@@ -486,7 +479,6 @@ export default function Sales() {
                     <Input
                       type="number"
                       min={1}
-                      max={item.maxStock}
                       value={item.quantity}
                       onChange={e => setQty(item.productId, parseInt(e.target.value) || 1)}
                       onFocus={e => e.target.select()}
