@@ -57,12 +57,38 @@ export function normalize(s: string) {
     .replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
 }
 
+// Prepara a descrição: entende "C/GAS", "S/ GAS", "COM GÁS", volumes ("500ML", "1,5L") etc.
+function features(s: string) {
+  let t = (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  t = t.replace(/\b(c\s*\/\s*|com\s+)gas\b/g, " comgas ").replace(/\b(s\s*\/\s*|sem\s+)gas\b/g, " semgas ");
+  t = t.replace(/\bgaseificada\b/g, " comgas ");
+  const sizes: number[] = [];
+  t = t.replace(/(\d+(?:[.,]\d+)?)\s*(ml|l|lt|lts|litros?|g|gr|kg)\b/g, (_m, n, u) => {
+    const v = parseFloat(n.replace(",", "."));
+    sizes.push(/^(l|lt|lts|litro|litros|kg)$/.test(u) ? v * 1000 : v);
+    return " ";
+  });
+  const stop = new Set(["com", "sem", "de", "da", "do", "und", "unid", "pct", "cx", "fd", "pc"]);
+  const tokens = t.replace(/[^a-z0-9 ]/g, " ").split(/\s+/)
+    .filter(x => x.length > 2 && !stop.has(x) && !/^\d+$/.test(x));
+  const gas = tokens.includes("comgas") ? "com" : tokens.includes("semgas") ? "sem" : null;
+  return { tokens: tokens.filter(x => x !== "comgas" && x !== "semgas"), gas, sizes };
+}
+
 function score(a: string, b: string) {
-  const ta = normalize(a).split(" ").filter(t => t.length > 2);
-  const tb = normalize(b).split(" ").filter(t => t.length > 2);
-  if (!ta.length || !tb.length) return 0;
-  const hits = ta.filter(t => tb.some(u => u.includes(t) || t.includes(u))).length;
-  return hits / Math.max(ta.length, tb.length);
+  const fa = features(a), fb = features(b);
+  // Com gás x sem gás: nunca é o mesmo produto
+  if (fa.gas && fb.gas && fa.gas !== fb.gas) return 0;
+  if (!fa.tokens.length || !fb.tokens.length) return 0;
+  const same = (t: string, u: string) => u.includes(t) || t.includes(u) || (t.length >= 3 && u.length >= 3 && (u.startsWith(t) || t.startsWith(u)));
+  const hits = fa.tokens.filter(t => fb.tokens.some(u => same(t, u))).length;
+  let s = hits / Math.max(fa.tokens.length, fb.tokens.length);
+  if (fa.gas && fa.gas === fb.gas) s += 0.25;
+  if (fa.sizes.length && fb.sizes.length) {
+    const close = fa.sizes.some(x => fb.sizes.some(y => Math.abs(x - y) / Math.max(x, y) <= 0.05));
+    s += close ? 0.25 : -0.3;
+  }
+  return s;
 }
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
