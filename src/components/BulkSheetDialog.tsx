@@ -27,6 +27,7 @@ const parseNum = (v: unknown): number | null => {
 const normKey = (s: string) =>
   s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
 
+
 export default function BulkSheetDialog({ mode }: { mode: Mode }) {
   const { products, refresh } = useApp();
   const fileRef = useRef<HTMLInputElement>(null);
