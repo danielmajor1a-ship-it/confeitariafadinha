@@ -266,6 +266,16 @@ export default function PurchaseEntry() {
         if (uErr) { toast.error(`Não foi possível salvar a unidade de ${l.description} (nada foi salvo): ${uErr.message}`); return false; }
       }
     }
+    // Embalagem lida da nota (ex.: CX/12) vira unidade alternativa do produto
+    for (const l of rows) {
+      const nb = l.newBuyUnit;
+      if (!nb || l.targetId === NEW_PRODUCT || l.buyChoice !== nb.unit) continue;
+      const p: any = products.find(x => x.id === l.targetId);
+      const current = (p?.buy_units || []).filter((b: any) => b.unit && b.factor > 0);
+      if (current.some((b: any) => U(b.unit) === U(nb.unit))) continue;
+      const { error: bErr } = await supabase.from("products").update({ buy_units: [...current, nb] } as any).eq("id", l.targetId);
+      if (bErr) { toast.error(`Não foi possível salvar a embalagem de ${l.description} (nada foi salvo): ${bErr.message}`); return false; }
+    }
     // Compra, itens novos, itens da compra, movimento de estoque e custo médio: uma única transação
     const { data: res, error } = await supabase.rpc("register_purchase" as any, {
       _supplier: sup, _source: src,
