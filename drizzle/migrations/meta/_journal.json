@@ -78,6 +78,13 @@
       "when": 1791206907814,
       "tag": "0010_bulk_cost_price_update",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791248538876,
+      "tag": "0011_allow_negative_stock_on_sales",
+      "breakpoints": true
     }
   ]
 }
