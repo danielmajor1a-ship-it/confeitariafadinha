@@ -78,7 +78,7 @@ export default function Dashboard() {
         </Select>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
         <StatCard icon={DollarSign} label="Faturamento" value={fmt(totalRevenue)} color="text-success" />
         <StatCard icon={ShoppingCart} label="Vendas" value={filtered.length.toString()} color="text-pink" />
         <StatCard icon={DollarSign} label="Dinheiro" value={fmt(cashTotal)} color="text-success" />
@@ -146,14 +146,14 @@ export default function Dashboard() {
 
 function StatCard({ icon: Icon, label, value, color }: { icon: any; label: string; value: string; color: string }) {
   return (
-    <div className="stat-card min-w-0">
-      <div className="flex items-center gap-3">
-        <div className={`p-2 rounded-xl bg-secondary shrink-0 ${color}`}>
-          <Icon className="h-5 w-5" />
+    <div className="stat-card min-w-0 min-h-[96px] flex items-center">
+      <div className="flex items-center gap-4 w-full min-w-0">
+        <div className={`p-3 rounded-xl bg-secondary shrink-0 ${color}`}>
+          <Icon className="h-6 w-6" />
         </div>
-        <div className="min-w-0">
-          <p className="text-xs text-muted-foreground font-medium truncate">{label}</p>
-          <p className="text-xl font-bold font-display break-words leading-tight">{value}</p>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm text-muted-foreground font-medium whitespace-nowrap">{label}</p>
+          <p className="text-2xl font-bold font-display whitespace-nowrap leading-tight mt-1">{value}</p>
         </div>
       </div>
     </div>
