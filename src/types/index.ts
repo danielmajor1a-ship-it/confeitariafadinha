@@ -1,6 +1,8 @@
 export const CATEGORY_LABELS: Record<string, string> = {
   doce: 'Doce',
-  salgado: 'Salgado',
+  encomenda: 'Encomenda',
+  balcao: 'Balcão',
+  revenda: 'Revenda',
   bebida: 'Bebida',
   outro: 'Outro',
 };

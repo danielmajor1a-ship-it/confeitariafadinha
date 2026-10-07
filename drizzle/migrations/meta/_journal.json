@@ -92,6 +92,20 @@
       "when": 1791321019710,
       "tag": "0012_allow_pix_misto_sales",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791413128347,
+      "tag": "0013_add_encomenda_balcao_revenda_categories",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791413167136,
+      "tag": "0014_remove_salgado_category",
+      "breakpoints": true
     }
   ]
 }
