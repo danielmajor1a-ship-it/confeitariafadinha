@@ -153,7 +153,7 @@ function StatCard({ icon: Icon, label, value, color }: { icon: any; label: strin
         </div>
         <div className="min-w-0">
           <p className="text-xs text-muted-foreground font-medium truncate">{label}</p>
-          <p className="text-lg font-bold font-display truncate" title={value}>{value}</p>
+          <p className="text-base font-bold font-display truncate" title={value}>{value}</p>
         </div>
       </div>
     </div>
