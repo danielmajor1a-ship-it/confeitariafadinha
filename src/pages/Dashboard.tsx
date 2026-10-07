@@ -78,7 +78,7 @@ export default function Dashboard() {
         </Select>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-9 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <StatCard icon={DollarSign} label="Faturamento" value={fmt(totalRevenue)} color="text-success" />
         <StatCard icon={ShoppingCart} label="Vendas" value={filtered.length.toString()} color="text-pink" />
         <StatCard icon={DollarSign} label="Dinheiro" value={fmt(cashTotal)} color="text-success" />
@@ -146,14 +146,14 @@ export default function Dashboard() {
 
 function StatCard({ icon: Icon, label, value, color }: { icon: any; label: string; value: string; color: string }) {
   return (
-    <div className="stat-card">
+    <div className="stat-card min-w-0">
       <div className="flex items-center gap-3">
-        <div className={`p-2 rounded-xl bg-secondary ${color}`}>
+        <div className={`p-2 rounded-xl bg-secondary shrink-0 ${color}`}>
           <Icon className="h-5 w-5" />
         </div>
-        <div>
-          <p className="text-xs text-muted-foreground font-medium">{label}</p>
-          <p className="text-lg font-bold font-display">{value}</p>
+        <div className="min-w-0">
+          <p className="text-xs text-muted-foreground font-medium truncate">{label}</p>
+          <p className="text-base font-bold font-display truncate" title={value}>{value}</p>
         </div>
       </div>
     </div>
