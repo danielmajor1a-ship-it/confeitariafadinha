@@ -50,7 +50,8 @@ export default function Products() {
     const lower = cat.toLowerCase().trim();
     if (VALID_CATEGORIES.includes(lower)) return lower;
     const map: Record<string, string> = {
-      'bebidas': 'bebida', 'doces': 'doce', 'salgados': 'salgado',
+      'bebidas': 'bebida', 'doces': 'doce', 'salgados': 'balcao',
+      'encomendas': 'encomenda', 'balcão': 'balcao', 'revendas': 'revenda',
       'outros': 'outro', 'mercearia': 'outro', 'limpeza': 'outro',
     };
     return map[lower] || 'outro';
