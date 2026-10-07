@@ -70,6 +70,7 @@ const categoryLabels: Record<string, string> = {
   venda: "Venda",
   recebimento_fiado: "Recebimento Fiado",
   despesa: "Despesa",
+  pagamento_fornecedor: "Pagamento a Fornecedor",
   sangria: "Sangria",
   ajuste: "Ajuste",
   outro: "Outro",
@@ -155,7 +156,7 @@ export default function CashRegisterPage() {
   const totalCartao = entradas.filter((m) => ["cartao", "cartao_credito", "cartao_debito", "credito", "debito"].includes(m.payment_method || "")).reduce((s, m) => s + m.amount, 0);
   const totalFiado = entradas.filter((m) => m.category === "recebimento_fiado" || m.payment_method === "fiado").reduce((s, m) => s + m.amount, 0);
   const totalSangrias = saidas.filter((m) => m.category === "sangria").reduce((s, m) => s + m.amount, 0);
-  const totalDespesas = saidas.filter((m) => m.category === "despesa").reduce((s, m) => s + m.amount, 0);
+  const totalDespesas = saidas.filter((m) => m.category === "despesa" || m.category === "pagamento_fornecedor").reduce((s, m) => s + m.amount, 0);
 
   // Expected cash in drawer = initial + cash sales + fiado received - sangrias - expenses (cash only)
   const saldoEsperadoDinheiro = (openRegister?.initial_amount || 0) + totalDinheiro + totalFiado - totalSangrias - totalDespesas;
@@ -180,6 +181,10 @@ export default function CashRegisterPage() {
     if (!user || !openRegister) return;
     const amt = parseFloat(movAmount.replace(",", ".")) || 0;
     if (amt <= 0) { toast.error("Valor deve ser maior que zero"); return; }
+    if (movCategory === "pagamento_fornecedor") {
+      if (!isAdmin) { toast.error("Apenas o administrador pode pagar fornecedor pelo caixa"); return; }
+      if (!movDesc.trim()) { toast.error("Informe o nome do fornecedor na observação"); return; }
+    }
     const { error } = await supabase.from("cash_movements").insert({
       cash_register_id: openRegister.id, user_id: user.id,
       type: movType, category: movCategory, amount: amt,
@@ -381,6 +386,7 @@ export default function CashRegisterPage() {
                             </>
                           ) : (
                             <>
+                              {isAdmin && <SelectItem value="pagamento_fornecedor">Pagamento a Fornecedor</SelectItem>}
                               <SelectItem value="despesa">Despesa</SelectItem>
                               <SelectItem value="sangria">Sangria</SelectItem>
                               <SelectItem value="ajuste">Ajuste</SelectItem>
