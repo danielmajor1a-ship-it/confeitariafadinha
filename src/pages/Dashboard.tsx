@@ -61,6 +61,23 @@ export default function Dashboard() {
     return Object.entries(map).map(([date, total]) => ({ date, total })).slice(-15);
   }, [filtered]);
 
+  const hourlySales = useMemo(() => {
+    const map: Record<number, { total: number; count: number }> = {};
+    filtered.forEach(s => {
+      const h = new Date(s.created_at).getHours();
+      if (!map[h]) map[h] = { total: 0, count: 0 };
+      map[h].total += s.total;
+      map[h].count += 1;
+    });
+    const hours = Object.keys(map).map(Number).sort((a, b) => a - b);
+    if (hours.length === 0) return [];
+    const rows: { hour: string; total: number; count: number }[] = [];
+    for (let h = hours[0]; h <= hours[hours.length - 1]; h++) {
+      rows.push({ hour: `${String(h).padStart(2, "0")}h`, total: map[h]?.total ?? 0, count: map[h]?.count ?? 0 });
+    }
+    return rows;
+  }, [filtered]);
+
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   return (
