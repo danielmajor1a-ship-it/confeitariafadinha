@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { CATEGORY_LABELS, PAYMENT_LABELS } from "@/types";
 import type { PaymentEntry } from "@/types";
 import ReceiptDialog from "@/components/ReceiptDialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 const SINGLE_METHODS = ['dinheiro', 'pix', 'debito', 'credito', 'fiado'] as const;
 
@@ -772,6 +773,30 @@ export default function Sales() {
           </div>
         )}
       </Card>
+      <Dialog open={!!weightProductId} onOpenChange={v => !v && setWeightProductId(null)}>
+        <DialogContent className="max-w-sm">
+          {(() => {
+            const wp = products.find(p => p.id === weightProductId);
+            const g = Math.round(Number(weightInput.replace(',', '.'))) || 0;
+            return (<>
+              <DialogHeader><DialogTitle>{wp?.name}</DialogTitle></DialogHeader>
+              <p className="text-sm text-muted-foreground">{fmt(Number(wp?.sale_price || 0))} o quilo. Digite o peso que a balança mostrou, em gramas.</p>
+              <div className="flex items-center gap-2">
+                <Input autoFocus inputMode="numeric" placeholder="Ex.: 350" value={weightInput}
+                  onChange={e => setWeightInput(e.target.value.replace(/[^0-9]/g, ''))}
+                  onKeyDown={e => e.key === 'Enter' && confirmWeight()}
+                  className="h-14 text-2xl font-bold text-center" />
+                <span className="text-xl font-bold">g</span>
+              </div>
+              <p className="text-center text-lg">Valor: <span className="font-extrabold text-pink-dark">{fmt(weightSubtotal(g, Number(wp?.sale_price || 0)))}</span></p>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setWeightProductId(null)}>Cancelar</Button>
+                <Button onClick={confirmWeight} disabled={g <= 0}>Adicionar</Button>
+              </DialogFooter>
+            </>);
+          })()}
+        </DialogContent>
+      </Dialog>
       <ReceiptDialog open={showReceipt} onOpenChange={setShowReceipt} data={receiptData} />
     </div>
   );
