@@ -45,6 +45,7 @@ const fmtGrams = (g: number) => g >= 1000 ? `${(g / 1000).toLocaleString('pt-BR'
 export default function Sales() {
   const { user, loading: authLoading } = useAuth();
   const { products, sales, clients, addSale, deleteSale, refresh } = useApp();
+  useEffect(() => { refresh(); }, []); // sempre recarrega produtos ao abrir o PDV
   const { rates, getCreditRate } = useCardRates();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
