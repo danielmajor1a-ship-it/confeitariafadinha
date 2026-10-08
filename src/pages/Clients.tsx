@@ -25,7 +25,11 @@ export default function Clients() {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const data = { name: fd.get('name') as string, phone: fd.get('phone') as string, email: fd.get('email') as string };
-    if (editing) updateClient({ ...editing, ...data });
+    if (editing) {
+      const debtStr = (fd.get('total_owed') as string)?.replace(',', '.');
+      const total_owed = Math.max(0, parseFloat(debtStr) || 0);
+      updateClient({ ...editing, ...data, total_owed });
+    }
     else addClient(data);
     setEditing(null);
     setOpen(false);

@@ -246,7 +246,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [user, refresh]);
 
   const updateClient = useCallback(async (c: Client) => {
-    const { error } = await supabase.from('clients').update({ name: c.name, phone: c.phone, email: c.email }).eq('id', c.id);
+    const { error } = await supabase.from('clients').update({ name: c.name, phone: c.phone, email: c.email, total_owed: c.total_owed }).eq('id', c.id);
     if (error) { toast.error(error.message); return; }
     await refresh();
   }, [refresh]);
