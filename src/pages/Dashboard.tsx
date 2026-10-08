@@ -130,7 +130,7 @@ export default function Dashboard() {
             <span className="text-sm text-muted-foreground">Escolha as duas datas</span>
           )}
           <Select value={period} onValueChange={setPeriod}>
-            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="today">Hoje</SelectItem>
               <SelectItem value="7">Últimos 7 dias</SelectItem>

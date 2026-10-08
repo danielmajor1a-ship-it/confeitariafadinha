@@ -89,7 +89,7 @@ export default function Financial() {
             </>
           )}
           <Select value={period} onValueChange={setPeriod}>
-            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="today">Hoje</SelectItem>
               <SelectItem value="7">7 dias</SelectItem>
