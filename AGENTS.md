@@ -1,0 +1,1 @@
+- Products with sold_by_weight=true store sale_price per kg and stock/sale quantities in integer grams (avoids changing integer quantity columns).

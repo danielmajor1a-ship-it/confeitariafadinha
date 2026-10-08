@@ -1,0 +1,2 @@
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS sold_by_weight boolean NOT NULL DEFAULT false;
+COMMENT ON COLUMN public.products.sold_by_weight IS 'When true, sale_price is per kg and stock/sale quantities are in grams';

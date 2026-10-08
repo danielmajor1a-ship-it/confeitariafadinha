@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { CATEGORY_LABELS, PAYMENT_LABELS } from "@/types";
 import type { PaymentEntry } from "@/types";
 import ReceiptDialog from "@/components/ReceiptDialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 const SINGLE_METHODS = ['dinheiro', 'pix', 'debito', 'credito', 'fiado'] as const;
 
@@ -34,7 +35,12 @@ interface CartItem {
   quantity: number;
   unitPrice: number;
   subtotal: number;
+  byWeight?: boolean;
+  pricePerKg?: number;
 }
+
+const weightSubtotal = (grams: number, pricePerKg: number) => Math.round(grams * pricePerKg / 10) / 100;
+const fmtGrams = (g: number) => g >= 1000 ? `${(g / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 3 })} kg` : `${g} g`;
 
 export default function Sales() {
   const { user, loading: authLoading } = useAuth();
@@ -63,6 +69,10 @@ export default function Sales() {
 
   // Change calculator
   const [amountReceived, setAmountReceived] = useState('');
+
+  // Weight dialog
+  const [weightProductId, setWeightProductId] = useState<string | null>(null);
+  const [weightInput, setWeightInput] = useState('');
 
   useEffect(() => {
     let isCancelled = false;
@@ -105,7 +115,7 @@ export default function Sales() {
 
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const total = cart.reduce((s, i) => s + i.subtotal, 0);
-  const totalItems = cart.reduce((s, i) => s + i.quantity, 0);
+  const totalItems = cart.reduce((s, i) => s + (i.byWeight ? 1 : i.quantity), 0);
 
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
@@ -120,6 +130,12 @@ export default function Sales() {
     if (!hasOpenRegister) { toast.error("Abra o caixa antes de registrar vendas"); return; }
     const product = products.find(p => p.id === productId);
     if (!product) return;
+    if ((product as any).sold_by_weight) {
+      const ex = cart.find(i => i.productId === productId);
+      setWeightInput(ex ? String(ex.quantity) : '');
+      setWeightProductId(productId);
+      return;
+    }
     const existing = cart.find(i => i.productId === productId);
     if (existing) {
       setCart(cart.map(i => i.productId === productId
@@ -147,6 +163,19 @@ export default function Sales() {
       if (!Number.isFinite(value) || value < 1) return { ...i, quantity: 1, subtotal: i.unitPrice };
       return { ...i, quantity: value, subtotal: value * i.unitPrice };
     }));
+  }
+
+  function confirmWeight() {
+    const product = products.find(p => p.id === weightProductId);
+    const grams = Math.round(Number(weightInput.replace(',', '.')));
+    if (!product || !Number.isFinite(grams) || grams <= 0) { toast.error('Informe o peso em gramas'); return; }
+    const price = Number(product.sale_price);
+    const item: CartItem = {
+      productId: product.id, productName: product.name, quantity: grams,
+      unitPrice: price / 1000, subtotal: weightSubtotal(grams, price), byWeight: true, pricePerKg: price,
+    };
+    setCart(prev => prev.some(i => i.productId === product.id) ? prev.map(i => i.productId === product.id ? item : i) : [...prev, item]);
+    setWeightProductId(null);
   }
 
   function removeFromCart(productId: string) { setCart(prev => prev.filter(i => i.productId !== productId)); }
@@ -209,6 +238,7 @@ export default function Sales() {
     const clientName = clientId ? clients.find(c => c.id === clientId)?.name : undefined;
     const receiptItems = cart.map(i => ({
       productName: i.productName, quantity: i.quantity, unitPrice: i.unitPrice, subtotal: i.subtotal,
+      byWeight: i.byWeight,
     }));
     const paymentsPayload = buildPaymentsPayload();
 
@@ -265,7 +295,7 @@ export default function Sales() {
                   {sales.map(s => (
                     <tr key={s.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
                       <td className="p-3">{new Date(s.created_at).toLocaleDateString('pt-BR')} {new Date(s.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</td>
-                      <td className="p-3 max-w-[200px] truncate">{s.items.map(i => `${i.product_name} (${i.quantity})`).join(', ')}</td>
+                      <td className="p-3 max-w-[200px] truncate">{s.items.map(i => `${i.product_name} (${(products.find(p => p.id === i.product_id) as any)?.sold_by_weight ? fmtGrams(i.quantity) : i.quantity})`).join(', ')}</td>
                       <td className="p-3 font-semibold">{fmt(s.total)}</td>
                       <td className="p-3">
                         {s.payments && s.payments.length > 1 ? (
@@ -290,7 +320,7 @@ export default function Sales() {
                           const clientName = s.client_id ? clients.find(c => c.id === s.client_id)?.name : undefined;
                           setReceiptData({
                             date: new Date(s.created_at).toLocaleString('pt-BR'),
-                            items: s.items.map(i => ({ productName: i.product_name, quantity: i.quantity, unitPrice: i.unit_price, subtotal: i.subtotal })),
+                            items: s.items.map(i => ({ productName: i.product_name, quantity: i.quantity, unitPrice: i.unit_price, subtotal: i.subtotal, byWeight: !!(products.find(p => p.id === i.product_id) as any)?.sold_by_weight })),
                             total: s.total,
                             paymentMethod: s.payment_method,
                             payments: s.payments?.map(p => ({ method: p.payment_method, amount: p.amount, installments: p.installments })),
@@ -415,7 +445,7 @@ export default function Sales() {
                   `}>
                   {inCart && (
                     <span className="absolute -top-2 -right-2 bg-pink-dark text-primary-foreground text-xs font-bold rounded-full h-7 w-7 flex items-center justify-center z-10 shadow">
-                      {inCart.quantity}
+                      {inCart.byWeight ? '✓' : inCart.quantity}
                     </span>
                   )}
                   {(p as any).image_url ? (
@@ -427,9 +457,9 @@ export default function Sales() {
                     </div>
                   )}
                   <span className="font-semibold text-sm leading-tight line-clamp-2 min-h-[2.5em]">{p.name}</span>
-                  <span className="font-extrabold text-lg mt-1 text-pink-dark">{fmt(p.sale_price)}</span>
+                  <span className="font-extrabold text-lg mt-1 text-pink-dark">{fmt(p.sale_price)}{(p as any).sold_by_weight && <span className="text-xs font-semibold"> /kg</span>}</span>
                   <span className={`text-xs mt-0.5 ${p.stock <= p.low_stock_threshold ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
-                    {`${p.stock} un`}
+                    {(p as any).sold_by_weight ? fmtGrams(p.stock) : `${p.stock} un`}
                   </span>
                 </button>
               );
@@ -469,8 +499,18 @@ export default function Sales() {
                 <div key={item.productId} className="flex items-center gap-3 py-3 border-b border-dashed border-border last:border-b-0">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold leading-tight truncate">{item.productName}</p>
-                    <p className="text-xs text-muted-foreground">{fmt(item.unitPrice)} un · <span className="font-semibold text-foreground">{fmt(item.subtotal)}</span></p>
+                    <p className="text-xs text-muted-foreground">{item.byWeight ? `${fmt(item.pricePerKg || 0)}/kg` : `${fmt(item.unitPrice)} un`} · <span className="font-semibold text-foreground">{fmt(item.subtotal)}</span></p>
                   </div>
+                  {item.byWeight ? (
+                  <div className="flex items-center gap-1 bg-muted rounded-full px-1.5 py-1">
+                    <button type="button" className="h-7 w-7 rounded-full flex items-center justify-center hover:bg-card transition-colors" onClick={() => removeFromCart(item.productId)}>
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </button>
+                    <button type="button" className="h-7 px-2 text-sm font-bold text-chocolate hover:underline" onClick={() => { setWeightInput(String(item.quantity)); setWeightProductId(item.productId); }}>
+                      {fmtGrams(item.quantity)}
+                    </button>
+                  </div>
+                  ) : (
                   <div className="flex items-center gap-1 bg-muted rounded-full px-1.5 py-1">
                     <button type="button" className="h-7 w-7 rounded-full flex items-center justify-center text-chocolate hover:bg-card transition-colors"
                       onClick={() => item.quantity === 1 ? removeFromCart(item.productId) : updateQty(item.productId, -1)}>
@@ -489,6 +529,7 @@ export default function Sales() {
                       <Plus className="h-3.5 w-3.5" />
                     </button>
                   </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -732,6 +773,30 @@ export default function Sales() {
           </div>
         )}
       </Card>
+      <Dialog open={!!weightProductId} onOpenChange={v => !v && setWeightProductId(null)}>
+        <DialogContent className="max-w-sm">
+          {(() => {
+            const wp = products.find(p => p.id === weightProductId);
+            const g = Math.round(Number(weightInput.replace(',', '.'))) || 0;
+            return (<>
+              <DialogHeader><DialogTitle>{wp?.name}</DialogTitle></DialogHeader>
+              <p className="text-sm text-muted-foreground">{fmt(Number(wp?.sale_price || 0))} o quilo. Digite o peso que a balança mostrou, em gramas.</p>
+              <div className="flex items-center gap-2">
+                <Input autoFocus inputMode="numeric" placeholder="Ex.: 350" value={weightInput}
+                  onChange={e => setWeightInput(e.target.value.replace(/[^0-9]/g, ''))}
+                  onKeyDown={e => e.key === 'Enter' && confirmWeight()}
+                  className="h-14 text-2xl font-bold text-center" />
+                <span className="text-xl font-bold">g</span>
+              </div>
+              <p className="text-center text-lg">Valor: <span className="font-extrabold text-pink-dark">{fmt(weightSubtotal(g, Number(wp?.sale_price || 0)))}</span></p>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setWeightProductId(null)}>Cancelar</Button>
+                <Button onClick={confirmWeight} disabled={g <= 0}>Adicionar</Button>
+              </DialogFooter>
+            </>);
+          })()}
+        </DialogContent>
+      </Dialog>
       <ReceiptDialog open={showReceipt} onOpenChange={setShowReceipt} data={receiptData} />
     </div>
   );

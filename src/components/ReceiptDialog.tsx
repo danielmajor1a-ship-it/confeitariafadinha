@@ -10,6 +10,7 @@ interface ReceiptItem {
   quantity: number;
   unitPrice: number;
   subtotal: number;
+  byWeight?: boolean;
 }
 
 interface ReceiptPayment {
@@ -28,6 +29,9 @@ interface ReceiptData {
 }
 
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const qtyLabel = (i: ReceiptItem) => i.byWeight
+  ? (i.quantity >= 1000 ? `${(i.quantity / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 3 })} kg` : `${i.quantity} g`)
+  : `${i.quantity}x`;
 
 export default function ReceiptDialog({ open, onOpenChange, data }: { open: boolean; onOpenChange: (v: boolean) => void; data: ReceiptData | null }) {
   const receiptRef = useRef<HTMLDivElement>(null);
@@ -45,7 +49,7 @@ export default function ReceiptDialog({ open, onOpenChange, data }: { open: bool
       '═══════════════════════',
       `Data: ${data.date}`,
       '───────────────────────',
-      ...data.items.map(i => `${i.quantity}x ${i.productName}\n   ${fmt(i.unitPrice)} un → ${fmt(i.subtotal)}`),
+      ...data.items.map(i => `${qtyLabel(i)} ${i.productName}\n   ${i.byWeight ? fmt(i.unitPrice * 1000) + '/kg' : fmt(i.unitPrice) + ' un'} → ${fmt(i.subtotal)}`),
       '───────────────────────',
       `TOTAL: ${fmt(data.total)}`,
     ];
@@ -114,7 +118,7 @@ export default function ReceiptDialog({ open, onOpenChange, data }: { open: bool
           <div className="space-y-1.5">
             {data.items.map((item, i) => (
               <div key={i} className="flex justify-between gap-2">
-                <span className="flex-1 truncate">{item.quantity}x {item.productName}</span>
+                <span className="flex-1 truncate">{qtyLabel(item)} {item.productName}</span>
                 <span className="font-semibold shrink-0">{fmt(item.subtotal)}</span>
               </div>
             ))}
