@@ -1,8 +1,15 @@
 import { useApp } from "@/contexts/AppContext";
 import { useCardRates } from "@/components/CardRatesSettings";
 import { useMemo, useState } from "react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { CalendarIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, CartesianGrid } from "recharts";
 import { Package, ShoppingCart, DollarSign, AlertTriangle, TrendingUp, Users, CreditCard, TrendingDown, Smartphone } from "lucide-react";
 
@@ -14,6 +21,8 @@ export default function Dashboard() {
   const { products, sales, clients } = useApp();
   const { rates } = useCardRates();
   const [period, setPeriod] = useState("30");
+  const [customStart, setCustomStart] = useState<Date | undefined>();
+  const [customEnd, setCustomEnd] = useState<Date | undefined>();
 
   const filtered = useMemo(() => {
     if (period === "today") {
@@ -21,11 +30,22 @@ export default function Dashboard() {
       start.setHours(0, 0, 0, 0);
       return sales.filter(s => new Date(s.created_at) >= start);
     }
+    if (period === "custom") {
+      if (!customStart || !customEnd) return [];
+      const start = new Date(customStart);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(customEnd);
+      end.setHours(23, 59, 59, 999);
+      return sales.filter(s => {
+        const d = new Date(s.created_at);
+        return d >= start && d <= end;
+      });
+    }
     const days = parseInt(period);
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
     return sales.filter(s => new Date(s.created_at) >= cutoff);
-  }, [sales, period]);
+  }, [sales, period, customStart, customEnd]);
 
   // Use sale_payments for accurate breakdowns
   const allPayments = useMemo(() => filtered.flatMap(s => s.payments || []), [filtered]);
