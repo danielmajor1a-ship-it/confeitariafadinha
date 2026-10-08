@@ -55,6 +55,12 @@ export default function Clients() {
               <div><Label>Nome</Label><Input name="name" required defaultValue={editing?.name} /></div>
               <div><Label>Telefone</Label><Input name="phone" defaultValue={editing?.phone || ''} /></div>
               <div><Label>Email</Label><Input name="email" type="email" defaultValue={editing?.email || ''} /></div>
+              {editing && (
+                <div>
+                  <Label>Valor da dívida (fiado)</Label>
+                  <Input name="total_owed" type="number" step="0.01" min="0" defaultValue={editing.total_owed} />
+                </div>
+              )}
               <Button type="submit" className="w-full">Salvar</Button>
             </form>
           </DialogContent>
