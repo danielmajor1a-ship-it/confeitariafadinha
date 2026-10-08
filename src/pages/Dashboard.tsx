@@ -86,7 +86,7 @@ export default function Dashboard() {
         <StatCard icon={CreditCard} label="Crédito" value={fmt(creditTotal)} color="text-chocolate" />
         <StatCard icon={CreditCard} label="Débito" value={fmt(debitTotal)} color="text-chocolate" />
         <StatCard icon={TrendingDown} label="Taxas Cartão" value={fmt(totalTax)} color="text-destructive" />
-        <StatCard icon={Users} label="Fiado Total" value={fmt(totalDebt)} color="text-warning" />
+        <StatCard icon={Users} label="Vendas no Fiado" value={fmt(fiadoTotal)} color="text-warning" />
         <StatCard icon={AlertTriangle} label="Estoque Baixo" value={lowStock.toString()} color="text-destructive" />
       </div>
 
