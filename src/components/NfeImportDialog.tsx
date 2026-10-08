@@ -151,10 +151,14 @@ export default function PurchaseEntry() {
     const u = U(unitRaw);
     const m = u.match(/^([A-Z]+)\s*\/\s*(\d+)$/);
     if (m && Number(m[2]) > 1) return { unit: m[1], factor: Number(m[2]) };
-    const d = (desc || "").toUpperCase().match(/\b(?:C|CX|COM)\s*\/\s*(\d+)\b/);
-    if (d && Number(d[1]) > 1) {
-      const base = u.replace(/\s*\/.*$/, "");
-      return { unit: base && base !== "UN" ? base : "CX", factor: Number(d[1]) };
+    const D = (desc || "").toUpperCase();
+    const base = u.replace(/\s*\/.*$/, "");
+    const d = D.match(/\b(?:C|CX|COM)\s*\/\s*(\d+)\b/);
+    if (d && Number(d[1]) > 1) return { unit: base && base !== "UN" ? base : "CX", factor: Number(d[1]) };
+    // Embalagem fechada (CX, PCT, FD...): "16/1", "ML12/1" ou "6X2000" na descrição
+    if (base && base !== "UN" && base !== "KG" && base !== "L") {
+      const n1 = D.match(/(\d+)\s*\/\s*1\b(?!\s*(?:KG|G|L|ML)\b)/) || D.match(/\b(\d{1,2})\s*X\s*\d/);
+      if (n1 && Number(n1[1]) > 1) return { unit: base, factor: Number(n1[1]) };
     }
     return null;
   }
@@ -171,7 +175,7 @@ export default function PurchaseEntry() {
     if (!match) {
       const pack = detectPack(rawUnit, l.description);
       if (pack) {
-        const same = buyUnits.find(b => U(b.unit) === pack.unit && b.factor === pack.factor);
+        const same = buyUnits.find(b => U(b.unit) === pack.unit && b.factor === pack.factor) || buyUnits.find(b => b.factor === pack.factor);
         if (same) match = same;
         else {
           const name = buyUnits.some(b => U(b.unit) === pack.unit) ? `${pack.unit} ${pack.factor}` : pack.unit;
