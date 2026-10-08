@@ -223,9 +223,10 @@ export default function Products() {
     setOpen(true);
   }
 
+  const normSearch = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   const filtered = products.filter(p =>
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.category.toLowerCase().includes(search.toLowerCase())
+    normSearch(p.name).includes(normSearch(search)) ||
+    normSearch(p.category).includes(normSearch(search))
   );
 
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
