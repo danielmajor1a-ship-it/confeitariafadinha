@@ -175,7 +175,7 @@ export default function PurchaseEntry() {
     if (!match) {
       const pack = detectPack(rawUnit, l.description);
       if (pack) {
-        const same = buyUnits.find(b => U(b.unit) === pack.unit && b.factor === pack.factor);
+        const same = buyUnits.find(b => U(b.unit) === pack.unit && b.factor === pack.factor) || buyUnits.find(b => b.factor === pack.factor);
         if (same) match = same;
         else {
           const name = buyUnits.some(b => U(b.unit) === pack.unit) ? `${pack.unit} ${pack.factor}` : pack.unit;
