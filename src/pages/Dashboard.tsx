@@ -142,6 +142,23 @@ export default function Dashboard() {
         </Card>
 
         <Card className="lg:col-span-2">
+          <CardHeader><CardTitle className="section-title">Vendas por Hora</CardTitle></CardHeader>
+          <CardContent className="h-72">
+            {hourlySales.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={hourlySales}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(345,20%,90%)" />
+                  <XAxis dataKey="hour" fontSize={12} interval={0} />
+                  <YAxis fontSize={12} tickFormatter={v => `R$${v}`} />
+                  <Tooltip content={<HourTooltip />} />
+                  <Bar dataKey="total" fill="hsl(345,70%,75%)" radius={[6, 6, 0, 0]} name="Faturamento" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : <EmptyChart />}
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
           <CardHeader><CardTitle className="section-title">Top 5 Produtos Mais Vendidos</CardTitle></CardHeader>
           <CardContent className="h-72">
             {top5.length > 0 ? (
