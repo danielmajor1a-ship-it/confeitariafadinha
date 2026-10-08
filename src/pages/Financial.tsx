@@ -1,13 +1,19 @@
 import { useMemo, useState } from "react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { useApp } from "@/contexts/AppContext";
 import { useCardRates } from "@/components/CardRatesSettings";
 import { useUserRole } from "@/hooks/useUserRole";
 import CardRatesSettings from "@/components/CardRatesSettings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, CreditCard, Banknote, AlertCircle, TrendingDown, Smartphone } from "lucide-react";
+import { DollarSign, CreditCard, Banknote, AlertCircle, TrendingDown, Smartphone, CalendarIcon } from "lucide-react";
 import { PAYMENT_LABELS } from "@/types";
 
 export default function Financial() {
@@ -15,6 +21,8 @@ export default function Financial() {
   const { rates } = useCardRates();
   const { isAdmin } = useUserRole();
   const [period, setPeriod] = useState("30");
+  const [customStart, setCustomStart] = useState<Date | undefined>();
+  const [customEnd, setCustomEnd] = useState<Date | undefined>();
 
   const filtered = useMemo(() => {
     if (period === "today") {
@@ -22,11 +30,22 @@ export default function Financial() {
       start.setHours(0, 0, 0, 0);
       return sales.filter(s => new Date(s.created_at) >= start);
     }
+    if (period === "custom") {
+      if (!customStart || !customEnd) return [];
+      const start = new Date(customStart);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(customEnd);
+      end.setHours(23, 59, 59, 999);
+      return sales.filter(s => {
+        const d = new Date(s.created_at);
+        return d >= start && d <= end;
+      });
+    }
     const days = parseInt(period);
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
     return sales.filter(s => new Date(s.created_at) >= cutoff);
-  }, [sales, period]);
+  }, [sales, period, customStart, customEnd]);
 
   // Use sale_payments for accurate breakdown
   const allPayments = useMemo(() => filtered.flatMap(s => s.payments || []), [filtered]);
