@@ -126,6 +126,9 @@ export default function Dashboard() {
               />
             </>
           )}
+          {period === "custom" && (!customStart || !customEnd) && (
+            <span className="text-sm text-muted-foreground">Escolha as duas datas</span>
+          )}
           <Select value={period} onValueChange={setPeriod}>
             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
             <SelectContent>
