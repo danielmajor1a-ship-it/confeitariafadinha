@@ -496,6 +496,7 @@ export type Database = {
           purchase_unit: string
           sale_price: number
           sells: boolean
+          sold_by_weight: boolean
           stock: number
           stock_unit: string | null
           updated_at: string
@@ -521,6 +522,7 @@ export type Database = {
           purchase_unit?: string
           sale_price?: number
           sells?: boolean
+          sold_by_weight?: boolean
           stock?: number
           stock_unit?: string | null
           updated_at?: string
@@ -546,6 +548,7 @@ export type Database = {
           purchase_unit?: string
           sale_price?: number
           sells?: boolean
+          sold_by_weight?: boolean
           stock?: number
           stock_unit?: string | null
           updated_at?: string
