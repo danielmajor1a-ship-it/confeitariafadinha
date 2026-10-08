@@ -194,6 +194,18 @@ function StatCard({ icon: Icon, label, value, color }: { icon: any; label: strin
   );
 }
 
+function HourTooltip({ active, payload }: any) {
+  if (!active || !payload || payload.length === 0) return null;
+  const row = payload[0].payload;
+  return (
+    <div className="rounded-lg border bg-background p-3 text-sm shadow-md">
+      <p className="font-bold font-display">{row.hour}</p>
+      <p className="text-muted-foreground">{fmtStatic(row.total)}</p>
+      <p className="text-muted-foreground">{row.count} {row.count === 1 ? "venda" : "vendas"}</p>
+    </div>
+  );
+}
+
 function EmptyChart() {
   return <div className="h-full flex items-center justify-center text-muted-foreground text-sm">Sem dados para exibir</div>;
 }
