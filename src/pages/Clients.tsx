@@ -67,6 +67,21 @@ export default function Clients() {
         </Dialog>
       </div>
 
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
+        <div className="stat-card min-h-[96px]">
+          <p className="text-sm text-muted-foreground font-medium">Dívida total em aberto</p>
+          <p className="text-2xl font-bold font-display text-destructive mt-1 whitespace-nowrap">{fmt(clients.reduce((s, c) => s + Number(c.total_owed || 0), 0))}</p>
+        </div>
+        <div className="stat-card min-h-[96px]">
+          <p className="text-sm text-muted-foreground font-medium">Clientes devendo</p>
+          <p className="text-2xl font-bold font-display mt-1">{clients.filter(c => c.total_owed > 0).length} de {clients.length}</p>
+        </div>
+        <div className="stat-card min-h-[96px]">
+          <p className="text-sm text-muted-foreground font-medium">Maior dívida</p>
+          <p className="text-2xl font-bold font-display mt-1 whitespace-nowrap">{fmt(Math.max(0, ...clients.map(c => Number(c.total_owed || 0))))}</p>
+        </div>
+      </div>
+
       <div className="rounded-2xl border bg-card overflow-hidden">
         <Table>
           <TableHeader><TableRow>
