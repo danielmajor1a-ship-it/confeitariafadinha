@@ -70,16 +70,36 @@ export default function Financial() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <h1 className="page-header">Financeiro</h1>
-        <Select value={period} onValueChange={setPeriod}>
-          <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="today">Hoje</SelectItem>
-            <SelectItem value="7">7 dias</SelectItem>
-            <SelectItem value="30">30 dias</SelectItem>
-            <SelectItem value="90">90 dias</SelectItem>
-            <SelectItem value="365">1 ano</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2 flex-wrap">
+          {period === "custom" && (
+            <>
+              <CustomDateButton
+                label="De"
+                date={customStart}
+                onSelect={setCustomStart}
+              />
+              <CustomDateButton
+                label="Até"
+                date={customEnd}
+                onSelect={setCustomEnd}
+              />
+              {(!customStart || !customEnd) && (
+                <span className="text-sm text-muted-foreground">Escolha as duas datas</span>
+              )}
+            </>
+          )}
+          <Select value={period} onValueChange={setPeriod}>
+            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="today">Hoje</SelectItem>
+              <SelectItem value="7">7 dias</SelectItem>
+              <SelectItem value="30">30 dias</SelectItem>
+              <SelectItem value="90">90 dias</SelectItem>
+              <SelectItem value="365">1 ano</SelectItem>
+              <SelectItem value="custom">Período personalizado</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
