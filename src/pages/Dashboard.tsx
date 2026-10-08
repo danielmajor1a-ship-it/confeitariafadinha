@@ -1,8 +1,15 @@
 import { useApp } from "@/contexts/AppContext";
 import { useCardRates } from "@/components/CardRatesSettings";
 import { useMemo, useState } from "react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { CalendarIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, CartesianGrid } from "recharts";
 import { Package, ShoppingCart, DollarSign, AlertTriangle, TrendingUp, Users, CreditCard, TrendingDown, Smartphone } from "lucide-react";
 
@@ -14,6 +21,8 @@ export default function Dashboard() {
   const { products, sales, clients } = useApp();
   const { rates } = useCardRates();
   const [period, setPeriod] = useState("30");
+  const [customStart, setCustomStart] = useState<Date | undefined>();
+  const [customEnd, setCustomEnd] = useState<Date | undefined>();
 
   const filtered = useMemo(() => {
     if (period === "today") {
@@ -21,11 +30,22 @@ export default function Dashboard() {
       start.setHours(0, 0, 0, 0);
       return sales.filter(s => new Date(s.created_at) >= start);
     }
+    if (period === "custom") {
+      if (!customStart || !customEnd) return [];
+      const start = new Date(customStart);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(customEnd);
+      end.setHours(23, 59, 59, 999);
+      return sales.filter(s => {
+        const d = new Date(s.created_at);
+        return d >= start && d <= end;
+      });
+    }
     const days = parseInt(period);
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
     return sales.filter(s => new Date(s.created_at) >= cutoff);
-  }, [sales, period]);
+  }, [sales, period, customStart, customEnd]);
 
   // Use sale_payments for accurate breakdowns
   const allPayments = useMemo(() => filtered.flatMap(s => s.payments || []), [filtered]);
@@ -91,16 +111,36 @@ export default function Dashboard() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <h1 className="page-header">Dashboard</h1>
-        <Select value={period} onValueChange={setPeriod}>
-          <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="today">Hoje</SelectItem>
-            <SelectItem value="7">Últimos 7 dias</SelectItem>
-            <SelectItem value="30">Últimos 30 dias</SelectItem>
-            <SelectItem value="90">Últimos 90 dias</SelectItem>
-            <SelectItem value="365">Último ano</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2 flex-wrap">
+          {period === "custom" && (
+            <>
+              <CustomDateButton
+                label="De"
+                date={customStart}
+                onSelect={setCustomStart}
+              />
+              <CustomDateButton
+                label="Até"
+                date={customEnd}
+                onSelect={setCustomEnd}
+              />
+            </>
+          )}
+          {period === "custom" && (!customStart || !customEnd) && (
+            <span className="text-sm text-muted-foreground">Escolha as duas datas</span>
+          )}
+          <Select value={period} onValueChange={setPeriod}>
+            <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="today">Hoje</SelectItem>
+              <SelectItem value="7">Últimos 7 dias</SelectItem>
+              <SelectItem value="30">Últimos 30 dias</SelectItem>
+              <SelectItem value="90">Últimos 90 dias</SelectItem>
+              <SelectItem value="365">Último ano</SelectItem>
+              <SelectItem value="custom">Período personalizado</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
@@ -211,6 +251,33 @@ function HourTooltip({ active, payload }: any) {
       <p className="text-muted-foreground">{fmtStatic(row.total)}</p>
       <p className="text-muted-foreground">{row.count} {row.count === 1 ? "venda" : "vendas"}</p>
     </div>
+  );
+}
+
+function CustomDateButton({ label, date, onSelect }: { label: string; date?: Date; onSelect: (d?: Date) => void }) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          className={cn("justify-start text-left font-normal h-9", !date && "text-muted-foreground")}
+        >
+          <CalendarIcon className="h-4 w-4" />
+          <span className="text-xs text-muted-foreground mr-1">{label}</span>
+          {date ? format(date, "dd/MM/yyyy") : "dd/mm/aaaa"}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          selected={date}
+          onSelect={onSelect}
+          initialFocus
+          locale={ptBR}
+          className="p-3 pointer-events-auto"
+        />
+      </PopoverContent>
+    </Popover>
   );
 }
 
