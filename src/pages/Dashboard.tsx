@@ -8,6 +8,8 @@ import { Package, ShoppingCart, DollarSign, AlertTriangle, TrendingUp, Users, Cr
 
 const COLORS = ["hsl(345,70%,75%)", "hsl(25,52%,28%)", "hsl(345,60%,55%)", "hsl(40,30%,70%)", "hsl(142,60%,40%)", "hsl(38,92%,50%)"];
 
+const fmtStatic = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
 export default function Dashboard() {
   const { products, sales, clients } = useApp();
   const { rates } = useCardRates();
@@ -59,6 +61,23 @@ export default function Dashboard() {
       map[day] = (map[day] || 0) + s.total;
     });
     return Object.entries(map).map(([date, total]) => ({ date, total })).slice(-15);
+  }, [filtered]);
+
+  const hourlySales = useMemo(() => {
+    const map: Record<number, { total: number; count: number }> = {};
+    filtered.forEach(s => {
+      const h = new Date(s.created_at).getHours();
+      if (!map[h]) map[h] = { total: 0, count: 0 };
+      map[h].total += s.total;
+      map[h].count += 1;
+    });
+    const hours = Object.keys(map).map(Number).sort((a, b) => a - b);
+    if (hours.length === 0) return [];
+    const rows: { hour: string; total: number; count: number }[] = [];
+    for (let h = hours[0]; h <= hours[hours.length - 1]; h++) {
+      rows.push({ hour: `${String(h).padStart(2, "0")}h`, total: map[h]?.total ?? 0, count: map[h]?.count ?? 0 });
+    }
+    return rows;
   }, [filtered]);
 
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -125,6 +144,23 @@ export default function Dashboard() {
         </Card>
 
         <Card className="lg:col-span-2">
+          <CardHeader><CardTitle className="section-title">Vendas por Hora</CardTitle></CardHeader>
+          <CardContent className="h-72">
+            {hourlySales.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={hourlySales}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(345,20%,90%)" />
+                  <XAxis dataKey="hour" fontSize={12} interval={0} />
+                  <YAxis fontSize={12} tickFormatter={v => `R$${v}`} />
+                  <Tooltip content={<HourTooltip />} />
+                  <Bar dataKey="total" fill="hsl(345,70%,75%)" radius={[6, 6, 0, 0]} name="Faturamento" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : <EmptyChart />}
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
           <CardHeader><CardTitle className="section-title">Top 5 Produtos Mais Vendidos</CardTitle></CardHeader>
           <CardContent className="h-72">
             {top5.length > 0 ? (
@@ -156,6 +192,18 @@ function StatCard({ icon: Icon, label, value, color }: { icon: any; label: strin
           <p className="text-2xl font-bold font-display whitespace-nowrap leading-tight mt-1">{value}</p>
         </div>
       </div>
+    </div>
+  );
+}
+
+function HourTooltip({ active, payload }: any) {
+  if (!active || !payload || payload.length === 0) return null;
+  const row = payload[0].payload;
+  return (
+    <div className="rounded-lg border bg-background p-3 text-sm shadow-md">
+      <p className="font-bold font-display">{row.hour}</p>
+      <p className="text-muted-foreground">{fmtStatic(row.total)}</p>
+      <p className="text-muted-foreground">{row.count} {row.count === 1 ? "venda" : "vendas"}</p>
     </div>
   );
 }
