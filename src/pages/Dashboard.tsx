@@ -251,6 +251,33 @@ function HourTooltip({ active, payload }: any) {
   );
 }
 
+function CustomDateButton({ label, date, onSelect }: { label: string; date?: Date; onSelect: (d?: Date) => void }) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          className={cn("justify-start text-left font-normal h-9", !date && "text-muted-foreground")}
+        >
+          <CalendarIcon className="h-4 w-4" />
+          <span className="text-xs text-muted-foreground mr-1">{label}</span>
+          {date ? format(date, "dd/MM/yyyy") : "dd/mm/aaaa"}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          selected={date}
+          onSelect={onSelect}
+          initialFocus
+          locale={ptBR}
+          className="p-3 pointer-events-auto"
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function EmptyChart() {
   return <div className="h-full flex items-center justify-center text-muted-foreground text-sm">Sem dados para exibir</div>;
 }
