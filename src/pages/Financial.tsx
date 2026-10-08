@@ -17,6 +17,11 @@ export default function Financial() {
   const [period, setPeriod] = useState("30");
 
   const filtered = useMemo(() => {
+    if (period === "today") {
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      return sales.filter(s => new Date(s.created_at) >= start);
+    }
     const days = parseInt(period);
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
@@ -49,6 +54,7 @@ export default function Financial() {
         <Select value={period} onValueChange={setPeriod}>
           <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
           <SelectContent>
+            <SelectItem value="today">Hoje</SelectItem>
             <SelectItem value="7">7 dias</SelectItem>
             <SelectItem value="30">30 dias</SelectItem>
             <SelectItem value="90">90 dias</SelectItem>
