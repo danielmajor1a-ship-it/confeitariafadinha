@@ -8,6 +8,8 @@ import { Package, ShoppingCart, DollarSign, AlertTriangle, TrendingUp, Users, Cr
 
 const COLORS = ["hsl(345,70%,75%)", "hsl(25,52%,28%)", "hsl(345,60%,55%)", "hsl(40,30%,70%)", "hsl(142,60%,40%)", "hsl(38,92%,50%)"];
 
+const fmtStatic = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
 export default function Dashboard() {
   const { products, sales, clients } = useApp();
   const { rates } = useCardRates();
