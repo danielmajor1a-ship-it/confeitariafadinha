@@ -1,13 +1,43 @@
+import { useState } from "react";
 import { useApp } from "@/contexts/AppContext";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { TrendingUp, TrendingDown, Minus, Pencil } from "lucide-react";
 import BulkSheetDialog from "@/components/BulkSheetDialog";
 import PriceHistory from "@/components/PriceHistory";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export default function Pricing() {
-  const { products, costs } = useApp();
+  const { products, costs, refresh } = useApp();
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+  const [editing, setEditing] = useState<{ id: string; name: string; current: number } | null>(null);
+  const [newPrice, setNewPrice] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  function openEdit(p: { id: string; name: string; sale_price: number }) {
+    setEditing({ id: p.id, name: p.name, current: p.sale_price });
+    setNewPrice(p.sale_price.toFixed(2).replace('.', ','));
+  }
+
+  async function savePrice() {
+    if (!editing) return;
+    const parsed = parseFloat(newPrice.replace(/\./g, '').replace(',', '.'));
+    if (isNaN(parsed) || parsed < 0) { toast.error('Preço inválido'); return; }
+    setSaving(true);
+    const { error } = await supabase.rpc('bulk_update_prices', {
+      _items: [{ product_id: editing.id, new_price: parsed }],
+    } as any);
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`Preço de "${editing.name}" atualizado para ${fmt(parsed)}`);
+    setEditing(null);
+    await refresh();
+  }
 
   function getProductCosts(productId: string) {
     return costs.filter(c => c.product_id === productId).reduce((s, c) => s + c.value, 0);
