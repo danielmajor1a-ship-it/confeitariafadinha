@@ -78,7 +78,14 @@ export default function Pricing() {
                   <TableCell>{fmt(p.purchase_price)}</TableCell>
                   <TableCell>{fmt(extraCosts)}</TableCell>
                   <TableCell className="font-semibold">{fmt(totalCost)}</TableCell>
-                  <TableCell className="font-semibold">{fmt(p.sale_price)}</TableCell>
+                  <TableCell className="font-semibold">
+                    <div className="flex items-center gap-1">
+                      {fmt(p.sale_price)}
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(p)} title="Alterar preço de venda">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </TableCell>
                   <TableCell className={marginValue >= 0 ? "text-success font-semibold" : "text-destructive font-semibold"}>
                     {fmt(marginValue)}
                   </TableCell>
