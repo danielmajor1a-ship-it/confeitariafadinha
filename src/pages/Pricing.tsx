@@ -102,6 +102,36 @@ export default function Pricing() {
         </Table>
       </div>
       <PriceHistory />
+
+      <Dialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Alterar preço de venda</DialogTitle>
+          </DialogHeader>
+          {editing && (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">{editing.name}</span> — preço atual: {fmt(editing.current)}
+              </p>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Novo preço (R$)</label>
+                <Input
+                  value={newPrice}
+                  onChange={(e) => setNewPrice(e.target.value)}
+                  inputMode="decimal"
+                  placeholder="0,00"
+                  autoFocus
+                  onKeyDown={(e) => e.key === 'Enter' && savePrice()}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditing(null)}>Cancelar</Button>
+            <Button onClick={savePrice} disabled={saving}>{saving ? 'Salvando...' : 'Salvar'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
