@@ -5,8 +5,6 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CalendarIcon } from "lucide-react";
 import DailyTicketChart from "@/components/DailyTicketChart";
-import BreakEvenPanel from "@/components/BreakEvenPanel";
-import { useUserRole } from "@/hooks/useUserRole";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -21,8 +19,7 @@ const COLORS = ["hsl(345,70%,75%)", "hsl(25,52%,28%)", "hsl(345,60%,55%)", "hsl(
 const fmtStatic = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 export default function Dashboard() {
-  const { products, sales, clients, costs } = useApp();
-  const { isAdmin } = useUserRole();
+  const { products, sales, clients } = useApp();
   const { rates } = useCardRates();
   const [period, setPeriod] = useState("30");
   const [customStart, setCustomStart] = useState<Date | undefined>();
@@ -283,7 +280,6 @@ export default function Dashboard() {
 
         <DailyTicketChart sales={filtered} products={products} />
 
-        {isAdmin && <BreakEvenPanel sales={filtered} products={products} costs={costs} days={periodDays} />}
 
         <Card className="lg:col-span-2">
           <CardHeader><CardTitle className="section-title">Top 5 Produtos Mais Vendidos</CardTitle></CardHeader>

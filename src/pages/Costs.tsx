@@ -14,6 +14,7 @@ import { Plus, Trash2, TrendingUp, Target, PieChart, BarChart3, Info, DollarSign
 import { PieChart as RePie, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip, ResponsiveContainer, Legend, LineChart, Line, ReferenceLine, Area, ComposedChart } from "recharts";
 import NfeImportDialog from "@/components/NfeImportDialog";
 import BulkSheetDialog from "@/components/BulkSheetDialog";
+import BreakEvenPanel from "@/components/BreakEvenPanel";
 
 export default function Costs() {
   const { costs, products, sales, addCost, deleteCost, stockMovements } = useApp();
@@ -227,6 +228,8 @@ export default function Costs() {
             )}
           </CardContent>
         </Card>
+
+        <BreakEvenPanel sales={last30} products={products} costs={costs} days={30} />
 
         {/* Tabs: Gráficos / Classificação ABC / Lista de Custos */}
         <Tabs defaultValue="fixed">
