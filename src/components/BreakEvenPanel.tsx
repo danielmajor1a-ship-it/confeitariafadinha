@@ -72,7 +72,7 @@ export default function BreakEvenPanel({ sales, products, costs, days }: Props) 
         {data.revenue > 0 ? (
           <>
             <ResponsiveContainer width="100%" height={300}>
-              <ComposedChart data={data.chart}>
+              <ComposedChart data={data.chart} margin={{ right: 24 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={3} />
                 <YAxis tick={{ fontSize: 10 }} tickFormatter={fmtK} />
