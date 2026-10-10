@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { Shield, UserPlus, Users, KeyRound, Eye, EyeOff } from "lucide-react";
 
 const ALL_TABS = [
-  { key: "dashboard", label: "Dashboard" },
+  { key: "dashboard", label: "Gerente" },
   { key: "produtos", label: "Produtos" },
   { key: "estoque", label: "Estoque" },
   { key: "vendas", label: "Vendas" },
@@ -295,7 +295,7 @@ export default function UserManagement() {
                                   <Switch checked={editUser.can_edit_costs} onCheckedChange={(v) => setEditUser({ ...editUser, can_edit_costs: v })} />
                                 </div>
                                 <div className="flex items-center justify-between">
-                                  <span className="text-sm">Ver dashboard</span>
+                                  <span className="text-sm">Ver aba Gerente</span>
                                   <Switch checked={editUser.can_view_dashboard} onCheckedChange={(v) => setEditUser({ ...editUser, can_view_dashboard: v })} />
                                 </div>
                                 <div className="flex items-center justify-between">

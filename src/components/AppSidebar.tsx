@@ -27,7 +27,7 @@ const TAB_TO_KEY: Record<string, string> = {
 };
 
 const items = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard, key: "dashboard" },
+  { title: "Gerente", url: "/", icon: LayoutDashboard, key: "dashboard" },
   { title: "Produtos", url: "/produtos", icon: Package, key: "produtos" },
   { title: "Estoque", url: "/estoque", icon: Warehouse, key: "estoque" },
   { title: "Compras", url: "/compras", icon: ShoppingBag, key: "compras" },
