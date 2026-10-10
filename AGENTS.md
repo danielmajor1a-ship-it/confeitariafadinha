@@ -1,2 +1,2 @@
 - Products with sold_by_weight=true store sale_price per kg and stock/sale quantities in integer grams (avoids changing integer quantity columns).
-- Daily ticket analytics use São Paulo dates and current purchase costs per stock unit; profit estimates subtract recorded card fees and remain unavailable for days with missing costs to avoid overstating profitability.
+- Daily ticket analytics group by São Paulo date, include only items with positive current stock-unit costs, and proportionally allocate sale totals and recorded card fees using item subtotals; count only sales with eligible items so excluded revenue cannot inflate profit or the average ticket.
