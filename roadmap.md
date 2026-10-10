@@ -1,0 +1,2 @@
+- [ ] Ajustar ticket médio diário para considerar apenas itens com custo e listar os produtos.
+- [ ] Conferir cálculos e apresentação do gráfico.
