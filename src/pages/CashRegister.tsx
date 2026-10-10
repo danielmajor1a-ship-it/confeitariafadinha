@@ -21,6 +21,7 @@ import {
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import * as XLSX from "xlsx";
+import { EXPENSE_TYPE_LABELS } from "@/types";
 
 interface CashRegister {
   id: string;

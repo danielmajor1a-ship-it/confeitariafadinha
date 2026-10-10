@@ -17,6 +17,7 @@ import Clients from "@/pages/Clients";
 import Financial from "@/pages/Financial";
 import Recipes from "@/pages/Recipes";
 import Costs from "@/pages/Costs";
+import BreakEven from "@/pages/BreakEven";
 import Pricing from "@/pages/Pricing";
 import CashRegister from "@/pages/CashRegister";
 import StockAlerts from "@/pages/StockAlerts";
@@ -57,6 +58,7 @@ function ProtectedRoutes() {
           <Route path="/financeiro" element={<ProtectedRoute tabKey="financeiro"><Financial /></ProtectedRoute>} />
           <Route path="/receitas" element={<ProtectedRoute tabKey="receitas"><Recipes /></ProtectedRoute>} />
           <Route path="/custos" element={<ProtectedRoute tabKey="custos"><Costs /></ProtectedRoute>} />
+          <Route path="/ponto-equilibrio" element={<ProtectedRoute tabKey="custos"><BreakEven /></ProtectedRoute>} />
           <Route path="/precificacao" element={<ProtectedRoute tabKey="precificacao"><Pricing /></ProtectedRoute>} />
           <Route path="/caixa" element={<ProtectedRoute tabKey="caixa"><CashRegister /></ProtectedRoute>} />
           <Route path="/alertas-estoque" element={<ProtectedRoute tabKey="alertas-estoque"><StockAlerts /></ProtectedRoute>} />
