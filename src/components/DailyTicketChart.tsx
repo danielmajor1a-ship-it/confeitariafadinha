@@ -53,9 +53,15 @@ function buildPeriod(key: string, label: string, rows: DailyTicket[], gross: num
   };
 }
 
+type Mode = 'monthly' | 'weekly' | 'daily';
+
+const MONTH_NAMES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+const monthLabel = (key: string) => `${MONTH_NAMES[Number(key.slice(5, 7)) - 1]}/${key.slice(2, 4)}`;
+
 export default function DailyTicketChart({ sales, products }: Props) {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<'weekly' | 'daily'>('weekly');
+  const [mode, setMode] = useState<Mode>('weekly');
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [sort, setSort] = useState<'profit' | 'margin'>('profit');
@@ -83,6 +89,17 @@ export default function DailyTicketChart({ sales, products }: Props) {
     });
   }, [days, grossByDay]);
 
+  const months = useMemo(() => {
+    const keys = new Set<string>();
+    grossByDay.forEach((_, d) => keys.add(d.slice(0, 7)));
+    return [...keys].sort().slice(-12).map(m => {
+      const rows = days.filter(d => d.day.startsWith(m));
+      let gross = 0;
+      grossByDay.forEach((v, d) => { if (d.startsWith(m)) gross += v; });
+      return buildPeriod(m, monthLabel(m), rows, gross);
+    });
+  }, [days, grossByDay]);
+
   const week = weeks.find(w => w.key === selectedWeek) ?? weeks[weeks.length - 1];
   const dailyPeriods = useMemo(() => {
     if (!week) return [];
@@ -91,8 +108,9 @@ export default function DailyTicketChart({ sales, products }: Props) {
       .map(d => buildPeriod(d, dayLabel(d), days.filter(r => r.day === d), grossByDay.get(d) ?? 0));
   }, [week, days, grossByDay]);
 
-  const series = mode === 'weekly' ? weeks : dailyPeriods;
-  const current = mode === 'weekly' ? week : (dailyPeriods.find(d => d.key === selectedDay) ?? dailyPeriods[dailyPeriods.length - 1]);
+  const month = months.find(m => m.key === selectedMonth) ?? months[months.length - 1];
+  const series = mode === 'monthly' ? months : mode === 'weekly' ? weeks : dailyPeriods;
+  const current = mode === 'monthly' ? month : mode === 'weekly' ? week : (dailyPeriods.find(d => d.key === selectedDay) ?? dailyPeriods[dailyPeriods.length - 1]);
   const idx = current ? series.findIndex(p => p.key === current.key) : -1;
   const previous = idx > 0 ? series[idx - 1] : undefined;
 
