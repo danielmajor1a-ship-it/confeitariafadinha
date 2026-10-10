@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CalendarIcon } from "lucide-react";
+import DailyTicketChart from "@/components/DailyTicketChart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -268,6 +269,8 @@ export default function Dashboard() {
             ) : <EmptyChart />}
           </CardContent>
         </Card>
+
+        <DailyTicketChart sales={filtered} products={products} />
 
         <Card className="lg:col-span-2">
           <CardHeader><CardTitle className="section-title">Top 5 Produtos Mais Vendidos</CardTitle></CardHeader>
