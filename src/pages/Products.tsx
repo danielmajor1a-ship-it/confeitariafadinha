@@ -32,6 +32,17 @@ export default function Products() {
     setUsedInRecipes(editing ? !!(editing as any).used_in_recipes : false);
     setBuyUnits(((editing as any)?.buy_units || []).map((b: any) => ({ unit: b.unit || '', factor: String(b.factor ?? '') })));
   }, [open, editing]);
+  // Deep link from dashboard alerts: /produtos?editar=<id>
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('editar');
+    if (!id || !products.length) return;
+    const product = products.find(p => p.id === id);
+    if (product) {
+      openDialog(product as unknown as ProductWithHistory);
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [products]);
   const [historyProduct, setHistoryProduct] = useState<ProductWithHistory | null>(null);
   const [search, setSearch] = useState("");
   const [importing, setImporting] = useState(false);
