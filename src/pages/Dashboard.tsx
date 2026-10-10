@@ -88,6 +88,30 @@ export default function Dashboard() {
     return Object.entries(map).map(([date, total]) => ({ date, total })).slice(-15);
   }, [filtered]);
 
+  const dailySalesFull = useMemo(() => {
+    const map: Record<string, { total: number; count: number; sortKey: number }> = {};
+    filtered.forEach(s => {
+      const d = new Date(s.created_at);
+      const day = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+      const sortKey = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+      if (!map[day]) map[day] = { total: 0, count: 0, sortKey };
+      map[day].total += s.total;
+      map[day].count += 1;
+    });
+    const rows = Object.entries(map)
+      .map(([date, v]) => ({ date, total: v.total, count: v.count, sortKey: v.sortKey }))
+      .sort((a, b) => a.sortKey - b.sortKey);
+    return rows;
+  }, [filtered]);
+
+  const dailyStats = useMemo(() => {
+    if (dailySalesFull.length === 0) return null;
+    const best = dailySalesFull.reduce((a, b) => (b.total > a.total ? b : a));
+    const worst = dailySalesFull.reduce((a, b) => (b.total < a.total ? b : a));
+    const avg = dailySalesFull.reduce((s, d) => s + d.total, 0) / dailySalesFull.length;
+    return { best, worst, avg };
+  }, [dailySalesFull]);
+
   const hourlySales = useMemo(() => {
     const map: Record<number, { total: number; count: number }> = {};
     filtered.forEach(s => {
