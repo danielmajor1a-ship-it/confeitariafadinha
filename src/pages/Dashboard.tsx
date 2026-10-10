@@ -231,6 +231,45 @@ export default function Dashboard() {
         </Card>
 
         <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="section-title">Vendas por Dia</CardTitle>
+            {dailyStats && (
+              <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted-foreground mt-1">
+                <span>Melhor dia: <span className="font-semibold text-success">{dailyStats.best.date} — {fmt(dailyStats.best.total)}</span></span>
+                <span>Pior dia: <span className="font-semibold text-destructive">{dailyStats.worst.date} — {fmt(dailyStats.worst.total)}</span></span>
+                <span>Média por dia: <span className="font-semibold text-foreground">{fmt(dailyStats.avg)}</span></span>
+              </div>
+            )}
+          </CardHeader>
+          <CardContent className="h-80">
+            {dailySalesFull.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={dailySalesFull}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(345,20%,90%)" />
+                  <XAxis dataKey="date" fontSize={11} interval="preserveStartEnd" />
+                  <YAxis fontSize={12} tickFormatter={v => `R$${v}`} />
+                  <Tooltip content={<DayTooltip avg={dailyStats?.avg ?? 0} />} />
+                  <Bar dataKey="total" radius={[6, 6, 0, 0]} name="Faturamento">
+                    {dailySalesFull.map((d, i) => (
+                      <Cell
+                        key={i}
+                        fill={
+                          dailyStats && d.date === dailyStats.best.date
+                            ? "hsl(142,60%,40%)"
+                            : dailyStats && d.date === dailyStats.worst.date
+                              ? "hsl(0,72%,60%)"
+                              : "hsl(345,70%,75%)"
+                        }
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : <EmptyChart />}
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
           <CardHeader><CardTitle className="section-title">Top 5 Produtos Mais Vendidos</CardTitle></CardHeader>
           <CardContent className="h-72">
             {top5.length > 0 ? (
