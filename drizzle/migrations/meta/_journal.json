@@ -113,6 +113,13 @@
       "when": 1791466947514,
       "tag": "0015_products_sold_by_weight",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1791655183175,
+      "tag": "0016_fixed_costs_breakeven",
+      "breakpoints": true
     }
   ]
 }
