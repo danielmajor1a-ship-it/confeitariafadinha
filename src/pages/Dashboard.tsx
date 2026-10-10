@@ -317,6 +317,22 @@ function HourTooltip({ active, payload }: any) {
   );
 }
 
+function DayTooltip({ active, payload, avg }: any) {
+  if (!active || !payload || payload.length === 0) return null;
+  const row = payload[0].payload;
+  const diff = avg > 0 ? ((row.total - avg) / avg) * 100 : 0;
+  return (
+    <div className="rounded-lg border bg-background p-3 text-sm shadow-md">
+      <p className="font-bold font-display">{row.date}</p>
+      <p className="text-muted-foreground">{fmtStatic(row.total)}</p>
+      <p className="text-muted-foreground">{row.count} {row.count === 1 ? "venda" : "vendas"}</p>
+      <p className={diff >= 0 ? "text-success" : "text-destructive"}>
+        {diff >= 0 ? "+" : ""}{diff.toFixed(0)}% vs média
+      </p>
+    </div>
+  );
+}
+
 function CustomDateButton({ label, date, onSelect }: { label: string; date?: Date; onSelect: (d?: Date) => void }) {
   return (
     <Popover>
