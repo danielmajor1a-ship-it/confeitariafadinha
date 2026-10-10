@@ -135,7 +135,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between flex-wrap gap-4">
-        <h1 className="page-header">Dashboard</h1>
+        <h1 className="page-header">Gerente</h1>
         <div className="flex items-center gap-2 flex-wrap">
           {period === "custom" && (
             <>

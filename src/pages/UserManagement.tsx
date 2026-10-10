@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { Shield, UserPlus, Users, KeyRound, Eye, EyeOff } from "lucide-react";
 
 const ALL_TABS = [
-  { key: "dashboard", label: "Dashboard" },
+  { key: "dashboard", label: "Gerente" },
   { key: "produtos", label: "Produtos" },
   { key: "estoque", label: "Estoque" },
   { key: "vendas", label: "Vendas" },
