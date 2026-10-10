@@ -21,6 +21,7 @@ import {
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import * as XLSX from "xlsx";
+import { EXPENSE_TYPE_LABELS } from "@/types";
 
 interface CashRegister {
   id: string;
@@ -97,6 +98,13 @@ export default function CashRegisterPage() {
   const [movAmount, setMovAmount] = useState("");
   const [movPayment, setMovPayment] = useState("dinheiro");
   const [movDesc, setMovDesc] = useState("");
+  const [movExpenseType, setMovExpenseType] = useState("");
+  const [movRecurring, setMovRecurring] = useState("");
+  const [recurringList, setRecurringList] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => {
+    if (!isAdmin) return;
+    supabase.from("recurring_costs").select("id,name").eq("active", true).order("name").then(({ data }) => setRecurringList(data || []));
+  }, [isAdmin]);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [closePeriod, setClosePeriod] = useState("diario");
   const [closeNotes, setCloseNotes] = useState("");
@@ -185,15 +193,19 @@ export default function CashRegisterPage() {
       if (!isAdmin) { toast.error("Apenas o administrador pode pagar fornecedor pelo caixa"); return; }
       if (!movDesc.trim()) { toast.error("Informe o nome do fornecedor na observação"); return; }
     }
+    const needsType = movType === "saida" && movCategory !== "sangria";
+    if (needsType && !movExpenseType) { toast.error("Escolha o tipo da saída"); return; }
     const { error } = await supabase.from("cash_movements").insert({
       cash_register_id: openRegister.id, user_id: user.id,
       type: movType, category: movCategory, amount: amt,
       payment_method: movPayment, description: movDesc,
-    });
+      expense_type: needsType ? movExpenseType : null,
+      recurring_cost_id: needsType && movExpenseType === "despesa_fixa" && movRecurring ? movRecurring : null,
+    } as any);
     if (error) { toast.error(error.message); return; }
     toast.success("Movimentação registrada!");
     setMovDialogOpen(false);
-    setMovAmount(""); setMovDesc("");
+    setMovAmount(""); setMovDesc(""); setMovExpenseType(""); setMovRecurring("");
     await refresh();
   }
 
@@ -396,6 +408,26 @@ export default function CashRegisterPage() {
                         </SelectContent>
                       </Select>
                     </div>
+                    {movType === "saida" && movCategory !== "sangria" && (
+                      <div>
+                        <Label>Tipo da saída *</Label>
+                        <Select value={movExpenseType} onValueChange={(v) => { setMovExpenseType(v); setMovRecurring(""); }}>
+                          <SelectTrigger><SelectValue placeholder="Escolha o tipo" /></SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(EXPENSE_TYPE_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                        {movExpenseType === "despesa_fixa" && recurringList.length > 0 && (
+                          <Select value={movRecurring || "none"} onValueChange={(v) => setMovRecurring(v === "none" ? "" : v)}>
+                            <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Não é um custo fixo cadastrado</SelectItem>
+                              {recurringList.map((r) => <SelectItem key={r.id} value={r.id}>Pagamento de: {r.name}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </div>
+                    )}
                     <div>
                       <Label>Valor</Label>
                       <Input placeholder="0,00" value={movAmount} onChange={(e) => setMovAmount(e.target.value)} />

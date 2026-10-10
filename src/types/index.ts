@@ -24,3 +24,11 @@ export interface PaymentEntry {
   tax_amount?: number;
   net_amount?: number;
 }
+
+export const EXPENSE_TYPE_LABELS: Record<string, string> = {
+  compra_mercadoria: 'Compra de mercadoria',
+  despesa_fixa: 'Despesa fixa',
+  despesa_variavel: 'Despesa variável',
+  investimento: 'Investimento',
+  retirada_dona: 'Retirada da dona',
+};

@@ -1,4 +1,4 @@
-import { LayoutDashboard, Package, ShoppingCart, Users, Warehouse, DollarSign, BookOpen, Calculator, TrendingUp, LogOut, Landmark, ShieldCheck, AlertTriangle, ShoppingBag, ClipboardCheck } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingCart, Users, Warehouse, DollarSign, BookOpen, Calculator, TrendingUp, LogOut, Landmark, ShieldCheck, AlertTriangle, ShoppingBag, ClipboardCheck, Target } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { NavLink } from "@/components/NavLink";
@@ -20,6 +20,7 @@ const TAB_TO_KEY: Record<string, string> = {
   "/financeiro": "financeiro",
   "/receitas": "receitas",
   "/custos": "custos",
+  "/ponto-equilibrio": "custos",
   "/precificacao": "precificacao",
   "/caixa": "caixa",
   "/alertas-estoque": "alertas-estoque",
@@ -37,6 +38,7 @@ const items = [
   { title: "Financeiro", url: "/financeiro", icon: DollarSign, key: "financeiro" },
   { title: "Receitas", url: "/receitas", icon: BookOpen, key: "receitas" },
   { title: "Custos", url: "/custos", icon: Calculator, key: "custos" },
+  { title: "Ponto de Equilíbrio", url: "/ponto-equilibrio", icon: Target, key: "custos" },
   { title: "Precificação", url: "/precificacao", icon: TrendingUp, key: "precificacao" },
   { title: "Caixa", url: "/caixa", icon: Landmark, key: "caixa" },
   { title: "Alertas Estoque", url: "/alertas-estoque", icon: AlertTriangle, key: "alertas-estoque" },

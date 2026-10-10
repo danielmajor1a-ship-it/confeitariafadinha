@@ -51,8 +51,10 @@ export type Database = {
           category: string
           created_at: string
           description: string | null
+          expense_type: string | null
           id: string
           payment_method: string | null
+          recurring_cost_id: string | null
           reference_id: string | null
           type: string
           user_id: string
@@ -63,8 +65,10 @@ export type Database = {
           category: string
           created_at?: string
           description?: string | null
+          expense_type?: string | null
           id?: string
           payment_method?: string | null
+          recurring_cost_id?: string | null
           reference_id?: string | null
           type: string
           user_id: string
@@ -75,8 +79,10 @@ export type Database = {
           category?: string
           created_at?: string
           description?: string | null
+          expense_type?: string | null
           id?: string
           payment_method?: string | null
+          recurring_cost_id?: string | null
           reference_id?: string | null
           type?: string
           user_id?: string
@@ -316,6 +322,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      cost_settings: {
+        Row: {
+          id: string
+          mei_annual_limit: number
+          updated_at: string
+          working_days: number
+        }
+        Insert: {
+          id?: string
+          mei_annual_limit?: number
+          updated_at?: string
+          working_days?: number
+        }
+        Update: {
+          id?: string
+          mei_annual_limit?: number
+          updated_at?: string
+          working_days?: number
+        }
+        Relationships: []
       }
       costs: {
         Row: {
@@ -765,6 +792,36 @@ export type Database = {
           notes?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      recurring_costs: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          name: string
+          required_kind: string | null
+          user_id: string
+          value: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name: string
+          required_kind?: string | null
+          user_id?: string
+          value?: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          required_kind?: string | null
+          user_id?: string
+          value?: number
         }
         Relationships: []
       }
