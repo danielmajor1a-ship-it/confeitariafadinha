@@ -167,7 +167,14 @@ function StatementDialog({ client, onClose }: { client: Client | null; onClose: 
     const text = `*Confeitaria Fadinha*\nExtrato de fiado - ${client.name}\n\n${body}\n\n*Saldo em aberto: ${fmt(Number(client.total_owed))}*`;
     const phone = (client.phone || '').replace(/\D/g, '');
     const num = phone ? (phone.length <= 11 ? '55' + phone : phone) : '';
-    window.open(`https://wa.me/${num}?text=${encodeURIComponent(text)}`, '_blank');
+    navigator.clipboard?.writeText(text).then(() => toast.success('Extrato copiado! Se o WhatsApp não abrir, é só colar na conversa.')).catch(() => {});
+    const a = document.createElement('a');
+    a.href = `https://wa.me/${num}?text=${encodeURIComponent(text)}`;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
   }
 
   return (
