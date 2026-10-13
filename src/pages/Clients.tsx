@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useApp } from "@/contexts/AppContext";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, DollarSign } from "lucide-react";
+import { Plus, Pencil, Trash2, DollarSign, FileText, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -18,6 +19,7 @@ export default function Clients() {
   const [editing, setEditing] = useState<Client | null>(null);
   const [payOpen, setPayOpen] = useState<string | null>(null);
   const [payAmount, setPayAmount] = useState(0);
+  const [statement, setStatement] = useState<Client | null>(null);
 
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -100,6 +102,7 @@ export default function Clients() {
                     : <Badge variant="secondary">Em dia</Badge>}
                 </TableCell>
                 <TableCell className="text-right space-x-1">
+                  <Button variant="ghost" size="icon" title="Extrato" onClick={() => setStatement(c)}><FileText className="h-4 w-4" /></Button>
                   {c.total_owed > 0 && (
                     <Button variant="ghost" size="icon" onClick={() => { setPayOpen(c.id); setPayAmount(c.total_owed); }}>
                       <DollarSign className="h-4 w-4 text-success" />
@@ -123,6 +126,75 @@ export default function Clients() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <StatementDialog client={statement} onClose={() => setStatement(null)} />
     </div>
+  );
+}
+
+type Line = { date: string; kind: 'compra' | 'pagamento'; amount: number; detail: string };
+
+function StatementDialog({ client, onClose }: { client: Client | null; onClose: () => void }) {
+  const { sales } = useApp();
+  const [paymentsRows, setPaymentsRows] = useState<Line[]>([]);
+  const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const fdate = (d: string) => new Date(d).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+  useEffect(() => {
+    if (!client) { setPaymentsRows([]); return; }
+    supabase.from('cash_movements').select('amount, created_at, description')
+      .eq('category', 'recebimento_fiado').eq('description', `Recebimento fiado - ${client.name}`)
+      .then(({ data }) => setPaymentsRows((data || []).map(m => ({ date: m.created_at, kind: 'pagamento', amount: Number(m.amount), detail: 'Pagamento recebido' }))));
+  }, [client]);
+
+  const lines = useMemo(() => {
+    if (!client) return [];
+    const purchases: Line[] = sales.filter(s => s.client_id === client.id).map(s => {
+      const fiado = s.payments.length
+        ? s.payments.filter(p => p.payment_method === 'fiado').reduce((a, p) => a + Number(p.amount), 0)
+        : (s.payment_method === 'fiado' ? Number(s.total) : 0);
+      const fmtQ = (i: any) => i.quantity;
+      return { date: s.created_at, kind: 'compra' as const, amount: fiado, detail: s.items.map(i => `${fmtQ(i)}x ${i.product_name}`).join(', ') };
+    }).filter(l => l.amount > 0);
+    return [...purchases, ...paymentsRows].sort((a, b) => b.date.localeCompare(a.date));
+  }, [client, sales, paymentsRows]);
+
+  function sendWhatsApp() {
+    if (!client) return;
+    const body = [...lines].reverse().map(l =>
+      `${fdate(l.date)} - ${l.kind === 'compra' ? 'Compra' : 'Pagamento'}: ${l.kind === 'compra' ? '' : '-'}${fmt(l.amount)}${l.kind === 'compra' ? `\n   ${l.detail}` : ''}`
+    ).join('\n');
+    const text = `*Confeitaria Fadinha*\nExtrato de fiado - ${client.name}\n\n${body}\n\n*Saldo em aberto: ${fmt(Number(client.total_owed))}*`;
+    const phone = (client.phone || '').replace(/\D/g, '');
+    const num = phone ? (phone.length <= 11 ? '55' + phone : phone) : '';
+    window.open(`https://wa.me/${num}?text=${encodeURIComponent(text)}`, '_blank');
+  }
+
+  return (
+    <Dialog open={!!client} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader><DialogTitle>Extrato do fiado — {client?.name}</DialogTitle></DialogHeader>
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">Saldo em aberto: <span className="font-bold text-destructive">{fmt(Number(client?.total_owed || 0))}</span></p>
+          <Button onClick={sendWhatsApp} disabled={lines.length === 0}><MessageCircle className="h-4 w-4 mr-1" /> Enviar pelo WhatsApp</Button>
+        </div>
+        <div className="max-h-[60vh] overflow-auto rounded-xl border">
+          <Table>
+            <TableHeader><TableRow><TableHead>Data</TableHead><TableHead>Descrição</TableHead><TableHead className="text-right">Valor</TableHead></TableRow></TableHeader>
+            <TableBody>
+              {lines.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-6">Nenhuma compra no fiado registrada no sistema</TableCell></TableRow>}
+              {lines.map((l, i) => (
+                <TableRow key={i}>
+                  <TableCell className="whitespace-nowrap">{fdate(l.date)}</TableCell>
+                  <TableCell>{l.kind === 'compra' ? l.detail : <span className="text-success font-medium">{l.detail}</span>}</TableCell>
+                  <TableCell className={`text-right whitespace-nowrap font-medium ${l.kind === 'compra' ? 'text-destructive' : 'text-success'}`}>{l.kind === 'compra' ? '+' : '-'} {fmt(l.amount)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+        <p className="text-xs text-muted-foreground">Dívidas antigas lançadas direto no valor do cliente não aparecem aqui, só as compras feitas no caixa.</p>
+      </DialogContent>
+    </Dialog>
   );
 }
