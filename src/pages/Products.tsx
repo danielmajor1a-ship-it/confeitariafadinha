@@ -25,11 +25,13 @@ export default function Products() {
   const [editing, setEditing] = useState<ProductWithHistory | null>(null);
   const [sells, setSells] = useState(true);
   const [usedInRecipes, setUsedInRecipes] = useState(false);
+  const [soldByWeight, setSoldByWeight] = useState(false);
   const [buyUnits, setBuyUnits] = useState<{ unit: string; factor: string }[]>([]);
   useEffect(() => {
     if (!open) return;
     setSells(editing ? (editing as any).sells !== false : true);
     setUsedInRecipes(editing ? !!(editing as any).used_in_recipes : false);
+    setSoldByWeight(editing ? !!(editing as any).sold_by_weight : false);
     setBuyUnits(((editing as any)?.buy_units || []).map((b: any) => ({ unit: b.unit || '', factor: String(b.factor ?? '') })));
   }, [open, editing]);
   // Deep link from dashboard alerts: /produtos?editar=<id>
