@@ -65,6 +65,7 @@ export default function Products() {
     const map: Record<string, string> = {
       'bebidas': 'bebida', 'doces': 'doce', 'salgados': 'balcao',
       'encomendas': 'encomenda', 'balcão': 'balcao', 'revendas': 'revenda',
+      'folhado': 'folhados',
       'outros': 'outro', 'mercearia': 'outro', 'limpeza': 'outro',
     };
     return map[lower] || 'outro';
