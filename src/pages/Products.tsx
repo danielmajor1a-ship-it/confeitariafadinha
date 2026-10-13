@@ -260,6 +260,7 @@ export default function Products() {
     const unitFields = {
       sells,
       used_in_recipes: usedInRecipes,
+      sold_by_weight: soldByWeight,
       purchase_unit: usedInRecipes ? ((fd.get('purchaseUnit') as string) || 'un').trim() || 'un' : 'un',
       usage_unit: usedInRecipes ? ((fd.get('usageUnit') as string) || 'un').trim() || 'un' : 'un',
       conversion_factor: usedInRecipes ? Math.max(0.001, parseFloat(fd.get('conversionFactor') as string) || 1) : 1,
@@ -395,9 +396,16 @@ export default function Products() {
                   </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div><Label>Preço Compra</Label><Input name="purchasePrice" type="number" step="0.01" defaultValue={editing?.purchase_price} /></div>
-                  <div><Label>Preço Venda</Label><Input name="salePrice" type="number" step="0.01" defaultValue={editing?.sale_price} /></div>
+                  <div><Label>Preço Compra{soldByWeight ? ' (por kg)' : ''}</Label><Input name="purchasePrice" type="number" step="0.01" defaultValue={editing?.purchase_price} /></div>
+                  <div><Label>Preço Venda{soldByWeight ? ' (por kg)' : ''}</Label><Input name="salePrice" type="number" step="0.01" defaultValue={editing?.sale_price} /></div>
                 </div>
+                <label className="flex items-center gap-2 min-h-[44px] rounded-xl border px-3 cursor-pointer">
+                  <input type="checkbox" className="h-5 w-5 accent-primary" checked={soldByWeight} onChange={e => setSoldByWeight(e.target.checked)} />
+                  <span>Vende por peso (kg)</span>
+                </label>
+                {soldByWeight && (
+                  <p className="text-xs text-muted-foreground -mt-1">Informe os preços por kg. Na venda, você digita o peso em gramas e o valor é calculado sozinho. O estoque fica em gramas (1 kg = 1000).</p>
+                )}
                 <div className="grid grid-cols-2 gap-3">
                   {editing
                     ? <div><Label>Estoque</Label><Input value={editing.stock} disabled title="Altere pelo Estoque → Ajustar estoque" /></div>
