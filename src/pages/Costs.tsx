@@ -1,3 +1,4 @@
+import { AsyncForm } from "@/components/ui/async-form";
 import { useState, useMemo } from "react";
 import { useApp } from "@/contexts/AppContext";
 import { Button } from "@/components/ui/button";
@@ -159,7 +160,7 @@ export default function Costs() {
             <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-1" /> Novo Custo</Button></DialogTrigger>
             <DialogContent>
               <DialogHeader><DialogTitle>Novo Custo</DialogTitle></DialogHeader>
-              <form onSubmit={handleSave} className="space-y-3">
+              <AsyncForm onSubmit={handleSave} className="space-y-3">
                 <div><Label>Nome</Label><Input name="name" required /></div>
                 <div><Label>Tipo</Label>
                   <Select name="type" defaultValue="fixo">
@@ -180,7 +181,7 @@ export default function Costs() {
                   </Select>
                 </div>
                 <Button type="submit" className="w-full">Salvar</Button>
-              </form>
+              </AsyncForm>
             </DialogContent>
           </Dialog>
           </div>

@@ -1,3 +1,4 @@
+import { AsyncForm } from "@/components/ui/async-form";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
@@ -89,7 +90,7 @@ export default function Auth() {
           </p>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <AsyncForm onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
               <div>
                 <Label>Nome</Label>
@@ -181,7 +182,7 @@ export default function Auth() {
             >
               {loading ? "Aguarde..." : isLogin ? "Entrar" : "Criar Conta"}
             </Button>
-          </form>
+          </AsyncForm>
           {isLogin && (
             <p className="text-center text-sm text-muted-foreground mt-2">
               <button

@@ -1,3 +1,4 @@
+import { AsyncForm } from "@/components/ui/async-form";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -96,7 +97,7 @@ export default function ResetPassword() {
           <p className="text-muted-foreground text-sm">Defina sua nova senha abaixo.</p>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <AsyncForm onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label>Nova Senha</Label>
               <Input
@@ -138,7 +139,7 @@ export default function ResetPassword() {
             <Button type="submit" className="w-full" disabled={loading || !allRulesPass || !passwordsMatch}>
               {loading ? "Aguarde..." : "Redefinir Senha"}
             </Button>
-          </form>
+          </AsyncForm>
         </CardContent>
       </Card>
     </div>
