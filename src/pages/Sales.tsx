@@ -37,9 +37,11 @@ interface CartItem {
   subtotal: number;
   byWeight?: boolean;
   pricePerKg?: number;
+  realProductId?: string;
 }
 
 const weightSubtotal = (grams: number, pricePerKg: number) => Math.round(grams * pricePerKg / 10) / 100;
+const isPromo = (p: { name: string }) => p.name.trim().toLowerCase() === 'promoção';
 const fmtGrams = (g: number) => g >= 1000 ? `${(g / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 3 })} kg` : `${g} g`;
 
 export default function Sales() {
@@ -74,6 +76,25 @@ export default function Sales() {
   // Weight dialog
   const [weightProductId, setWeightProductId] = useState<string | null>(null);
   const [weightInput, setWeightInput] = useState('');
+
+  // Promo dialog
+  const [promoProductId, setPromoProductId] = useState<string | null>(null);
+  const [promoDesc, setPromoDesc] = useState('');
+  const [promoValue, setPromoValue] = useState('');
+
+  function confirmPromo() {
+    const product = products.find(p => p.id === promoProductId);
+    const value = Number(promoValue.replace(/\./g, '').replace(',', '.'));
+    if (!product) return;
+    if (!promoDesc.trim()) { toast.error('Informe a descrição da promoção'); return; }
+    if (!Number.isFinite(value) || value <= 0) { toast.error('Informe o valor da promoção'); return; }
+    const v = Math.round(value * 100) / 100;
+    setCart(prev => [...prev, {
+      productId: `promo:${crypto.randomUUID()}`, realProductId: product.id,
+      productName: `Promoção: ${promoDesc.trim()}`, quantity: 1, unitPrice: v, subtotal: v,
+    }]);
+    setPromoProductId(null);
+  }
 
   useEffect(() => {
     let isCancelled = false;
@@ -132,6 +153,10 @@ export default function Sales() {
     if (!hasOpenRegister) { toast.error("Abra o caixa antes de registrar vendas"); return; }
     const product = products.find(p => p.id === productId);
     if (!product) return;
+    if (isPromo(product)) {
+      setPromoDesc(''); setPromoValue(''); setPromoProductId(productId);
+      return;
+    }
     if ((product as any).sold_by_weight) {
       const ex = cart.find(i => i.productId === productId);
       setWeightInput(ex ? String(ex.quantity) : '');
