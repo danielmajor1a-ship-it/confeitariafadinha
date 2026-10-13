@@ -37,9 +37,30 @@ export interface ButtonProps
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, onClick, disabled, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
-    return <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />;
+    const [busy, setBusy] = React.useState(false);
+    const lock = React.useRef(false);
+    const handleClick = onClick
+      ? (e: React.MouseEvent<HTMLButtonElement>) => {
+          if (lock.current) { e.preventDefault(); return; }
+          const r = onClick(e) as unknown;
+          if (r && typeof (r as Promise<unknown>).then === "function") {
+            lock.current = true; setBusy(true);
+            (r as Promise<unknown>).finally(() => { lock.current = false; setBusy(false); });
+          }
+        }
+      : undefined;
+    return (
+      <Comp
+        className={cn(buttonVariants({ variant, size, className }), busy && "cursor-wait opacity-60")}
+        ref={ref}
+        onClick={handleClick}
+        disabled={disabled || busy}
+        aria-busy={busy || undefined}
+        {...props}
+      />
+    );
   },
 );
 Button.displayName = "Button";

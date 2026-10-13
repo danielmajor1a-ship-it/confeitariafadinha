@@ -1,3 +1,4 @@
+import { AsyncForm } from "@/components/ui/async-form";
 import { useState } from "react";
 import { useApp } from "@/contexts/AppContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -141,7 +142,7 @@ export default function Recipes() {
           <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-1" /> Nova Receita</Button></DialogTrigger>
           <DialogContent className="max-w-lg">
             <DialogHeader><DialogTitle>{editing ? 'Editar' : 'Nova'} Receita</DialogTitle></DialogHeader>
-            <form onSubmit={handleSave} className="space-y-3">
+            <AsyncForm onSubmit={handleSave} className="space-y-3">
               <div><Label>Nome</Label><Input name="name" required defaultValue={editing?.name} /></div>
               <div>
                 <Label>Ingredientes</Label>
@@ -166,7 +167,7 @@ export default function Recipes() {
               <div><Label>Modo de Preparo</Label><Textarea name="instructions" defaultValue={editing?.instructions || ''} rows={4} /></div>
               <div><Label>Observações</Label><Input name="notes" defaultValue={editing?.notes || ''} /></div>
               <Button type="submit" className="w-full">Salvar</Button>
-            </form>
+            </AsyncForm>
           </DialogContent>
         </Dialog>
       </div>

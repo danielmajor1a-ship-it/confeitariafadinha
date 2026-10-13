@@ -1,3 +1,4 @@
+import { AsyncForm } from "@/components/ui/async-form";
 import { useState, useEffect, useMemo } from "react";
 import { useApp } from "@/contexts/AppContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -53,7 +54,7 @@ export default function Clients() {
           <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-1" /> Novo Cliente</Button></DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>{editing ? 'Editar' : 'Novo'} Cliente</DialogTitle></DialogHeader>
-            <form onSubmit={handleSave} className="space-y-3">
+            <AsyncForm onSubmit={handleSave} className="space-y-3">
               <div><Label>Nome</Label><Input name="name" required defaultValue={editing?.name} /></div>
               <div><Label>Telefone</Label><Input name="phone" defaultValue={editing?.phone || ''} /></div>
               <div><Label>Email</Label><Input name="email" type="email" defaultValue={editing?.email || ''} /></div>
@@ -64,7 +65,7 @@ export default function Clients() {
                 </div>
               )}
               <Button type="submit" className="w-full">Salvar</Button>
-            </form>
+            </AsyncForm>
           </DialogContent>
         </Dialog>
       </div>

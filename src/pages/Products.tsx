@@ -1,3 +1,4 @@
+import { AsyncForm } from "@/components/ui/async-form";
 import { useState, useRef, useEffect } from "react";
 import { useApp } from "@/contexts/AppContext";
 import { CATEGORY_LABELS } from "@/types";
@@ -327,7 +328,7 @@ export default function Products() {
             </DialogTrigger>
             <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>{editing ? 'Editar' : 'Novo'} Produto</DialogTitle></DialogHeader>
-              <form ref={formRef} onSubmit={handleSave} className="space-y-3">
+              <AsyncForm ref={formRef} onSubmit={handleSave} className="space-y-3">
                 {/* Image upload */}
                 <div>
                   <Label>Foto do Produto</Label>
@@ -450,7 +451,7 @@ export default function Products() {
                 <Button type="submit" className="w-full min-h-[48px]" disabled={uploadingImage}>
                   {uploadingImage ? "Enviando imagem..." : "Salvar"}
                 </Button>
-              </form>
+              </AsyncForm>
             </DialogContent>
           </Dialog>
         </div>
