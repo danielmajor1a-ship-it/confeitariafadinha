@@ -271,7 +271,7 @@ export default function Sales() {
 
     setIsProcessing(true);
     try {
-      const success = await addSale(cart, effectiveMethod, clientId || undefined, paymentsPayload);
+      const success = await addSale(cart.map(i => ({ ...i, productId: i.realProductId || i.productId })), effectiveMethod, clientId || undefined, paymentsPayload);
       if (!success) return;
 
       setReceiptData({
@@ -320,7 +320,7 @@ export default function Sales() {
                     <tr><td colSpan={6} className="text-center text-muted-foreground py-8">Nenhuma venda registrada</td></tr>
                   )}
                   {sales.map(s => (
-                    <tr key={s.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                    <tr key={s.id} className={`border-b last:border-0 transition-colors ${s.items.some(i => i.product_name.startsWith('Promoção')) ? 'bg-warning/25 hover:bg-warning/35' : 'hover:bg-muted/30'}`}>
                       <td className="p-3">{new Date(s.created_at).toLocaleDateString('pt-BR')} {new Date(s.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</td>
                       <td className="p-3 max-w-[200px] truncate">{s.items.map(i => `${i.product_name} (${(products.find(p => p.id === i.product_id) as any)?.sold_by_weight ? fmtGrams(i.quantity) : i.quantity})`).join(', ')}</td>
                       <td className="p-3 font-semibold">{fmt(s.total)}</td>
@@ -484,7 +484,7 @@ export default function Sales() {
                     </div>
                   )}
                   <span className="font-semibold text-sm leading-tight line-clamp-2 min-h-[2.5em]">{p.name}</span>
-                  <span className="font-extrabold text-lg mt-1 text-pink-dark">{fmt(p.sale_price)}{(p as any).sold_by_weight && <span className="text-xs font-semibold"> /kg</span>}</span>
+                  <span className="font-extrabold text-lg mt-1 text-pink-dark">{isPromo(p) ? 'Valor livre' : fmt(p.sale_price)}{(p as any).sold_by_weight && <span className="text-xs font-semibold"> /kg</span>}</span>
                   <span className={`text-xs mt-0.5 ${p.stock <= p.low_stock_threshold ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
                     {(p as any).sold_by_weight ? fmtGrams(p.stock) : `${p.stock} un`}
                   </span>
@@ -822,6 +822,28 @@ export default function Sales() {
               </DialogFooter>
             </>);
           })()}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!promoProductId} onOpenChange={v => !v && setPromoProductId(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Promoção</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm font-semibold">Descrição</label>
+              <Input autoFocus placeholder="Ex.: 3 brigadeiros por R$ 10" value={promoDesc} onChange={e => setPromoDesc(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-sm font-semibold">Valor de venda (R$)</label>
+              <Input inputMode="decimal" placeholder="0,00" value={promoValue}
+                onChange={e => setPromoValue(e.target.value.replace(/[^0-9.,]/g, ''))}
+                onKeyDown={e => e.key === 'Enter' && confirmPromo()}
+                className="h-12 text-xl font-bold" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPromoProductId(null)}>Cancelar</Button>
+            <Button onClick={confirmPromo}>Adicionar</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
       <ReceiptDialog open={showReceipt} onOpenChange={setShowReceipt} data={receiptData} />
