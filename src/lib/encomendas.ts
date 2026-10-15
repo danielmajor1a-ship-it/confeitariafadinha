@@ -106,3 +106,38 @@ export function gerarToken() {
   crypto.getRandomValues(arr);
   return Array.from(arr, n => chars[n % chars.length]).join("");
 }
+
+const esc = (s: unknown) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
+
+/** Imprime a ficha na própria tela (sem abrir aba nova, que perde o login na pré-visualização). */
+export async function imprimirFicha(id: string) {
+  const { data: e, error } = await db.from("encomendas").select("*").eq("id", id).maybeSingle();
+  if (error || !e) throw new Error("Encomenda não encontrada");
+  if (isAndroid()) { imprimirViaRawBT(fichaTexto(e)); return; }
+  const html = `<!doctype html><html><head><meta charset="utf-8"><style>
+    @page { size: 58mm auto; margin: 0; }
+    body { margin: 0; background: #fff; }
+    .ficha { width: 48mm; margin: 0 auto; padding: 2mm 0; font-family: ui-monospace, "Courier New", monospace; font-size: 11px; line-height: 1.3; color: #000; }
+    hr { border: 0; border-top: 1px dashed #000; margin: 4px 0; }
+    .c { text-align: center; font-weight: 700; }
+  </style></head><body><div class="ficha">
+    <div class="c">CONFEITARIA FADINHA</div><hr/>
+    <div class="c" style="font-size:13px">ENCOMENDA</div><hr/>
+    <div>Cliente: <b>${esc(e.cliente_nome)}</b></div>
+    <div style="margin-top:4px;font-weight:700">${esc(e.descricao)}</div>
+    <div>Qtd: ${esc(e.quantidade)} ${esc(e.unidade || "")}</div>
+    ${e.observacoes ? `<div>Obs: ${esc(e.observacoes)}</div>` : ""}
+    <div>Tipo: ${e.tipo === "entrega" ? "ENTREGA" : "RETIRADA"}</div><hr/>
+    <div class="c" style="font-size:16px;font-weight:800">${esc(fmtData(e.data_entrega))}<br/>${esc(fmtHora(e.hora_entrega))}</div><hr/>
+  </div></body></html>`;
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
+  document.body.appendChild(iframe);
+  const doc = iframe.contentDocument!;
+  doc.open(); doc.write(html); doc.close();
+  setTimeout(() => {
+    iframe.contentWindow?.focus();
+    iframe.contentWindow?.print();
+    setTimeout(() => iframe.remove(), 60000);
+  }, 250);
+}
