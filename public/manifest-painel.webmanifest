@@ -1,0 +1,8 @@
+{
+  "name": "Painel de Produção - Confeitaria Fadinha",
+  "short_name": "Produção",
+  "display": "fullscreen",
+  "background_color": "#0B0B0F",
+  "theme_color": "#0B0B0F",
+  "icons": [{ "src": "/favicon.png", "sizes": "512x512", "type": "image/png" }]
+}
