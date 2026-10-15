@@ -1,24 +1,27 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { db, fichaTexto, fmtData, fmtHora, imprimirViaRawBT, isAndroid } from "@/lib/encomendas";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function OrderTicket() {
   const { id } = useParams();
   const [sp] = useSearchParams();
   const token = sp.get("t");
+  const { user, loading } = useAuth();
   const [e, setE] = useState<any>(null);
   const [err, setErr] = useState("");
 
   useEffect(() => {
+    if (!token && loading) return;
     (async () => {
       const res = token
         ? await db.rpc("get_ficha_encomenda", { p_token: token, p_id: id })
         : await db.from("encomendas").select("*").eq("id", id).maybeSingle();
-      if (res.error || !res.data) { setErr(token ? "Link inválido" : "Encomenda não encontrada (entre no sistema)"); return; }
+      if (res.error || !res.data) { setErr(token ? "Link inválido" : user ? "Encomenda não encontrada" : "Encomenda não encontrada (entre no sistema)"); return; }
       setE(res.data);
       if (sp.get("print") === "1" && !isAndroid()) setTimeout(() => window.print(), 300);
     })();
-  }, [id, token]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [id, token, loading, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (err) return <p className="p-6">{err}</p>;
   if (!e) return <p className="p-6">Carregando...</p>;
