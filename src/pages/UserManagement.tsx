@@ -19,6 +19,7 @@ const ALL_TABS = [
   { key: "produtos", label: "Produtos" },
   { key: "estoque", label: "Estoque" },
   { key: "vendas", label: "Vendas" },
+  { key: "encomendas", label: "Encomendas" },
   { key: "clientes", label: "Clientes" },
   { key: "financeiro", label: "Financeiro" },
   { key: "receitas", label: "Receitas" },

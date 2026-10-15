@@ -25,6 +25,9 @@ import UserManagement from "@/pages/UserManagement";
 import Auth from "@/pages/Auth";
 import ResetPassword from "@/pages/ResetPassword";
 import NotFound from "@/pages/NotFound";
+import Orders from "@/pages/Orders";
+import OrderTicket from "@/pages/OrderTicket";
+import ProductionPanel from "@/pages/ProductionPanel";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +57,7 @@ function ProtectedRoutes() {
           <Route path="/compras" element={<ProtectedRoute tabKey="compras"><Purchases /></ProtectedRoute>} />
           <Route path="/inventario" element={<ProtectedRoute tabKey="inventario"><Inventory /></ProtectedRoute>} />
           <Route path="/vendas" element={<ProtectedRoute tabKey="vendas"><Sales /></ProtectedRoute>} />
+          <Route path="/encomendas" element={<ProtectedRoute tabKey="encomendas"><Orders /></ProtectedRoute>} />
           <Route path="/clientes" element={<ProtectedRoute tabKey="clientes"><Clients /></ProtectedRoute>} />
           <Route path="/financeiro" element={<ProtectedRoute tabKey="financeiro"><Financial /></ProtectedRoute>} />
           <Route path="/receitas" element={<ProtectedRoute tabKey="receitas"><Recipes /></ProtectedRoute>} />
@@ -80,6 +84,8 @@ const App = () => (
           <Routes>
             <Route path="/login" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/painel/:token" element={<ProductionPanel />} />
+            <Route path="/encomendas/:id/ficha" element={<OrderTicket />} />
             <Route path="/*" element={<ProtectedRoutes />} />
           </Routes>
         </BrowserRouter>

@@ -15,6 +15,7 @@ export const PAYMENT_LABELS: Record<string, string> = {
   debito: 'Débito',
   fiado: 'Fiado',
   misto: 'Misto',
+  adiantamento: 'Adiantamento',
 };
 
 export interface PaymentEntry {
