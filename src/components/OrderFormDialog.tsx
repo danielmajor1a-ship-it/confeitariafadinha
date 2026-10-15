@@ -9,7 +9,7 @@ import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "@/contexts/AppContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { db, isAndroid, type Encomenda, type EncomendaItem } from "@/lib/encomendas";
+import { db, isAndroid, imprimirFicha, type Encomenda, type EncomendaItem } from "@/lib/encomendas";
 
 export interface OrderFormInitial {
   encomenda?: Partial<Encomenda>;
@@ -97,7 +97,7 @@ export default function OrderFormDialog({ open, onOpenChange, initial, onSaved }
         if (error) { toast.error("Encomenda salva, mas o sinal não foi registrado: " + error.message); onSaved?.(id!); onOpenChange(false); return; }
       }
       toast.success(editId ? "Encomenda atualizada" : "Encomenda criada");
-      if (!editId && !isAndroid()) window.open(`/encomendas/${id}/ficha?print=1`, "_blank");
+      if (!editId && !isAndroid()) imprimirFicha(id!).catch(() => {});
       onSaved?.(id!);
       onOpenChange(false);
     } catch (e: any) {

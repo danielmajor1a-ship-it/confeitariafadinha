@@ -12,14 +12,14 @@ import { CalendarClock, ChevronLeft, ChevronRight, Plus, Pencil, Play, PackageCh
 import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
 import OrderFormDialog, { type OrderFormInitial } from "@/components/OrderFormDialog";
-import { db, STATUS_LABELS, fmtData, fmtHora, gerarToken, getPrintPref, setPrintPref, type ConfigProducao, type Encomenda, type EncomendaItem } from "@/lib/encomendas";
+import { db, STATUS_LABELS, fmtData, fmtHora, gerarToken, getPrintPref, setPrintPref, imprimirFicha, type ConfigProducao, type Encomenda, type EncomendaItem } from "@/lib/encomendas";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const WEEK = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 
 export function abrirFicha(id: string) {
-  window.open(`/encomendas/${id}/ficha?print=1`, "_blank");
+  imprimirFicha(id).catch((err) => toast.error(err.message || "Não foi possível imprimir"));
 }
 
 export default function Orders() {
