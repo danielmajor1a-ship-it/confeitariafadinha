@@ -1,5 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import OrderFormDialog, { type OrderFormInitial } from "@/components/OrderFormDialog";
+import { db } from "@/lib/encomendas";
+import { CalendarClock } from "lucide-react";
 import { ImageIcon, AlertTriangle, Calculator, Smartphone, Layers, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -82,6 +85,44 @@ export default function Sales() {
   const [promoDesc, setPromoDesc] = useState('');
   const [promoValue, setPromoValue] = useState('');
 
+  // Encomendas: entrega via /vendas?encomenda=:id
+  const [searchParams, setSearchParams] = useSearchParams();
+  const encomendaParam = searchParams.get('encomenda');
+  const [encomenda, setEncomenda] = useState<{ id: string; cliente_nome: string; sinal: number } | null>(null);
+  const [orderForm, setOrderForm] = useState<{ open: boolean; initial?: OrderFormInitial }>({ open: false });
+
+  useEffect(() => {
+    if (!encomendaParam || products.length === 0 || encomenda?.id === encomendaParam) return;
+    (async () => {
+      const [e, it] = await Promise.all([
+        db.from('encomendas').select('*').eq('id', encomendaParam).maybeSingle(),
+        db.from('encomenda_itens').select('*').eq('encomenda_id', encomendaParam),
+      ]);
+      if (!e.data) { toast.error('Encomenda não encontrada'); return; }
+      if (e.data.status === 'entregue' || e.data.status === 'cancelada') { toast.error('Esta encomenda já está ' + (e.data.status === 'entregue' ? 'entregue' : 'cancelada')); return; }
+      const items: CartItem[] = (it.data || []).map((i: any) => {
+        const p = products.find(x => x.id === i.produto_id);
+        const byW = !!(p as any)?.sold_by_weight;
+        const q = Math.round(Number(i.quantidade));
+        const unit = Number(i.preco_unitario);
+        return {
+          productId: i.produto_id, productName: p?.name || 'Produto', quantity: q, unitPrice: unit,
+          subtotal: byW ? weightSubtotal(q, unit * 1000) : Math.round(q * unit * 100) / 100,
+          ...(byW ? { byWeight: true, pricePerKg: unit * 1000 } : {}),
+        };
+      });
+      setCart(items);
+      setEncomenda({ id: e.data.id, cliente_nome: e.data.cliente_nome, sinal: Number(e.data.valor_sinal || 0) });
+      if (items.length === 0) toast.info('Encomenda sem produtos cadastrados: adicione os itens no carrinho');
+    })();
+  }, [encomendaParam, products]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function sairDaEncomenda() {
+    setEncomenda(null);
+    searchParams.delete('encomenda');
+    setSearchParams(searchParams, { replace: true });
+  }
+
   function confirmPromo() {
     const product = products.find(p => p.id === promoProductId);
     const value = Number(promoValue.replace(/\./g, '').replace(',', '.'));
@@ -136,7 +177,9 @@ export default function Sales() {
   }, [user, authLoading]);
 
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  const total = cart.reduce((s, i) => s + i.subtotal, 0);
+  const grossTotal = cart.reduce((s, i) => s + i.subtotal, 0);
+  const sinalAplicado = encomenda ? Math.min(encomenda.sinal, grossTotal) : 0;
+  const total = Math.round((grossTotal - sinalAplicado) * 100) / 100; // valor a cobrar
   const totalItems = cart.reduce((s, i) => s + (i.byWeight ? 1 : i.quantity), 0);
 
   const filteredProducts = useMemo(() => {
@@ -209,6 +252,7 @@ export default function Sales() {
 
   function clearCart() {
     setCart([]); setPaymentMethod("dinheiro"); setClientId("");
+    if (encomenda) sairDaEncomenda();
     setPaymentMode('single'); setPayments([]); setAmountReceived('');
     setCreditInstallments(1);
   }
@@ -267,16 +311,34 @@ export default function Sales() {
       productName: i.productName, quantity: i.quantity, unitPrice: i.unitPrice, subtotal: i.subtotal,
       byWeight: i.byWeight,
     }));
-    const paymentsPayload = buildPaymentsPayload();
+    let paymentsPayload = buildPaymentsPayload().filter(p => p.amount > 0.001);
+    if (sinalAplicado > 0) {
+      paymentsPayload = [{ method: 'adiantamento', amount: sinalAplicado, installments: 1, tax_rate: 0, tax_amount: 0, net_amount: sinalAplicado }, ...paymentsPayload];
+    }
 
     setIsProcessing(true);
     try {
-      const success = await addSale(cart.map(i => ({ ...i, productId: i.realProductId || i.productId })), effectiveMethod, clientId || undefined, paymentsPayload);
+      const saleItems = cart.map(i => ({ ...i, productId: i.realProductId || i.productId }));
+      let success: boolean;
+      if (encomenda) {
+        const { error } = await db.rpc('entregar_encomenda', {
+          _encomenda_id: encomenda.id,
+          _items: saleItems.map(i => ({ product_id: i.productId, product_name: i.productName, quantity: i.quantity, unit_price: i.unitPrice, subtotal: i.subtotal })),
+          _payment_method: paymentsPayload.length === 1 ? paymentsPayload[0].method : 'misto',
+          _client_id: clientId || null,
+          _payments: paymentsPayload,
+        });
+        if (error) toast.error(error.message || 'Não foi possível finalizar a entrega');
+        success = !error;
+        if (success) await refresh();
+      } else {
+        success = await addSale(saleItems, effectiveMethod, clientId || undefined, paymentsPayload);
+      }
       if (!success) return;
 
       setReceiptData({
         date: new Date().toLocaleString('pt-BR'),
-        items: receiptItems, total,
+        items: receiptItems, total: grossTotal,
         paymentMethod: effectiveMethod,
         payments: paymentsPayload.map(p => ({
           method: p.method, amount: p.amount, installments: p.installments,
@@ -285,7 +347,7 @@ export default function Sales() {
       });
       setSaleCompleted(true);
       clearCart();
-      toast.success("Venda registrada com sucesso!");
+      toast.success(encomenda ? "Encomenda entregue e venda registrada!" : "Venda registrada com sucesso!");
     } finally {
       setIsProcessing(false);
     }
@@ -567,10 +629,41 @@ export default function Sales() {
         {cart.length > 0 && (
           <div className="border-t-2 border-border p-5 space-y-4 bg-muted/30 max-h-[60vh] overflow-y-auto">
             {/* Total */}
+            {encomenda && (
+              <div className="flex items-center justify-between gap-2 p-3 rounded-xl border border-pink-dark/40 bg-pink-light text-sm">
+                <span className="flex items-center gap-1 font-semibold text-pink-dark"><CalendarClock className="h-4 w-4" /> Entrega da encomenda de {encomenda.cliente_nome}</span>
+                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setCart([]); sairDaEncomenda(); }}>Sair</Button>
+              </div>
+            )}
+            {sinalAplicado > 0 ? (
+              <div className="p-4 rounded-2xl bg-card border space-y-1 shadow-sm">
+                <div className="flex justify-between text-sm"><span>Total</span><span className="font-semibold">{fmt(grossTotal)}</span></div>
+                <div className="flex justify-between text-sm text-success"><span>Sinal pago</span><span className="font-semibold">− {fmt(sinalAplicado)}</span></div>
+                <div className="p-3 mt-2 rounded-xl bg-pink-dark text-primary-foreground text-center">
+                  <span className="text-sm opacity-90">A cobrar</span>
+                  <p className="text-4xl font-extrabold leading-tight">{fmt(total)}</p>
+                </div>
+              </div>
+            ) : (
             <div className="p-5 rounded-2xl bg-pink-dark text-primary-foreground text-center shadow-sm">
               <span className="text-sm opacity-90">Total a pagar</span>
               <p className="text-4xl font-extrabold leading-tight">{fmt(total)}</p>
             </div>
+            )}
+            {!encomenda && (
+              <Button variant="outline" size="sm" className="w-full rounded-xl" onClick={() => setOrderForm({ open: true, initial: {
+                encomenda: {
+                  cliente_nome: clientId ? clients.find(c => c.id === clientId)?.name || '' : '',
+                  cliente_telefone: clientId ? clients.find(c => c.id === clientId)?.phone || '' : '',
+                  descricao: cart.map(i => i.productName).join(', '),
+                  quantidade: 1, valor_total: Math.round(grossTotal * 100) / 100,
+                },
+                itens: cart.map(i => ({ produto_id: i.realProductId || i.productId, quantidade: i.quantity, preco_unitario: i.unitPrice })),
+                sinalSugerido: paymentMode === 'multi' ? Math.round(payments.filter(p => p.method !== 'fiado').reduce((s, p) => s + p.amount, 0) * 100) / 100 : 0,
+              } })}>
+                <CalendarClock className="h-4 w-4 mr-1" /> Gerar encomenda
+              </Button>
+            )}
 
             {/* Payment mode toggle */}
             <div className="flex gap-2">
@@ -800,6 +893,9 @@ export default function Sales() {
           </div>
         )}
       </Card>
+      <OrderFormDialog open={orderForm.open} initial={orderForm.initial}
+        onOpenChange={v => setOrderForm(s => ({ ...s, open: v }))}
+        onSaved={() => { clearCart(); navigate('/encomendas'); }} />
       <Dialog open={!!weightProductId} onOpenChange={v => !v && setWeightProductId(null)}>
         <DialogContent className="max-w-sm">
           {(() => {
