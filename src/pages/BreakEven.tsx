@@ -21,7 +21,11 @@ import { EXPENSE_TYPE_LABELS } from "@/types";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const pct = (v: number) => `${(v * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
-const num = (s: string) => parseFloat(String(s).replace(/\./g, "").replace(",", ".")) || 0;
+const num = (s: string) => {
+  const str = String(s).trim();
+  const n = Number(str.includes(",") ? str.replace(/\./g, "").replace(",", ".") : str);
+  return isNaN(n) ? 0 : n;
+};
 const spDate = (d: string | Date) => new Date(new Date(d).toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
 
 interface Recurring { id: string; name: string; value: number; active: boolean; required_kind: string | null }

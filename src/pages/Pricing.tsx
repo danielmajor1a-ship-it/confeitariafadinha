@@ -26,7 +26,8 @@ export default function Pricing() {
 
   async function savePrice() {
     if (!editing) return;
-    const parsed = parseFloat(newPrice.replace(/\./g, '').replace(',', '.'));
+    const str = newPrice.trim();
+    const parsed = Number(str.includes(',') ? str.replace(/\./g, '').replace(',', '.') : str);
     if (isNaN(parsed) || parsed < 0) { toast.error('Preço inválido'); return; }
     setSaving(true);
     const { error } = await supabase.rpc('bulk_update_prices', {
