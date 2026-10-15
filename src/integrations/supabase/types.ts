@@ -234,6 +234,33 @@ export type Database = {
         }
         Relationships: []
       }
+      config_producao: {
+        Row: {
+          capacidade_diaria: number
+          faixa_apertado_min: number
+          faixa_atencao_min: number
+          faixa_tranquilo_min: number
+          id: number
+          painel_token: string
+        }
+        Insert: {
+          capacidade_diaria?: number
+          faixa_apertado_min?: number
+          faixa_atencao_min?: number
+          faixa_tranquilo_min?: number
+          id?: number
+          painel_token?: string
+        }
+        Update: {
+          capacidade_diaria?: number
+          faixa_apertado_min?: number
+          faixa_atencao_min?: number
+          faixa_tranquilo_min?: number
+          id?: number
+          painel_token?: string
+        }
+        Relationships: []
+      }
       cost_adjustments: {
         Row: {
           created_at: string
@@ -378,6 +405,126 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      encomenda_itens: {
+        Row: {
+          encomenda_id: string
+          id: string
+          preco_unitario: number
+          produto_id: string
+          quantidade: number
+        }
+        Insert: {
+          encomenda_id: string
+          id?: string
+          preco_unitario?: number
+          produto_id: string
+          quantidade: number
+        }
+        Update: {
+          encomenda_id?: string
+          id?: string
+          preco_unitario?: number
+          produto_id?: string
+          quantidade?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "encomenda_itens_encomenda_id_fkey"
+            columns: ["encomenda_id"]
+            isOneToOne: false
+            referencedRelation: "encomendas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "encomenda_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      encomendas: {
+        Row: {
+          cliente_nome: string
+          cliente_telefone: string | null
+          created_at: string
+          data_entrega: string
+          descricao: string
+          entregue_em: string | null
+          hora_entrega: string
+          id: string
+          iniciada_em: string | null
+          observacoes: string | null
+          quantidade: number
+          status: string
+          tipo: string
+          unidade: string | null
+          user_id: string | null
+          valor_sinal: number
+          valor_total: number | null
+          venda_entrega_id: string | null
+          venda_id: string | null
+        }
+        Insert: {
+          cliente_nome: string
+          cliente_telefone?: string | null
+          created_at?: string
+          data_entrega: string
+          descricao: string
+          entregue_em?: string | null
+          hora_entrega: string
+          id?: string
+          iniciada_em?: string | null
+          observacoes?: string | null
+          quantidade: number
+          status?: string
+          tipo?: string
+          unidade?: string | null
+          user_id?: string | null
+          valor_sinal?: number
+          valor_total?: number | null
+          venda_entrega_id?: string | null
+          venda_id?: string | null
+        }
+        Update: {
+          cliente_nome?: string
+          cliente_telefone?: string | null
+          created_at?: string
+          data_entrega?: string
+          descricao?: string
+          entregue_em?: string | null
+          hora_entrega?: string
+          id?: string
+          iniciada_em?: string | null
+          observacoes?: string | null
+          quantidade?: number
+          status?: string
+          tipo?: string
+          unidade?: string | null
+          user_id?: string | null
+          valor_sinal?: number
+          valor_total?: number | null
+          venda_entrega_id?: string | null
+          venda_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "encomendas_venda_entrega_id_fkey"
+            columns: ["venda_entrega_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "encomendas_venda_id_fkey"
+            columns: ["venda_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
             referencedColumns: ["id"]
           },
         ]
@@ -1043,12 +1190,31 @@ export type Database = {
             }
             Returns: string
           }
+      entregar_encomenda: {
+        Args: {
+          _client_id: string
+          _encomenda_id: string
+          _items: Json
+          _payment_method: string
+          _payments: Json
+        }
+        Returns: string
+      }
+      get_ficha_encomenda: {
+        Args: { p_id: string; p_token: string }
+        Returns: Json
+      }
+      get_painel: { Args: { p_token: string }; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      iniciar_encomenda: {
+        Args: { p_id: string; p_token: string }
+        Returns: undefined
       }
       register_internal_consumption: {
         Args: {
@@ -1074,6 +1240,10 @@ export type Database = {
             }
             Returns: Json
           }
+      registrar_sinal_encomenda: {
+        Args: { _encomenda_id: string; _metodo: string; _valor: number }
+        Returns: undefined
+      }
       stock_movement_delta: {
         Args: { _qty: number; _type: string }
         Returns: number
