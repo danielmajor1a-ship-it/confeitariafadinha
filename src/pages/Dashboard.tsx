@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CalendarIcon } from "lucide-react";
 import DailyTicketChart from "@/components/DailyTicketChart";
+import WeeklyPurchasesCard from "@/components/WeeklyPurchasesCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -277,6 +278,8 @@ export default function Dashboard() {
             ) : <EmptyChart />}
           </CardContent>
         </Card>
+
+        <WeeklyPurchasesCard />
 
         <DailyTicketChart sales={filtered} products={products} />
 
