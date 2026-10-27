@@ -31,3 +31,10 @@ export function sameSupplier(a: string, b: string) {
   if (!x || !y) return false;
   return x === y || x.includes(y) || y.includes(x);
 }
+
+/** Suppliers paid later (a prazo). Every other supplier is paid at purchase/delivery. */
+export const DEFERRED_SUPPLIERS = ["sorocaba refresco"];
+export function isDeferredSupplier(s: string) {
+  const x = norm(s);
+  return !!x && DEFERRED_SUPPLIERS.some((d) => x.includes(d));
+}

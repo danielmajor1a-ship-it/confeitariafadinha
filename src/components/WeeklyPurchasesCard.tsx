@@ -29,10 +29,10 @@ export default function WeeklyPurchasesCard() {
       const since = format(startOfWeek(subWeeks(new Date(), WEEKS_TO_SHOW - 1), { weekStartsOn: 1 }), "yyyy-MM-dd");
       const { data } = await supabase
         .from("purchases")
-        .select("purchase_date, total, supplier, status")
+        .select("purchase_date:cost_date, total, supplier, status")
         .eq("status", "confirmada")
-        .gte("purchase_date", since)
-        .order("purchase_date");
+        .gte("cost_date", since)
+        .order("cost_date");
       setRows((data as PurchaseRow[]) || []);
       setLoading(false);
     })();
