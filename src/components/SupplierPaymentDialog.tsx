@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { METHOD_LABELS, norm, sameSupplier, valueMatches } from "@/lib/supplier-payments";
+import { METHOD_LABELS, sameSupplier, valueMatches } from "@/lib/supplier-payments";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const num = (s: string) => parseFloat((s || "").replace(/\./g, "").replace(",", ".")) || 0;
