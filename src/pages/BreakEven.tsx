@@ -47,7 +47,7 @@ export default function BreakEven() {
       supabase.from("recurring_costs").select("*").order("created_at"),
       supabase.from("cash_movements").select("id,amount,category,description,created_at,expense_type,recurring_cost_id").eq("type", "saida").order("created_at", { ascending: false }),
       supabase.from("cost_settings").select("*").limit(1).maybeSingle(),
-      supabase.from("purchases").select("total, purchase_items(total_value, production_only)").eq("status", "confirmada").gte("cost_date", monthStart),
+      supabase.from("purchases").select("total, purchase_items(total_value, production_only)").eq("status", "confirmada").gte("cost_date", monthStart).lt("cost_date", format(addMonths(new Date(monthStart + "T12:00:00"), 1), "yyyy-MM-01")),
     ]);
     setRecurring((r.data || []) as any);
     setMovs((m.data || []) as any);

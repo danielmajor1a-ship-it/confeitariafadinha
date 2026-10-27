@@ -181,7 +181,7 @@ export default function PurchaseAnalytics() {
                       <Table><TableHeader><TableRow><TableHead>Data</TableHead><TableHead>Fornecedor</TableHead><TableHead>Origem</TableHead><TableHead>Itens</TableHead><TableHead>Pagamento</TableHead><TableHead className="text-right">Total</TableHead></TableRow></TableHeader>
                         <TableBody>{w.list.map((p) => (
                           <TableRow key={p.id} className="cursor-pointer" onClick={() => setDetail(p)}>
-                            <TableCell>{format(new Date(p.purchase_date + "T12:00:00"), "dd/MM/yyyy")}</TableCell>
+                            <TableCell>{format(new Date(p.purchase_date + "T12:00:00"), "dd/MM/yyyy")}{p.due_date && <div className="text-xs text-muted-foreground">vence {format(new Date(p.due_date + "T12:00:00"), "dd/MM/yyyy")}</div>}</TableCell>
                             <TableCell>{p.supplier || "—"}</TableCell><TableCell>{SOURCE[p.source] || p.source}</TableCell>
                             <TableCell>{p.purchase_items.length}</TableCell><TableCell>{statusBadge(p)}</TableCell><TableCell className="text-right font-medium">{fmt(totalOf(p))}</TableCell>
                           </TableRow>))}</TableBody></Table>)}
