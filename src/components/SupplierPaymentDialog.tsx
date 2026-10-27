@@ -24,9 +24,11 @@ interface Props {
   fromCash?: boolean;
   /** Link an already-registered payment instead of creating one. */
   existing?: ExistingPayment | null;
+  /** Just-confirmed note: pre-fills supplier, value and the note itself. */
+  preset?: { id: string; supplier: string; total: number } | null;
 }
 
-export default function SupplierPaymentDialog({ open, onOpenChange, onDone, fromCash, existing }: Props) {
+export default function SupplierPaymentDialog({ open, onOpenChange, onDone, fromCash, existing, preset }: Props) {
   const [notes, setNotes] = useState<OpenNote[]>([]);
   const [supplier, setSupplier] = useState("");
   const [amount, setAmount] = useState("");
@@ -38,8 +40,9 @@ export default function SupplierPaymentDialog({ open, onOpenChange, onDone, from
 
   useEffect(() => {
     if (!open) return;
-    setSel({}); setObs(""); setSaving(false);
-    setSupplier(existing?.supplier || ""); setAmount(existing ? String(existing.amount - existing.allocated).replace(".", ",") : "");
+    const presetVal = preset ? preset.total.toFixed(2).replace(".", ",") : "";
+    setSel(preset ? { [preset.id]: presetVal } : {}); setObs(""); setSaving(false);
+    setSupplier(existing?.supplier || preset?.supplier || ""); setAmount(existing ? String(existing.amount - existing.allocated).replace(".", ",") : presetVal);
     setMethod(fromCash ? "caixa" : "pix_conta"); setDate(format(new Date(), "yyyy-MM-dd"));
     (async () => {
       const [p, a] = await Promise.all([
@@ -50,7 +53,7 @@ export default function SupplierPaymentDialog({ open, onOpenChange, onDone, from
       (a.data || []).forEach((x: any) => { paid[x.purchase_id] = (paid[x.purchase_id] || 0) + Number(x.amount); });
       setNotes(((p.data || []) as any[]).map((x) => ({ ...x, total: Number(x.total), open: Math.round((Number(x.total) - (paid[x.id] || 0)) * 100) / 100 })).filter((x) => x.open > 0.01));
     })();
-  }, [open, existing, fromCash]);
+  }, [open, existing, fromCash, preset]);
 
   const suppliers = useMemo(() => [...new Set(notes.map((n) => n.supplier).filter(Boolean))].sort(), [notes]);
   const amt = existing ? existing.amount - existing.allocated : num(amount);
@@ -93,7 +96,8 @@ export default function SupplierPaymentDialog({ open, onOpenChange, onDone, from
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
-        <DialogHeader><DialogTitle>{existing ? `Ligar pagamento de ${fmt(existing.amount)} às notas` : "Pagamento a fornecedor"}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{existing ? `Ligar pagamento de ${fmt(existing.amount)} às notas` : preset ? "Como esta nota foi paga?" : "Pagamento a fornecedor"}</DialogTitle></DialogHeader>
+        {preset && <p className="text-sm text-muted-foreground -mt-2">Este fornecedor é pago na hora da compra ou da entrega. Escolha como foi pago e salve.</p>}
         <fieldset disabled={saving} className="space-y-4">
           {existing ? (
             <p className="text-sm text-muted-foreground">Observação do pagamento: <b>{existing.supplier}</b> · {format(new Date(existing.paid_at), "dd/MM/yyyy")}{existing.allocated > 0 && ` · já ligado ${fmt(existing.allocated)}`}</p>
@@ -138,7 +142,7 @@ export default function SupplierPaymentDialog({ open, onOpenChange, onDone, from
             <p className="text-xs text-muted-foreground mt-1">Em destaque: notas com valor igual ou até 2% de diferença. Confira antes de salvar.</p>
           </div>
         </fieldset>
-        <DialogFooter><Button onClick={save} disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button></DialogFooter>
+        <DialogFooter>{preset && <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Lançar depois</Button>}<Button onClick={save} disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   );

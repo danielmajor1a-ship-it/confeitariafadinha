@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/contexts/AppContext";
 import { useAuth } from "@/contexts/AuthContext";
+import SupplierPaymentDialog from "@/components/SupplierPaymentDialog";
+import { isDeferredSupplier } from "@/lib/supplier-payments";
 
 const NEW_PRODUCT = "__new__";
 type Source = "nf_xml" | "nf_foto" | "nf_pdf" | "cupom_foto" | "cupom_fiscal" | "manual";
@@ -138,6 +140,8 @@ export default function PurchaseEntry() {
   const [supplier, setSupplier] = useState("");
   const [lines, setLines] = useState<Line[]>([]);
   const [saving, setSaving] = useState(false);
+  const [dueDate, setDueDate] = useState("");
+  const [payFor, setPayFor] = useState<{ id: string; supplier: string; total: number } | null>(null);
 
   // Manual purchase
   const [manualOpen, setManualOpen] = useState(false);
@@ -317,7 +321,14 @@ export default function PurchaseEntry() {
     } as any);
     if (error) {
       if (docPath) await supabase.storage.from("purchase-documents").remove([docPath]); toast.error(`Compra não registrada (nada foi salvo): ${error.message}`); return false; }
-    const r = res as { items: number; alerts: number };
+    const r = res as { items: number; alerts: number; purchase_id: string };
+    const total = Math.round(rows.reduce((t, l) => t + l.total, 0) * 100) / 100;
+    if (isDeferredSupplier(sup)) {
+      const { error: dErr } = await supabase.from("purchases").update({ due_date: dueDate } as any).eq("id", r.purchase_id);
+      if (dErr) toast.error(`Compra salva, mas o vencimento não foi gravado: ${dErr.message}`);
+    } else if (sup.trim() && total > 0) {
+      setPayFor({ id: r.purchase_id, supplier: sup.trim(), total });
+    }
     toast.success(`Compra registrada: ${r.items} item(ns) no estoque`);
     if (r.alerts > 0) toast.warning(`${r.alerts} item(ns) mudaram de custo mais de 5%`);
     await refresh();
@@ -328,9 +339,10 @@ export default function PurchaseEntry() {
     if (lines.some(l => convert(l).blocked)) { toast.error("Defina o fator de conversão dos itens destacados antes de confirmar"); return; }
     if (lines.some(l => convert(l).qty <= 0)) { toast.error("Quantidade deve ser maior que zero"); return; }
     if (lines.some(l => !l.description.trim())) { toast.error("Preencha a descrição de todos os itens"); return; }
+    if (isDeferredSupplier(supplier) && !dueDate) { toast.error("Informe a data de vencimento da nota"); return; }
     setSaving(true);
     try {
-      if (await savePurchase(source, supplier, lines)) { setOpen(false); setLines([]); setDocFile(null); }
+      if (await savePurchase(source, supplier, lines)) { setOpen(false); setLines([]); setDocFile(null); setDueDate(""); }
     } finally { setSaving(false); }
   }
 
@@ -378,6 +390,12 @@ export default function PurchaseEntry() {
               <Label>Fornecedor</Label>
               <Input value={supplier} onChange={e => setSupplier(e.target.value)} />
             </div>
+            {isDeferredSupplier(supplier) && (
+              <div className="w-44"><Label>Vencimento *</Label>
+                <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+                <p className="text-xs text-muted-foreground mt-1">O custo conta nesta data.</p>
+              </div>
+            )}
             {source === "cupom_fiscal" && (
               <div className="w-44"><Label>Data da compra</Label>
                 <Input type="date" value={purchaseDate} onChange={e => setPurchaseDate(e.target.value)} />
@@ -531,6 +549,7 @@ export default function PurchaseEntry() {
           </div>
         </DialogContent>
       </Dialog>
+      <SupplierPaymentDialog open={!!payFor} onOpenChange={o => { if (!o) setPayFor(null); }} onDone={() => setPayFor(null)} preset={payFor} />
     </>
   );
 }
