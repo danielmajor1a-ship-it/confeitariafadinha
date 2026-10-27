@@ -33,6 +33,7 @@ const items = [
   { title: "Produtos", url: "/produtos", icon: Package, key: "produtos" },
   { title: "Estoque", url: "/estoque", icon: Warehouse, key: "estoque" },
   { title: "Compras", url: "/compras", icon: ShoppingBag, key: "compras" },
+  { title: "Análise de Compras", url: "/analise-compras", icon: TrendingUp, key: "analise-compras" },
   { title: "Inventário", url: "/inventario", icon: ClipboardCheck, key: "inventario" },
   { title: "Vendas", url: "/vendas", icon: ShoppingCart, key: "vendas" },
   { title: "Encomendas", url: "/encomendas", icon: CalendarClock, key: "encomendas" },

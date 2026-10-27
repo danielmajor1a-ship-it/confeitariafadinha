@@ -26,6 +26,7 @@ const ALL_TABS = [
   { key: "custos", label: "Custos" },
   { key: "precificacao", label: "Precificação" },
   { key: "caixa", label: "Caixa" },
+  { key: "analise-compras", label: "Análise de Compras" },
 ];
 
 interface UserRow {

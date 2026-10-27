@@ -28,6 +28,7 @@ import NotFound from "@/pages/NotFound";
 import Orders from "@/pages/Orders";
 import OrderTicket from "@/pages/OrderTicket";
 import ProductionPanel from "@/pages/ProductionPanel";
+import PurchaseAnalytics from "@/pages/PurchaseAnalytics";
 
 const queryClient = new QueryClient();
 
@@ -55,6 +56,7 @@ function ProtectedRoutes() {
           <Route path="/produtos" element={<ProtectedRoute tabKey="produtos"><Products /></ProtectedRoute>} />
           <Route path="/estoque" element={<ProtectedRoute tabKey="estoque"><Stock /></ProtectedRoute>} />
           <Route path="/compras" element={<ProtectedRoute tabKey="compras"><Purchases /></ProtectedRoute>} />
+          <Route path="/analise-compras" element={<ProtectedRoute tabKey="analise-compras"><PurchaseAnalytics /></ProtectedRoute>} />
           <Route path="/inventario" element={<ProtectedRoute tabKey="inventario"><Inventory /></ProtectedRoute>} />
           <Route path="/vendas" element={<ProtectedRoute tabKey="vendas"><Sales /></ProtectedRoute>} />
           <Route path="/encomendas" element={<ProtectedRoute tabKey="encomendas"><Orders /></ProtectedRoute>} />
