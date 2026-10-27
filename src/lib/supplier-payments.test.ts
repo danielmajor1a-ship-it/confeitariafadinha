@@ -15,3 +15,15 @@ describe("supplier payment rules", () => {
     expect(payStatus(120, 0)).toBe("aberta");
   });
 });
+
+import { isDeferredSupplier } from "./supplier-payments";
+describe("isDeferredSupplier", () => {
+  it("Sorocaba Refrescos é pago depois", () => {
+    expect(isDeferredSupplier("SOROCABA REFRESCOS S.A.")).toBe(true);
+    expect(isDeferredSupplier("Sorocaba Refresco SA")).toBe(true);
+  });
+  it("outros fornecedores pagam na hora", () => {
+    expect(isDeferredSupplier("Ameripan")).toBe(false);
+    expect(isDeferredSupplier("")).toBe(false);
+  });
+});

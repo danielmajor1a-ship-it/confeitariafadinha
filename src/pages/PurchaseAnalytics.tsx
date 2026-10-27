@@ -18,7 +18,7 @@ const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", curren
 const norm = (s: string) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 type Item = { id: string; production_only?: boolean; product_id: string | null; original_description: string; quantity: number; unit: string; total_value: number; products: { name: string; category: string } | null };
-type Purchase = { id: string; purchase_date: string; supplier: string; source: string; total: number; purchase_items: Item[] };
+type Purchase = { id: string; purchase_date: string; cost_date: string; due_date: string | null; supplier: string; source: string; total: number; purchase_items: Item[] };
 type Pay = { id: string; created_at: string; amount: number; description: string | null; method: string; allocated: number };
 
 const SOURCE: Record<string, string> = { nf_xml: "Nota (XML)", nf_pdf: "Nota (PDF)", nf_foto: "Nota (foto)", cupom_foto: "Cupom (foto)", cupom_fiscal: "Cupom fiscal", manual: "Sem nota" };
@@ -45,8 +45,8 @@ export default function PurchaseAnalytics() {
     setLoading(true);
     (async () => {
       const [p, c, a] = await Promise.all([
-        supabase.from("purchases").select("id, purchase_date, supplier, source, total, purchase_items(id, production_only, product_id, original_description, quantity, unit, total_value, products(name, category))")
-          .eq("status", "confirmada").gte("purchase_date", from).lte("purchase_date", to).order("purchase_date"),
+        supabase.from("purchases").select("id, purchase_date, cost_date, due_date, supplier, source, total, purchase_items(id, production_only, product_id, original_description, quantity, unit, total_value, products(name, category))")
+          .eq("status", "confirmada").gte("cost_date", from).lte("cost_date", to).order("cost_date"),
         supabase.from("supplier_payments" as any).select("id, paid_at, amount, supplier, notes, method, supplier_payment_allocations(amount)")
           .gte("paid_at", from + "T00:00:00-03:00").lte("paid_at", to + "T23:59:59-03:00").order("paid_at"),
         supabase.from("supplier_payment_allocations" as any).select("purchase_id, amount"),
@@ -81,7 +81,7 @@ export default function PurchaseAnalytics() {
       d = addDays(d, 7);
     }
     filtered.forEach((p) => {
-      const w = map[weekKey(new Date(p.purchase_date + "T12:00:00"))]; if (!w) return;
+      const w = map[weekKey(new Date(p.cost_date + "T12:00:00"))]; if (!w) return;
       w.total += totalOf(p); w.count++; w.list.push(p);
       p.purchase_items.forEach((i) => { const c = i.products?.category || "sem_produto"; w.cats[c] = (w.cats[c] || 0) + Number(i.total_value); });
     });
@@ -181,7 +181,7 @@ export default function PurchaseAnalytics() {
                       <Table><TableHeader><TableRow><TableHead>Data</TableHead><TableHead>Fornecedor</TableHead><TableHead>Origem</TableHead><TableHead>Itens</TableHead><TableHead>Pagamento</TableHead><TableHead className="text-right">Total</TableHead></TableRow></TableHeader>
                         <TableBody>{w.list.map((p) => (
                           <TableRow key={p.id} className="cursor-pointer" onClick={() => setDetail(p)}>
-                            <TableCell>{format(new Date(p.purchase_date + "T12:00:00"), "dd/MM/yyyy")}</TableCell>
+                            <TableCell>{format(new Date(p.purchase_date + "T12:00:00"), "dd/MM/yyyy")}{p.due_date && <div className="text-xs text-muted-foreground">vence {format(new Date(p.due_date + "T12:00:00"), "dd/MM/yyyy")}</div>}</TableCell>
                             <TableCell>{p.supplier || "—"}</TableCell><TableCell>{SOURCE[p.source] || p.source}</TableCell>
                             <TableCell>{p.purchase_items.length}</TableCell><TableCell>{statusBadge(p)}</TableCell><TableCell className="text-right font-medium">{fmt(totalOf(p))}</TableCell>
                           </TableRow>))}</TableBody></Table>)}
