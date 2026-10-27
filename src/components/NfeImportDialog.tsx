@@ -123,7 +123,8 @@ function parseXml(text: string) {
       tribUnit: get("uTrib"),
     };
   });
-  return { supplier, items };
+  const dVenc = Array.from(doc.getElementsByTagName("dVenc")).map(e => e.textContent?.trim() || "").filter(Boolean).sort().pop() || "";
+  return { supplier, items, dueDate: dVenc.slice(0, 10) };
 }
 
 export default function PurchaseEntry() {
@@ -141,6 +142,7 @@ export default function PurchaseEntry() {
   const [lines, setLines] = useState<Line[]>([]);
   const [saving, setSaving] = useState(false);
   const [dueDate, setDueDate] = useState("");
+  const [dueFromXml, setDueFromXml] = useState(false);
   const [payFor, setPayFor] = useState<{ id: string; supplier: string; total: number } | null>(null);
 
   // Manual purchase
@@ -220,7 +222,7 @@ export default function PurchaseEntry() {
     if (!file) return;
     setReading(true);
     try {
-      let result: { supplier: string; items: any[] };
+      let result: { supplier: string; items: any[]; dueDate?: string };
       let src: Source;
       if (file.name.toLowerCase().endsWith(".xml") || file.type.includes("xml")) {
         result = parseXml(await readAs(file, "text"));
@@ -239,6 +241,7 @@ export default function PurchaseEntry() {
       if (!items.length) throw new Error("Nenhum item encontrado");
       setLines(await suggest(items));
       setSupplier(result.supplier || "");
+      setDueDate(result.dueDate || ""); setDueFromXml(!!result.dueDate);
       setSource(src);
       setOpen(true);
     } catch (err: any) {
@@ -323,7 +326,7 @@ export default function PurchaseEntry() {
       if (docPath) await supabase.storage.from("purchase-documents").remove([docPath]); toast.error(`Compra não registrada (nada foi salvo): ${error.message}`); return false; }
     const r = res as { items: number; alerts: number; purchase_id: string };
     const total = Math.round(rows.reduce((t, l) => t + l.total, 0) * 100) / 100;
-    if (isDeferredSupplier(sup)) {
+    if (isDeferredSupplier(sup) || dueFromXml) {
       const { error: dErr } = await supabase.from("purchases").update({ due_date: dueDate } as any).eq("id", r.purchase_id);
       if (dErr) toast.error(`Compra salva, mas o vencimento não foi gravado: ${dErr.message}`);
     } else if (sup.trim() && total > 0) {
@@ -392,8 +395,8 @@ export default function PurchaseEntry() {
             </div>
             {isDeferredSupplier(supplier) && (
               <div className="w-44"><Label>Vencimento *</Label>
-                <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
-                <p className="text-xs text-muted-foreground mt-1">O custo conta nesta data.</p>
+                <Input type="date" value={dueDate} disabled={dueFromXml} onChange={e => setDueDate(e.target.value)} />
+                <p className="text-xs text-muted-foreground mt-1">{dueFromXml ? "Lido da nota. " : ""}O custo conta nesta data.</p>
               </div>
             )}
             {source === "cupom_fiscal" && (
