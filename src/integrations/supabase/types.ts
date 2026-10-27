@@ -1171,6 +1171,10 @@ export type Database = {
         Returns: Json
       }
       bulk_update_prices: { Args: { _items: Json }; Returns: Json }
+      can_view_purchase_analytics: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       close_inventory: {
         Args: { _counts: Json; _session_id: string }
         Returns: Json
