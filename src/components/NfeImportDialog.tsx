@@ -271,7 +271,7 @@ export default function PurchaseEntry() {
     if (failed) toast.warning("Não consegui ler o cupom com segurança. Preencha os itens manualmente.");
     setLines(failed ? [{ key: "n0", description: "", quantity: 1, unit: "UN", total: 0, targetId: NEW_PRODUCT, fromHistory: false }] : await suggest(items));
     setSupplier(failed ? "" : sup); setPurchaseDate(failed ? "" : date); setDocTotal(failed ? null : total);
-    setDocFile(file); setSource("cupom_fiscal"); setOpen(true); setReading(false);
+    setDocFile(file); setDueDate(""); setDueFromXml(false); setSource("cupom_fiscal"); setOpen(true); setReading(false);
   }
 
   function addLine() {
