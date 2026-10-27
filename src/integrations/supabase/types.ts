@@ -840,8 +840,10 @@ export type Database = {
       purchases: {
         Row: {
           confirmed_at: string | null
+          cost_date: string | null
           created_at: string
           document_url: string | null
+          due_date: string | null
           id: string
           purchase_date: string
           source: string
@@ -852,8 +854,10 @@ export type Database = {
         }
         Insert: {
           confirmed_at?: string | null
+          cost_date?: string | null
           created_at?: string
           document_url?: string | null
+          due_date?: string | null
           id?: string
           purchase_date?: string
           source?: string
@@ -864,8 +868,10 @@ export type Database = {
         }
         Update: {
           confirmed_at?: string | null
+          cost_date?: string | null
           created_at?: string
           document_url?: string | null
+          due_date?: string | null
           id?: string
           purchase_date?: string
           source?: string

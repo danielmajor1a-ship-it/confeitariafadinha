@@ -148,6 +148,13 @@
       "when": 1793110960569,
       "tag": "0020_supplier_payments_production_inputs",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1793131511789,
+      "tag": "0021_purchase_due_date",
+      "breakpoints": true
     }
   ]
 }
