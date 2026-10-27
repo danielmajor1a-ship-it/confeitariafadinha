@@ -1,0 +1,175 @@
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { CATEGORY_LABELS } from "@/types";
+import { startOfWeek, endOfWeek, subWeeks, format, addDays } from "date-fns";
+import { ChevronDown, ChevronRight, Download } from "lucide-react";
+import * as XLSX from "xlsx";
+
+const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const norm = (s: string) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+type Item = { id: string; product_id: string | null; original_description: string; quantity: number; unit: string; total_value: number; products: { name: string; category: string } | null };
+type Purchase = { id: string; purchase_date: string; supplier: string; source: string; total: number; purchase_items: Item[] };
+type Pay = { id: string; created_at: string; amount: number; description: string | null };
+
+const SOURCE: Record<string, string> = { nf_xml: "Nota (XML)", nf_pdf: "Nota (PDF)", nf_foto: "Nota (foto)", cupom_foto: "Cupom (foto)", cupom_fiscal: "Cupom fiscal", manual: "Sem nota" };
+const weekKey = (d: Date) => format(startOfWeek(d, { weekStartsOn: 1 }), "yyyy-MM-dd");
+const pct = (a: number, b: number) => (b > 0 ? ((a - b) / b) * 100 : null);
+
+export default function PurchaseAnalytics() {
+  const [from, setFrom] = useState(format(startOfWeek(subWeeks(new Date(), 7), { weekStartsOn: 1 }), "yyyy-MM-dd"));
+  const [to, setTo] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [supplierQ, setSupplierQ] = useState("");
+  const [productQ, setProductQ] = useState("");
+  const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const [pays, setPays] = useState<Pay[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState<string | null>(null);
+  const [detail, setDetail] = useState<Purchase | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    (async () => {
+      const [p, c] = await Promise.all([
+        supabase.from("purchases").select("id, purchase_date, supplier, source, total, purchase_items(id, product_id, original_description, quantity, unit, total_value, products(name, category))")
+          .eq("status", "confirmada").gte("purchase_date", from).lte("purchase_date", to).order("purchase_date"),
+        supabase.from("cash_movements").select("id, created_at, amount, description").eq("category", "pagamento_fornecedor")
+          .gte("created_at", from + "T00:00:00-03:00").lte("created_at", to + "T23:59:59-03:00"),
+      ]);
+      setPurchases((p.data as any) || []);
+      setPays((c.data as any) || []);
+      setLoading(false);
+    })();
+  }, [from, to]);
+
+  const filtered = useMemo(() => {
+    const sq = norm(supplierQ), pq = norm(productQ);
+    return purchases
+      .filter((p) => !sq || norm(p.supplier).includes(sq))
+      .map((p) => pq ? { ...p, purchase_items: p.purchase_items.filter((i) => norm(i.products?.name || i.original_description).includes(pq)) } : p)
+      .filter((p) => !pq || p.purchase_items.length > 0);
+  }, [purchases, supplierQ, productQ]);
+  const filteredPays = useMemo(() => pays.filter((x) => !supplierQ || norm(x.description || "").includes(norm(supplierQ))), [pays, supplierQ]);
+
+  const totalOf = (p: Purchase) => productQ ? p.purchase_items.reduce((s, i) => s + Number(i.total_value), 0) : Number(p.total);
+
+  const weeks = useMemo(() => {
+    const map: Record<string, { key: string; label: string; total: number; count: number; pays: number; cats: Record<string, number>; list: Purchase[] }> = {};
+    let d = startOfWeek(new Date(from + "T12:00:00"), { weekStartsOn: 1 });
+    const end = new Date(to + "T12:00:00");
+    while (d <= end) {
+      const k = format(d, "yyyy-MM-dd");
+      map[k] = { key: k, label: `${format(d, "dd/MM")} – ${format(endOfWeek(d, { weekStartsOn: 1 }), "dd/MM")}`, total: 0, count: 0, pays: 0, cats: {}, list: [] };
+      d = addDays(d, 7);
+    }
+    filtered.forEach((p) => {
+      const w = map[weekKey(new Date(p.purchase_date + "T12:00:00"))]; if (!w) return;
+      w.total += totalOf(p); w.count++; w.list.push(p);
+      p.purchase_items.forEach((i) => { const c = i.products?.category || "sem_produto"; w.cats[c] = (w.cats[c] || 0) + Number(i.total_value); });
+    });
+    filteredPays.forEach((x) => { const w = map[weekKey(new Date(x.created_at))]; if (w) w.pays += Number(x.amount); });
+    return Object.values(map).sort((a, b) => a.key.localeCompare(b.key));
+  }, [filtered, filteredPays, from, to, productQ]);
+
+  const grand = weeks.reduce((s, w) => s + w.total, 0);
+  const grandPays = weeks.reduce((s, w) => s + w.pays, 0);
+  const count = weeks.reduce((s, w) => s + w.count, 0);
+  const catLabel = (c: string) => c === "sem_produto" ? "Sem produto ligado" : (CATEGORY_LABELS as any)[c] || c;
+
+  function exportXlsx() {
+    const resumo = weeks.map((w, i) => ({ Semana: w.label, Compras: w.count, Total: w.total, "Variação vs semana anterior (%)": i > 0 ? pct(w.total, weeks[i - 1].total)?.toFixed(1) ?? "" : "", "Pagamentos a fornecedor (caixa)": w.pays }));
+    const itens = filtered.flatMap((p) => p.purchase_items.map((i) => ({ Data: format(new Date(p.purchase_date + "T12:00:00"), "dd/MM/yyyy"), Fornecedor: p.supplier, Origem: SOURCE[p.source] || p.source, Produto: i.products?.name || i.original_description, Categoria: catLabel(i.products?.category || "sem_produto"), Quantidade: Number(i.quantity), Unidade: i.unit, "Custo unitário": Number(i.quantity) ? Number(i.total_value) / Number(i.quantity) : 0, Total: Number(i.total_value) })));
+    const pg = filteredPays.map((x) => ({ Data: format(new Date(x.created_at), "dd/MM/yyyy HH:mm"), Valor: Number(x.amount), Observação: x.description || "" }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resumo), "Resumo semanal");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(itens), "Itens");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(pg), "Pagamentos fornecedor");
+    XLSX.writeFile(wb, `analise-compras_${from}_a_${to}.xlsx`);
+  }
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <h1 className="page-header">Análise de Compras</h1>
+        <Button variant="outline" onClick={exportXlsx} disabled={loading}><Download className="h-4 w-4 mr-2" />Exportar Excel</Button>
+      </div>
+
+      <Card><CardContent className="pt-6 grid gap-4 md:grid-cols-4">
+        <label className="text-sm space-y-1"><span>De</span><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></label>
+        <label className="text-sm space-y-1"><span>Até</span><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></label>
+        <label className="text-sm space-y-1"><span>Fornecedor</span><Input placeholder="Buscar fornecedor" value={supplierQ} onChange={(e) => setSupplierQ(e.target.value)} /></label>
+        <label className="text-sm space-y-1"><span>Produto</span><Input placeholder="Buscar produto" value={productQ} onChange={(e) => setProductQ(e.target.value)} /></label>
+      </CardContent></Card>
+
+      <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(220px,1fr))]">
+        <Stat label="Total em compras" value={fmt(grand)} />
+        <Stat label="Nº de compras" value={String(count)} />
+        <Stat label="Média por semana" value={fmt(weeks.length ? grand / weeks.length : 0)} />
+        <Stat label="Pagamentos a fornecedor (caixa)" value={fmt(grandPays)} />
+      </div>
+
+      <Card>
+        <CardHeader><CardTitle className="section-title">Compras por semana</CardTitle>
+          <p className="text-sm text-muted-foreground">Clique numa semana para ver as compras. Clique numa compra para ver os itens.</p></CardHeader>
+        <CardContent className="space-y-2">
+          {loading && <p className="text-sm text-muted-foreground">Carregando...</p>}
+          {!loading && weeks.map((w, i) => {
+            const v = i > 0 ? pct(w.total, weeks[i - 1].total) : null;
+            const isOpen = open === w.key;
+            return (
+              <div key={w.key} className="rounded-xl border">
+                <button className="w-full flex items-center gap-3 p-3 text-left hover:bg-muted/50" onClick={() => setOpen(isOpen ? null : w.key)}>
+                  {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  <span className="font-semibold w-32">{w.label}</span>
+                  <span className="text-sm text-muted-foreground w-24">{w.count} {w.count === 1 ? "compra" : "compras"}</span>
+                  <span className="font-semibold w-32 text-right">{fmt(w.total)}</span>
+                  <span className={`text-sm w-28 text-right ${v == null ? "text-muted-foreground" : v > 0 ? "text-destructive" : "text-success"}`}>{v == null ? "—" : `${v > 0 ? "+" : ""}${v.toFixed(0)}% vs anterior`}</span>
+                  <span className="text-sm text-muted-foreground ml-auto">Pago no caixa: {fmt(w.pays)}</span>
+                </button>
+                {isOpen && (
+                  <div className="p-3 border-t space-y-4">
+                    {Object.keys(w.cats).length > 0 && <div className="flex flex-wrap gap-2">
+                      {Object.entries(w.cats).sort((a, b) => b[1] - a[1]).map(([c, t]) => <span key={c} className="text-xs rounded-full bg-secondary px-3 py-1">{catLabel(c)}: <b>{fmt(t)}</b></span>)}
+                    </div>}
+                    {w.list.length === 0 ? <p className="text-sm text-muted-foreground">Nenhuma compra nesta semana.</p> : (
+                      <Table><TableHeader><TableRow><TableHead>Data</TableHead><TableHead>Fornecedor</TableHead><TableHead>Origem</TableHead><TableHead>Itens</TableHead><TableHead className="text-right">Total</TableHead></TableRow></TableHeader>
+                        <TableBody>{w.list.map((p) => (
+                          <TableRow key={p.id} className="cursor-pointer" onClick={() => setDetail(p)}>
+                            <TableCell>{format(new Date(p.purchase_date + "T12:00:00"), "dd/MM/yyyy")}</TableCell>
+                            <TableCell>{p.supplier || "—"}</TableCell><TableCell>{SOURCE[p.source] || p.source}</TableCell>
+                            <TableCell>{p.purchase_items.length}</TableCell><TableCell className="text-right font-medium">{fmt(totalOf(p))}</TableCell>
+                          </TableRow>))}</TableBody></Table>)}
+                  </div>)}
+              </div>);
+          })}
+        </CardContent>
+      </Card>
+
+      <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader><DialogTitle>{detail?.supplier || "Compra"} — {detail && format(new Date(detail.purchase_date + "T12:00:00"), "dd/MM/yyyy")}</DialogTitle></DialogHeader>
+          {detail && <div className="max-h-[60vh] overflow-auto"><Table>
+            <TableHeader><TableRow><TableHead>Produto</TableHead><TableHead>Descrição na nota</TableHead><TableHead className="text-right">Qtd.</TableHead><TableHead className="text-right">Custo un.</TableHead><TableHead className="text-right">Total</TableHead></TableRow></TableHeader>
+            <TableBody>{detail.purchase_items.map((i) => (
+              <TableRow key={i.id}>
+                <TableCell>{i.products?.name || <span className="text-muted-foreground">Sem produto ligado</span>}</TableCell>
+                <TableCell className="text-xs text-muted-foreground">{i.original_description}</TableCell>
+                <TableCell className="text-right">{Number(i.quantity).toLocaleString("pt-BR")} {i.unit}</TableCell>
+                <TableCell className="text-right">{fmt(Number(i.quantity) ? Number(i.total_value) / Number(i.quantity) : 0)}</TableCell>
+                <TableCell className="text-right font-medium">{fmt(Number(i.total_value))}</TableCell>
+              </TableRow>))}</TableBody></Table>
+            <p className="text-right font-semibold mt-3">Total: {fmt(totalOf(detail))}</p></div>}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">{label}</p><p className="text-2xl font-bold whitespace-nowrap">{value}</p></CardContent></Card>;
+}
