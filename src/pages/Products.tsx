@@ -27,12 +27,14 @@ export default function Products() {
   const [sells, setSells] = useState(true);
   const [usedInRecipes, setUsedInRecipes] = useState(false);
   const [soldByWeight, setSoldByWeight] = useState(false);
+  const [productionOnly, setProductionOnly] = useState(false);
   const [buyUnits, setBuyUnits] = useState<{ unit: string; factor: string }[]>([]);
   useEffect(() => {
     if (!open) return;
     setSells(editing ? (editing as any).sells !== false : true);
     setUsedInRecipes(editing ? !!(editing as any).used_in_recipes : false);
     setSoldByWeight(editing ? !!(editing as any).sold_by_weight : false);
+    setProductionOnly(editing ? !!(editing as any).production_only : false);
     setBuyUnits(((editing as any)?.buy_units || []).map((b: any) => ({ unit: b.unit || '', factor: String(b.factor ?? '') })));
   }, [open, editing]);
   // Deep link from dashboard alerts: /produtos?editar=<id>
@@ -263,6 +265,7 @@ export default function Products() {
       sells,
       used_in_recipes: usedInRecipes,
       sold_by_weight: soldByWeight,
+      production_only: productionOnly,
       purchase_unit: usedInRecipes ? ((fd.get('purchaseUnit') as string) || 'un').trim() || 'un' : 'un',
       usage_unit: usedInRecipes ? ((fd.get('usageUnit') as string) || 'un').trim() || 'un' : 'un',
       conversion_factor: usedInRecipes ? Math.max(0.001, parseFloat(fd.get('conversionFactor') as string) || 1) : 1,
@@ -436,6 +439,10 @@ export default function Products() {
                   <label className="flex items-center gap-2 min-h-[44px] rounded-xl border px-3 cursor-pointer">
                     <input type="checkbox" className="h-5 w-5 accent-primary" checked={usedInRecipes} onChange={e => setUsedInRecipes(e.target.checked)} />
                     <span>Usa em receita</span>
+                  </label>
+                  <label className="col-span-2 flex items-center gap-2 min-h-[44px] rounded-xl border px-3 cursor-pointer">
+                    <input type="checkbox" className="h-5 w-5 accent-primary" checked={productionOnly} onChange={e => setProductionOnly(e.target.checked)} />
+                    <span>Só produção <span className="text-xs text-muted-foreground">(na compra atualiza o custo, mas não soma no estoque)</span></span>
                   </label>
                 </div>
                 {usedInRecipes && (
