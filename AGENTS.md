@@ -6,3 +6,4 @@
 
 - Supplier payments live in supplier_payments (+ supplier_payment_allocations to purchases); cash-drawer payments are created only via register_supplier_payment so the cash movement and payment stay in sync.
 - Products with production_only skip stock movements in confirm_purchase but still update cost; purchase_items.production_only snapshots it for cost analysis.
+- Purchase cost analytics filter/group by purchases.cost_date (generated: due_date or purchase_date), so deferred-payment notes count on their due date.
