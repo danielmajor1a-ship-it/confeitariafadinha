@@ -3,3 +3,6 @@
 - Fixed cost of a month = active recurring_costs + cash_movements with expense_type 'despesa_fixa' not linked to a recurring cost (recurring_cost_id null), so linked payments are not counted twice.
 - Order deposits (sinal) are cash_movements category 'adiantamento_encomenda' via registrar_sinal_encomenda, never sales; products are sold once at delivery via entregar_encomenda with an 'adiantamento' payment that creates no cash movement — avoids double revenue/stock.
 - Public production panel (/painel/:token) and token ficha only use SECURITY DEFINER RPCs validated against config_producao.painel_token — never expose phone or values.
+
+- Supplier payments live in supplier_payments (+ supplier_payment_allocations to purchases); cash-drawer payments are created only via register_supplier_payment so the cash movement and payment stay in sync.
+- Products with production_only skip stock movements in confirm_purchase but still update cost; purchase_items.production_only snapshots it for cost analysis.

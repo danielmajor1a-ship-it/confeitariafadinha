@@ -37,6 +37,7 @@ export default function BreakEven() {
   const [recurring, setRecurring] = useState<Recurring[]>([]);
   const [movs, setMovs] = useState<Mov[]>([]);
   const [purchasesMonth, setPurchasesMonth] = useState(0);
+  const [prodInputs, setProdInputs] = useState(0);
   const [settings, setSettings] = useState<{ id: string; working_days: number; mei_annual_limit: number } | null>(null);
 
   const load = useCallback(async () => {
@@ -46,12 +47,14 @@ export default function BreakEven() {
       supabase.from("recurring_costs").select("*").order("created_at"),
       supabase.from("cash_movements").select("id,amount,category,description,created_at,expense_type,recurring_cost_id").eq("type", "saida").order("created_at", { ascending: false }),
       supabase.from("cost_settings").select("*").limit(1).maybeSingle(),
-      supabase.from("purchases").select("total").eq("status", "confirmada").gte("purchase_date", monthStart),
+      supabase.from("purchases").select("total, purchase_items(total_value, production_only)").eq("status", "confirmada").gte("purchase_date", monthStart),
     ]);
     setRecurring((r.data || []) as any);
     setMovs((m.data || []) as any);
     setSettings(s.data as any);
-    setPurchasesMonth((p.data || []).reduce((t: number, x: any) => t + Number(x.total || 0), 0));
+    const prod = (p.data || []).reduce((t: number, x: any) => t + (x.purchase_items || []).filter((i: any) => i.production_only).reduce((u: number, i: any) => u + Number(i.total_value || 0), 0), 0);
+    setProdInputs(prod);
+    setPurchasesMonth((p.data || []).reduce((t: number, x: any) => t + Number(x.total || 0), 0) - prod);
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -68,7 +71,7 @@ export default function BreakEven() {
           <TabsTrigger value="config">Configurações</TabsTrigger>
         </TabsList>
         <TabsContent value="equilibrio">
-          <Overview sales={sales} products={products} recurring={recurring} movs={movs} settings={settings} purchasesMonth={purchasesMonth} />
+          <Overview sales={sales} products={products} recurring={recurring} movs={movs} settings={settings} purchasesMonth={purchasesMonth} prodInputs={prodInputs} />
         </TabsContent>
         <TabsContent value="fixos"><FixedCosts recurring={recurring} reload={load} /></TabsContent>
         <TabsContent value="classificar"><Classify movs={movs.filter(needsClass)} reload={load} /></TabsContent>
@@ -80,7 +83,7 @@ export default function BreakEven() {
 
 const needsClass = (m: Mov) => !m.expense_type && m.category !== "sangria";
 
-function Overview({ sales, products, recurring, movs, settings, purchasesMonth }: any) {
+function Overview({ sales, products, recurring, movs, settings, purchasesMonth, prodInputs = 0 }: any) {
   const d = useMemo(() => {
     const now = spDate(new Date());
     const y = now.getFullYear(), mo = now.getMonth(), today = now.getDate();
@@ -93,7 +96,7 @@ function Overview({ sales, products, recurring, movs, settings, purchasesMonth }
     const monthSales = valid.filter((s: any) => { const dt = spDate(s.created_at); return dt.getFullYear() === y && dt.getMonth() === mo; });
     const yearRevenue = valid.filter((s: any) => spDate(s.created_at).getFullYear() === y).reduce((t: number, s: any) => t + Number(s.total), 0);
 
-    let revenue = 0, itemsTotal = 0, eligRev = 0, eligProfit = 0;
+    let revenue = 0, itemsTotal = 0, eligRev = 0, eligProfit = 0, otherRev = 0, otherFees = 0;
     const byDay = new Array(daysInMonth).fill(0);
     for (const s of monthSales) {
       revenue += Number(s.total);
@@ -104,15 +107,19 @@ function Overview({ sales, products, recurring, movs, settings, purchasesMonth }
       itemsTotal += sub;
       for (const i of items) {
         const c = cost.get(i.product_id) || 0;
-        if (c <= 0 || sub <= 0) continue;
+        if (sub <= 0) continue;
         const share = Number(i.subtotal) / sub;
+        if (c <= 0) { otherRev += Number(s.total) * share; otherFees += fees * share; continue; }
         const r = Number(s.total) * share;
         eligRev += r;
         eligProfit += r - c * i.quantity - fees * share;
       }
     }
     const coverage = itemsTotal > 0 ? eligRev / itemsTotal : 0;
-    const mc = eligRev > 0 ? eligProfit / eligRev : 0;
+    // Insumos de produção (custo variável): cobrem os itens fabricados, que não têm custo cadastrado
+    const mc = prodInputs > 0
+      ? (eligRev + otherRev > 0 ? (eligProfit + otherRev - otherFees - prodInputs) / (eligRev + otherRev) : 0)
+      : (eligRev > 0 ? eligProfit / eligRev : 0);
 
     const activeRec = recurring.filter((r: any) => r.active);
     const recTotal = activeRec.reduce((t: number, r: any) => t + Number(r.value), 0);
@@ -142,7 +149,7 @@ function Overview({ sales, products, recurring, movs, settings, purchasesMonth }
     const projection = (yearRevenue / dayOfYear) * daysInYear;
 
     return { revenue, fixed, recTotal, extraFixed, mc, coverage, be, ticket, daily, weekly, expectedToday, reached, status, chart, missingRequired, belowCost, yearRevenue, meiLimit, projection, workingDays, monthMovs, count: monthSales.length };
-  }, [sales, products, recurring, movs, settings]);
+  }, [sales, products, recurring, movs, settings, prodInputs]);
 
   const investments = d.monthMovs.filter((m: any) => m.expense_type === "investimento").reduce((t: number, m: any) => t + Number(m.amount), 0);
   const meiPct = d.meiLimit > 0 ? d.yearRevenue / d.meiLimit : 0;
@@ -203,6 +210,7 @@ function Overview({ sales, products, recurring, movs, settings, purchasesMonth }
 
       <div className="text-xs text-muted-foreground space-y-1">
         <p>Compras de mercadoria no mês: {fmt(purchasesMonth)} (não entram no cálculo; já estão no custo dos produtos).</p>
+        {prodInputs > 0 && <p>Insumos de produção no mês: {fmt(prodInputs)} — entram como custo variável e reduzem a margem de contribuição.</p>}
         {investments > 0 && <p>Investimentos no mês: {fmt(investments)} (não entram no cálculo).</p>}
         <p>Ponto de equilíbrio = custos fixos ÷ margem de contribuição. Margem calculada com custos atuais e taxas de cartão, considerando apenas produtos com custo cadastrado.</p>
       </div>

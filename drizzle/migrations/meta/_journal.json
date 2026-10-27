@@ -141,6 +141,13 @@
       "when": 1793108436553,
       "tag": "0019_purchase_analytics_access",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1793110960569,
+      "tag": "0020_supplier_payments_production_inputs",
+      "breakpoints": true
     }
   ]
 }

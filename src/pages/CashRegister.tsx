@@ -22,6 +22,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import * as XLSX from "xlsx";
 import { EXPENSE_TYPE_LABELS } from "@/types";
+import SupplierPaymentDialog from "@/components/SupplierPaymentDialog";
 
 interface CashRegister {
   id: string;
@@ -105,6 +106,7 @@ export default function CashRegisterPage() {
     if (!isAdmin) return;
     supabase.from("recurring_costs").select("id,name").eq("active", true).order("name").then(({ data }) => setRecurringList(data || []));
   }, [isAdmin]);
+  const [supplierPayOpen, setSupplierPayOpen] = useState(false);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [closePeriod, setClosePeriod] = useState("diario");
   const [closeNotes, setCloseNotes] = useState("");
@@ -331,6 +333,7 @@ export default function CashRegisterPage() {
 
   return (
     <div className="space-y-6">
+      <SupplierPaymentDialog open={supplierPayOpen} onOpenChange={setSupplierPayOpen} onDone={refresh} fromCash />
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h1 className="text-2xl font-display font-bold text-foreground">Caixa</h1>
@@ -386,7 +389,7 @@ export default function CashRegisterPage() {
                     </div>
                     <div>
                       <Label>Categoria</Label>
-                      <Select value={movCategory} onValueChange={setMovCategory}>
+                      <Select value={movCategory} onValueChange={(v) => { if (v === "pagamento_fornecedor") { setMovDialogOpen(false); setSupplierPayOpen(true); return; } setMovCategory(v); }}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {movType === "entrada" ? (
