@@ -665,6 +665,7 @@ export type Database = {
           low_stock_threshold: number
           name: string
           needs_review: boolean
+          production_only: boolean
           purchase_factor: number | null
           purchase_price: number
           purchase_unit: string
@@ -691,6 +692,7 @@ export type Database = {
           low_stock_threshold?: number
           name: string
           needs_review?: boolean
+          production_only?: boolean
           purchase_factor?: number | null
           purchase_price?: number
           purchase_unit?: string
@@ -717,6 +719,7 @@ export type Database = {
           low_stock_threshold?: number
           name?: string
           needs_review?: boolean
+          production_only?: boolean
           purchase_factor?: number | null
           purchase_price?: number
           purchase_unit?: string
@@ -783,6 +786,7 @@ export type Database = {
           id: string
           original_description: string
           product_id: string | null
+          production_only: boolean
           purchase_id: string
           quantity: number
           total_value: number
@@ -795,6 +799,7 @@ export type Database = {
           id?: string
           original_description?: string
           product_id?: string | null
+          production_only?: boolean
           purchase_id: string
           quantity?: number
           total_value?: number
@@ -807,6 +812,7 @@ export type Database = {
           id?: string
           original_description?: string
           product_id?: string | null
+          production_only?: boolean
           purchase_id?: string
           quantity?: number
           total_value?: number
@@ -1143,6 +1149,89 @@ export type Database = {
           },
         ]
       }
+      supplier_payment_allocations: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          payment_id: string
+          purchase_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          payment_id: string
+          purchase_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          payment_id?: string
+          purchase_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_payment_allocations_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_payment_allocations_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_payments: {
+        Row: {
+          amount: number
+          cash_movement_id: string | null
+          created_at: string
+          id: string
+          method: string
+          notes: string | null
+          paid_at: string
+          supplier: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          cash_movement_id?: string | null
+          created_at?: string
+          id?: string
+          method: string
+          notes?: string | null
+          paid_at?: string
+          supplier: string
+          user_id?: string
+        }
+        Update: {
+          amount?: number
+          cash_movement_id?: string | null
+          created_at?: string
+          id?: string
+          method?: string
+          notes?: string | null
+          paid_at?: string
+          supplier?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_payments_cash_movement_id_fkey"
+            columns: ["cash_movement_id"]
+            isOneToOne: true
+            referencedRelation: "cash_movements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
@@ -1166,6 +1255,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      allocate_supplier_payment: {
+        Args: { _allocations: Json; _payment_id: string }
+        Returns: undefined
+      }
       bulk_update_costs: {
         Args: { _items: Json; _reason: string }
         Returns: Json
@@ -1220,6 +1313,7 @@ export type Database = {
         Args: { p_id: string; p_token: string }
         Returns: undefined
       }
+      purchase_open_amount: { Args: { _purchase_id: string }; Returns: number }
       register_internal_consumption: {
         Args: {
           _date: string
@@ -1244,6 +1338,17 @@ export type Database = {
             }
             Returns: Json
           }
+      register_supplier_payment: {
+        Args: {
+          _allocations: Json
+          _amount: number
+          _method: string
+          _notes: string
+          _paid_at: string
+          _supplier: string
+        }
+        Returns: string
+      }
       registrar_sinal_encomenda: {
         Args: { _encomenda_id: string; _metodo: string; _valor: number }
         Returns: undefined
