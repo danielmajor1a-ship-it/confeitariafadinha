@@ -6,6 +6,7 @@ import { ptBR } from "date-fns/locale";
 import { CalendarIcon } from "lucide-react";
 import DailyTicketChart from "@/components/DailyTicketChart";
 import WeeklyPurchasesCard from "@/components/WeeklyPurchasesCard";
+import PeriodPicker, { PeriodState, resolvePeriod, inPeriod } from "@/components/PeriodPicker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -21,40 +22,10 @@ const fmtStatic = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', 
 export default function Dashboard() {
   const { products, sales, clients } = useApp();
   const { rates } = useCardRates();
-  const [period, setPeriod] = useState("30");
-  const [customStart, setCustomStart] = useState<Date | undefined>();
-  const [customEnd, setCustomEnd] = useState<Date | undefined>();
-  const periodDays = useMemo(() => {
-    if (period === "today") return 1;
-    if (period === "custom") {
-      if (!customStart || !customEnd) return 30;
-      return Math.max(1, Math.round((customEnd.getTime() - customStart.getTime()) / 86400000) + 1);
-    }
-    return parseInt(period) || 30;
-  }, [period, customStart, customEnd]);
-
-  const filtered = useMemo(() => {
-    if (period === "today") {
-      const start = new Date();
-      start.setHours(0, 0, 0, 0);
-      return sales.filter(s => new Date(s.created_at) >= start);
-    }
-    if (period === "custom") {
-      if (!customStart || !customEnd) return [];
-      const start = new Date(customStart);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(customEnd);
-      end.setHours(23, 59, 59, 999);
-      return sales.filter(s => {
-        const d = new Date(s.created_at);
-        return d >= start && d <= end;
-      });
-    }
-    const days = parseInt(period);
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - days);
-    return sales.filter(s => new Date(s.created_at) >= cutoff);
-  }, [sales, period, customStart, customEnd]);
+  const [pv, setPv] = useState<PeriodState>({ period: "30" });
+  const range = useMemo(() => resolvePeriod(pv), [pv]);
+  const periodDays = range ? Math.max(1, Math.round((range.to.getTime() - range.from.getTime()) / 86400000)) : 30;
+  const filtered = useMemo(() => sales.filter(s => inPeriod(range, s.created_at)), [sales, range]);
 
   // Use sale_payments for accurate breakdowns
   const allPayments = useMemo(() => filtered.flatMap(s => s.payments || []), [filtered]);
@@ -144,13 +115,7 @@ export default function Dashboard() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <h1 className="page-header">Gerente</h1>
-        <PeriodPicker
-          period={period}
-          start={customStart}
-          end={customEnd}
-          onPreset={(v) => { setPeriod(v); setCustomStart(undefined); setCustomEnd(undefined); }}
-          onRange={(f, t) => { setCustomStart(f); setCustomEnd(t); setPeriod("custom"); }}
-        />
+        <PeriodPicker value={pv} onChange={setPv} />
       </div>
 
       <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
@@ -324,63 +289,6 @@ function DayTooltip({ active, payload, avg }: any) {
   );
 }
 
-const PRESETS = [
-  { v: "today", l: "Hoje" },
-  { v: "7", l: "Últimos 7 dias" },
-  { v: "30", l: "Últimos 30 dias" },
-  { v: "90", l: "Últimos 90 dias" },
-  { v: "365", l: "Último ano" },
-];
-
-function PeriodPicker({ period, start, end, onPreset, onRange }: {
-  period: string; start?: Date; end?: Date;
-  onPreset: (v: string) => void; onRange: (f?: Date, t?: Date) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const label = period === "custom"
-    ? start ? `${format(start, "dd/MM/yyyy")} até ${end ? format(end, "dd/MM/yyyy") : "…"}` : "Escolha o período"
-    : PRESETS.find(p => p.v === period)?.l ?? "Período";
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="outline" className="w-64 justify-between font-normal h-10">
-          <span className="truncate">{label}</span>
-          <CalendarIcon className="h-4 w-4 opacity-60" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0 flex" align="end">
-        <div className="flex flex-col gap-1 p-3 border-r min-w-[150px]">
-          {PRESETS.map(p => (
-            <Button key={p.v} variant={period === p.v ? "secondary" : "ghost"} size="sm" className="justify-start"
-              onClick={() => { onPreset(p.v); setOpen(false); }}>{p.l}</Button>
-          ))}
-        </div>
-        <div className="p-3">
-          <p className="text-xs text-muted-foreground mb-1">Clique no dia de início e depois no dia final</p>
-          <Calendar
-            mode="range"
-            numberOfMonths={2}
-            locale={ptBR}
-            selected={period === "custom" ? { from: start, to: end } : undefined}
-            onSelect={(r: any) => onRange(r?.from, r?.to)}
-            defaultMonth={start}
-            className="p-0 pointer-events-auto"
-            classNames={{
-              day_selected: "bg-chocolate text-primary-foreground hover:bg-chocolate hover:text-primary-foreground focus:bg-chocolate focus:text-primary-foreground",
-              day_range_middle: "aria-selected:bg-pink/40 aria-selected:text-foreground rounded-none",
-              cell: "h-9 w-9 text-center text-sm p-0 relative [&:has([aria-selected])]:bg-pink/40 first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
-            }}
-          />
-          {start && end && (
-            <div className="flex justify-end mt-2">
-              <Button size="sm" onClick={() => setOpen(false)}>Aplicar</Button>
-            </div>
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
 
 function EmptyChart() {
   return <div className="h-full flex items-center justify-center text-muted-foreground text-sm">Sem dados para exibir</div>;

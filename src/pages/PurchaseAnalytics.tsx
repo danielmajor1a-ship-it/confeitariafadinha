@@ -13,6 +13,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import SupplierPaymentDialog, { ExistingPayment } from "@/components/SupplierPaymentDialog";
 import { METHOD_LABELS, STATUS_LABELS, payStatus } from "@/lib/supplier-payments";
 import { Badge } from "@/components/ui/badge";
+import PeriodPicker, { PeriodState, resolvePeriod, ymd } from "@/components/PeriodPicker";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const norm = (s: string) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -26,8 +27,10 @@ const weekKey = (d: Date) => format(startOfWeek(d, { weekStartsOn: 1 }), "yyyy-M
 const pct = (a: number, b: number) => (b > 0 ? ((a - b) / b) * 100 : null);
 
 export default function PurchaseAnalytics() {
-  const [from, setFrom] = useState(format(startOfWeek(subWeeks(new Date(), 7), { weekStartsOn: 1 }), "yyyy-MM-dd"));
-  const [to, setTo] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [pv, setPv] = useState<PeriodState>({ period: "custom", start: startOfWeek(subWeeks(new Date(), 7), { weekStartsOn: 1 }), end: new Date() });
+  const range = resolvePeriod(pv);
+  const from = range ? ymd(range.from) : ymd(new Date());
+  const to = range ? ymd(range.to) : ymd(new Date());
   const [supplierQ, setSupplierQ] = useState("");
   const [productQ, setProductQ] = useState("");
   const [purchases, setPurchases] = useState<Purchase[]>([]);
@@ -118,8 +121,7 @@ export default function PurchaseAnalytics() {
       </div>
 
       <Card><CardContent className="pt-6 grid gap-4 md:grid-cols-4">
-        <label className="text-sm space-y-1"><span>De</span><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></label>
-        <label className="text-sm space-y-1"><span>Até</span><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></label>
+        <label className="text-sm space-y-1 md:col-span-2"><span>Período (conta pela data de vencimento quando houver)</span><PeriodPicker value={pv} onChange={setPv} className="w-full justify-between font-normal h-10" /></label>
         <label className="text-sm space-y-1"><span>Fornecedor</span><Input placeholder="Buscar fornecedor" value={supplierQ} onChange={(e) => setSupplierQ(e.target.value)} /></label>
         <label className="text-sm space-y-1"><span>Produto</span><Input placeholder="Buscar produto" value={productQ} onChange={(e) => setProductQ(e.target.value)} /></label>
       </CardContent></Card>

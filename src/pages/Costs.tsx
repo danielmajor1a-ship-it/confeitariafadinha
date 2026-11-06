@@ -16,6 +16,7 @@ import { PieChart as RePie, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGri
 import NfeImportDialog from "@/components/NfeImportDialog";
 import BulkSheetDialog from "@/components/BulkSheetDialog";
 import BreakEvenPanel from "@/components/BreakEvenPanel";
+import PeriodPicker, { PeriodState, resolvePeriod, inPeriod } from "@/components/PeriodPicker";
 
 export default function Costs() {
   const { costs, products, sales, addCost, deleteCost, stockMovements } = useApp();
@@ -36,11 +37,8 @@ export default function Costs() {
   const totalCosts = fixedTotal + varTotal;
 
   // Revenue from sales (last 30 days for analysis)
-  const last30 = useMemo(() => {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 30);
-    return sales.filter(s => new Date(s.created_at) >= cutoff);
-  }, [sales]);
+  const [pv, setPv] = useState<PeriodState>({ period: "30" });
+  const last30 = useMemo(() => { const r = resolvePeriod(pv); return sales.filter(s => inPeriod(r, s.created_at)); }, [sales, pv]);
 
   const revenue = last30.reduce((s, v) => s + v.total, 0);
 
@@ -154,6 +152,7 @@ export default function Costs() {
         <div className="flex items-center justify-between flex-wrap gap-4">
           <h1 className="page-header">Análise de Custos</h1>
           <div className="flex gap-2 flex-wrap items-center">
+          <PeriodPicker value={pv} onChange={setPv} />
           <BulkSheetDialog mode="cost" />
           <NfeImportDialog />
           <Dialog open={open} onOpenChange={setOpen}>
@@ -211,7 +210,7 @@ export default function Costs() {
                 <TrendingUp className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Lucro Líquido (últimos 30 dias)</p>
+                <p className="text-xs text-muted-foreground">Lucro Líquido (período escolhido)</p>
                 <p className="text-2xl font-bold font-display">{fmt(netProfit)}</p>
               </div>
             </div>
@@ -346,7 +345,7 @@ export default function Costs() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* DRE simplificado */}
               <Card>
-                <CardHeader><CardTitle className="section-title text-sm">DRE Simplificado (30 dias)</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="section-title text-sm">DRE Simplificado (período escolhido)</CardTitle></CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={250}>
                     <BarChart data={profitBarData}>

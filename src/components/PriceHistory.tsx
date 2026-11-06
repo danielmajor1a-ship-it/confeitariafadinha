@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useApp } from "@/contexts/AppContext";
-import { Input } from "@/components/ui/input";
+import PeriodPicker, { PeriodState, resolvePeriod, inPeriod } from "@/components/PeriodPicker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -16,8 +16,7 @@ function Var({ cur, prev }: { cur: number; prev?: number }) {
 export default function PriceHistory() {
   const { products } = useApp();
   const [productId, setProductId] = useState("all");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
+  const [pv, setPv] = useState<PeriodState>({ period: "365" });
 
   const rows = useMemo(() => {
     const list = products.filter(p => productId === "all" || p.id === productId).flatMap(p =>
@@ -28,9 +27,9 @@ export default function PriceHistory() {
         prevPrice: i > 0 ? Number(p.priceHistory[i - 1].sale_price) : undefined,
       })));
     return list
-      .filter(r => (!from || r.date.slice(0, 10) >= from) && (!to || r.date.slice(0, 10) <= to))
+      .filter(r => inPeriod(resolvePeriod(pv), r.date))
       .sort((a, b) => b.date.localeCompare(a.date));
-  }, [products, productId, from, to]);
+  }, [products, productId, pv]);
 
   return (
     <div className="space-y-3">
@@ -46,8 +45,7 @@ export default function PriceHistory() {
             </SelectContent>
           </Select>
         </div>
-        <div><span className="text-xs text-muted-foreground">De</span><Input type="date" value={from} onChange={e => setFrom(e.target.value)} /></div>
-        <div><span className="text-xs text-muted-foreground">Até</span><Input type="date" value={to} onChange={e => setTo(e.target.value)} /></div>
+        <PeriodPicker value={pv} onChange={setPv} />
       </div>
       <div className="rounded-2xl border bg-card overflow-hidden max-h-[500px] overflow-y-auto">
         <Table>

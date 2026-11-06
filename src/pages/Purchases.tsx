@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import PeriodPicker, { PeriodState, resolvePeriod, ymd } from "@/components/PeriodPicker";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/contexts/AppContext";
 import PurchaseEntry from "@/components/NfeImportDialog";
@@ -10,18 +11,25 @@ const SOURCE: Record<string, string> = {
 };
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-type Row = { id: string; purchase_date: string; created_at: string; supplier: string; source: string; total: number; status: string; document_url: string | null };
+type Row = { id: string; purchase_date: string; cost_date: string | null; due_date: string | null; created_at: string; supplier: string; source: string; total: number; status: string; document_url: string | null };
 
 export default function Purchases() {
   const { products } = useApp();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pv, setPv] = useState<PeriodState>({ period: "30" });
+  const range = useMemo(() => resolvePeriod(pv), [pv]);
 
+  // Filtra pela data de custo (vencimento quando houver, senão data da compra); rascunhos sem data entram pela data da compra.
   const load = useCallback(async () => {
-    const { data } = await supabase.from("purchases").select("id, purchase_date, created_at, supplier, source, total, status, document_url").order("created_at", { ascending: false }).limit(200);
+    if (!range) { setRows([]); setLoading(false); return; }
+    const f = ymd(range.from), t = ymd(range.to);
+    const { data } = await supabase.from("purchases").select("id, purchase_date, cost_date, due_date, created_at, supplier, source, total, status, document_url")
+      .or(`and(cost_date.gte.${f},cost_date.lte.${t}),and(cost_date.is.null,purchase_date.gte.${f},purchase_date.lte.${t})`)
+      .order("created_at", { ascending: false }).limit(500);
     setRows((data as Row[]) || []);
     setLoading(false);
-  }, []);
+  }, [range]);
 
   // Recarrega quando uma compra é confirmada (produtos são atualizados)
   useEffect(() => { load(); }, [load, products]);
@@ -39,7 +47,10 @@ export default function Purchases() {
         <PurchaseEntry />
       </div>
       <div>
-        <h2 className="section-title mb-3">Histórico de compras</h2>
+        <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+          <h2 className="section-title">Histórico de compras</h2>
+          <PeriodPicker value={pv} onChange={setPv} />
+        </div>
         <div className="rounded-2xl border bg-card overflow-hidden">
           <Table>
             <TableHeader><TableRow>
@@ -47,10 +58,10 @@ export default function Purchases() {
               <TableHead className="text-right">Total</TableHead><TableHead>Status</TableHead><TableHead />
             </TableRow></TableHeader>
             <TableBody>
-              {!loading && rows.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhuma compra registrada</TableCell></TableRow>}
+              {!loading && rows.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhuma compra no período</TableCell></TableRow>}
               {rows.map(r => (
                 <TableRow key={r.id}>
-                  <TableCell>{new Date(r.created_at).toLocaleDateString("pt-BR")}</TableCell>
+                  <TableCell>{new Date(r.created_at).toLocaleDateString("pt-BR")}{r.due_date && <div className="text-xs text-muted-foreground">vence {new Date(r.due_date + "T12:00:00").toLocaleDateString("pt-BR")}</div>}</TableCell>
                   <TableCell>{r.supplier || "—"}</TableCell>
                   <TableCell>{SOURCE[r.source] || r.source}</TableCell>
                   <TableCell className="text-right font-medium">{fmt(Number(r.total))}</TableCell>
