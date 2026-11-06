@@ -16,6 +16,7 @@ import { PieChart as RePie, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGri
 import NfeImportDialog from "@/components/NfeImportDialog";
 import BulkSheetDialog from "@/components/BulkSheetDialog";
 import BreakEvenPanel from "@/components/BreakEvenPanel";
+import PeriodPicker, { PeriodState, resolvePeriod, inPeriod } from "@/components/PeriodPicker";
 
 export default function Costs() {
   const { costs, products, sales, addCost, deleteCost, stockMovements } = useApp();
@@ -36,11 +37,8 @@ export default function Costs() {
   const totalCosts = fixedTotal + varTotal;
 
   // Revenue from sales (last 30 days for analysis)
-  const last30 = useMemo(() => {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 30);
-    return sales.filter(s => new Date(s.created_at) >= cutoff);
-  }, [sales]);
+  const [pv, setPv] = useState<PeriodState>({ period: "30" });
+  const last30 = useMemo(() => { const r = resolvePeriod(pv); return sales.filter(s => inPeriod(r, s.created_at)); }, [sales, pv]);
 
   const revenue = last30.reduce((s, v) => s + v.total, 0);
 

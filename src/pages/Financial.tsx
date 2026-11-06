@@ -15,37 +15,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { DollarSign, CreditCard, Banknote, AlertCircle, TrendingDown, Smartphone, CalendarIcon } from "lucide-react";
 import { PAYMENT_LABELS } from "@/types";
+import PeriodPicker, { PeriodState, resolvePeriod, inPeriod } from "@/components/PeriodPicker";
 
 export default function Financial() {
   const { sales, clients } = useApp();
   const { rates } = useCardRates();
   const { isAdmin } = useUserRole();
-  const [period, setPeriod] = useState("30");
-  const [customStart, setCustomStart] = useState<Date | undefined>();
-  const [customEnd, setCustomEnd] = useState<Date | undefined>();
-
-  const filtered = useMemo(() => {
-    if (period === "today") {
-      const start = new Date();
-      start.setHours(0, 0, 0, 0);
-      return sales.filter(s => new Date(s.created_at) >= start);
-    }
-    if (period === "custom") {
-      if (!customStart || !customEnd) return [];
-      const start = new Date(customStart);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(customEnd);
-      end.setHours(23, 59, 59, 999);
-      return sales.filter(s => {
-        const d = new Date(s.created_at);
-        return d >= start && d <= end;
-      });
-    }
-    const days = parseInt(period);
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - days);
-    return sales.filter(s => new Date(s.created_at) >= cutoff);
-  }, [sales, period, customStart, customEnd]);
+  const [pv, setPv] = useState<PeriodState>({ period: "30" });
+  const filtered = useMemo(() => { const r = resolvePeriod(pv); return sales.filter(s => inPeriod(r, s.created_at)); }, [sales, pv]);
 
   // Use sale_payments for accurate breakdown
   const allPayments = useMemo(() => filtered.flatMap(s => s.payments || []), [filtered]);
@@ -70,36 +47,7 @@ export default function Financial() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <h1 className="page-header">Financeiro</h1>
-        <div className="flex items-center gap-2 flex-wrap">
-          {period === "custom" && (
-            <>
-              <CustomDateButton
-                label="De"
-                date={customStart}
-                onSelect={setCustomStart}
-              />
-              <CustomDateButton
-                label="Até"
-                date={customEnd}
-                onSelect={setCustomEnd}
-              />
-              {(!customStart || !customEnd) && (
-                <span className="text-sm text-muted-foreground">Escolha as duas datas</span>
-              )}
-            </>
-          )}
-          <Select value={period} onValueChange={setPeriod}>
-            <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="today">Hoje</SelectItem>
-              <SelectItem value="7">7 dias</SelectItem>
-              <SelectItem value="30">30 dias</SelectItem>
-              <SelectItem value="90">90 dias</SelectItem>
-              <SelectItem value="365">1 ano</SelectItem>
-              <SelectItem value="custom">Período personalizado</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <PeriodPicker value={pv} onChange={setPv} />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
@@ -237,29 +185,3 @@ export default function Financial() {
   );
 }
 
-function CustomDateButton({ label, date, onSelect }: { label: string; date?: Date; onSelect: (d?: Date) => void }) {
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          className={cn("justify-start text-left font-normal h-9", !date && "text-muted-foreground")}
-        >
-          <CalendarIcon className="h-4 w-4" />
-          <span className="text-xs text-muted-foreground mr-1">{label}</span>
-          {date ? format(date, "dd/MM/yyyy") : "dd/mm/aaaa"}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        <Calendar
-          mode="single"
-          selected={date}
-          onSelect={onSelect}
-          initialFocus
-          locale={ptBR}
-          className="p-3 pointer-events-auto"
-        />
-      </PopoverContent>
-    </Popover>
-  );
-}
