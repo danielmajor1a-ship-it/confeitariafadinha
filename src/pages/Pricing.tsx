@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { TrendingUp, TrendingDown, Minus, Pencil } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Pencil, Search } from "lucide-react";
 import BulkSheetDialog from "@/components/BulkSheetDialog";
 import PriceHistory from "@/components/PriceHistory";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +18,9 @@ export default function Pricing() {
   const [editing, setEditing] = useState<{ id: string; name: string; current: number } | null>(null);
   const [newPrice, setNewPrice] = useState("");
   const [saving, setSaving] = useState(false);
+  const [q, setQ] = useState("");
+  const norm = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const shown = products.filter(p => norm(p.name).includes(norm(q.trim())));
 
   function openEdit(p: { id: string; name: string; sale_price: number }) {
     setEditing({ id: p.id, name: p.name, current: p.sale_price });
@@ -52,6 +55,11 @@ export default function Pricing() {
       </div>
       <p className="text-muted-foreground text-sm">Análise de margem de lucro por produto. Custos vinculados são somados ao preço de compra.</p>
 
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input className="pl-9" placeholder="Pesquisar produto..." value={q} onChange={e => setQ(e.target.value)} />
+      </div>
+
       <div className="rounded-2xl border bg-card overflow-hidden">
         <Table>
           <TableHeader><TableRow>
@@ -66,7 +74,8 @@ export default function Pricing() {
           </TableRow></TableHeader>
           <TableBody>
             {products.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Cadastre produtos para ver a precificação</TableCell></TableRow>}
-            {products.map(p => {
+            {products.length > 0 && shown.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nenhum produto encontrado</TableCell></TableRow>}
+            {shown.map(p => {
               const extraCosts = getProductCosts(p.id);
               const totalCost = p.purchase_price + extraCosts;
               const marginValue = p.sale_price - totalCost;
