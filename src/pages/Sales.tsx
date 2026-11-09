@@ -55,7 +55,10 @@ export default function Sales() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("todos");
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    if (new URLSearchParams(window.location.search).get('encomenda')) return [];
+    try { const s = localStorage.getItem('pdv_cart'); return s ? JSON.parse(s) : []; } catch { return []; }
+  });
   const [paymentMethod, setPaymentMethod] = useState<string>("dinheiro");
   const [clientId, setClientId] = useState("");
   const [showHistory, setShowHistory] = useState(false);
