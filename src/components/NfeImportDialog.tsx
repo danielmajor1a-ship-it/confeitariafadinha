@@ -351,29 +351,31 @@ export default function PurchaseEntry() {
   }
 
   async function confirmManual() {
-    const qty = parseFloat(mQty.replace(",", "."));
-    const total = parseFloat(mTotal.replace(",", "."));
-    const isNew = mProduct === NEW_PRODUCT;
-    let prod: any = products.find(p => p.id === mProduct);
-    if ((!prod && !(isNew && mNewName.trim())) || !(qty > 0) || !(total >= 0)) { toast.error("Preencha item, quantidade e valor total"); return; }
+    const rows = mLines.map(l => ({ ...l, name: l.name.trim(), qtyN: parseFloat(l.qty.replace(",", ".")), totalN: parseFloat(l.total.replace(",", ".")) }));
+    if (!rows.length || rows.some(r => !r.name || !(r.qtyN > 0) || !(r.totalN >= 0))) { toast.error("Preencha nome, quantidade e valor de todos os itens"); return; }
     setSaving(true);
     try {
-      if (isNew) {
-        const { data, error } = await supabase.from("products").insert({
-          user_id: user?.id, name: mNewName.trim(), category: "outro", purchase_price: 0, sale_price: 0, stock: 0,
-          low_stock_threshold: 5, needs_review: true, sells: false, used_in_recipes: true, production_only: !mAddStock,
-        } as any).select("*").single();
-        if (error) { toast.error(`Não foi possível cadastrar o item: ${error.message}`); return; }
-        prod = data;
-      } else if (!!prod.production_only === mAddStock) {
-        const { error } = await supabase.from("products").update({ production_only: !mAddStock } as any).eq("id", prod.id);
-        if (error) { toast.error(`Não foi possível ajustar o item: ${error.message}`); return; }
+      const lines: Line[] = [];
+      for (const r of rows) {
+        let prod: any = products.find(p => normalize(p.name) === normalize(r.name));
+        if (!prod) {
+          const { data, error } = await supabase.from("products").insert({
+            user_id: user?.id, name: r.name, category: "outro", purchase_price: 0, sale_price: 0, stock: 0,
+            low_stock_threshold: 5, needs_review: true, sells: false, used_in_recipes: true, production_only: !r.addStock,
+          } as any).select("*").single();
+          if (error) { toast.error(`Não foi possível cadastrar "${r.name}": ${error.message}`); return; }
+          prod = data;
+        } else if (!!prod.production_only === r.addStock) {
+          const { error } = await supabase.from("products").update({ production_only: !r.addStock } as any).eq("id", prod.id);
+          if (error) { toast.error(`Não foi possível ajustar "${prod.name}": ${error.message}`); return; }
+        }
+        lines.push({
+          key: r.key, description: prod.name, quantity: r.qtyN, unit: prod.stock_unit || "UN", total: r.totalN,
+          targetId: prod.id, fromHistory: false, buyUnits: (prod.buy_units || []), buyChoice: "",
+        });
       }
-      const ok = await savePurchase("manual", "", [{
-        key: "m", description: prod.name, quantity: qty, unit: prod.stock_unit || "UN", total, targetId: prod.id, fromHistory: false,
-        buyUnits: (prod.buy_units || []), buyChoice: isNew ? "" : mUnit,
-      }]);
-      if (ok) { setManualOpen(false); setMProduct(""); setMQty(""); setMTotal(""); setMNewName(""); setMAddStock(true); }
+      const ok = await savePurchase("manual", "", lines);
+      if (ok) { setManualOpen(false); setMLines([]); }
     } finally { setSaving(false); }
   }
 
