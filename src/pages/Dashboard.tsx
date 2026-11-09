@@ -22,7 +22,7 @@ const fmtStatic = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', 
 export default function Dashboard() {
   const { products, sales, clients } = useApp();
   const { rates } = useCardRates();
-  const [pv, setPv] = useState<PeriodState>({ period: "30" });
+  const [pv, setPv] = useState<PeriodState>({ period: "today" });
   const range = useMemo(() => resolvePeriod(pv), [pv]);
   const periodDays = range ? Math.max(1, Math.round((range.to.getTime() - range.from.getTime()) / 86400000)) : 30;
   const filtered = useMemo(() => sales.filter(s => inPeriod(range, s.created_at)), [sales, range]);
