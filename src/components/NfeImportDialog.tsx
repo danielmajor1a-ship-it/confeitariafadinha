@@ -532,45 +532,41 @@ export default function PurchaseEntry() {
       </Dialog>
 
       <Dialog open={manualOpen} onOpenChange={o => !saving && setManualOpen(o)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>Compra sem nota</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label>Item</Label>
-              <Select value={mProduct} onValueChange={v => { setMProduct(v); setMUnit(""); const p: any = products.find(x => x.id === v); setMAddStock(p ? !p.production_only : true); }}>
-                <SelectTrigger><SelectValue placeholder="Escolha o item" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NEW_PRODUCT}>+ Cadastrar item novo</SelectItem>
-                  {products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              {mProduct === NEW_PRODUCT && (
-                <Input className="mt-2" value={mNewName} onChange={e => setMNewName(e.target.value)} placeholder="Nome do item novo" />
-              )}
+          <datalist id="manual-products">
+            {products.map(p => <option key={p.id} value={p.name} />)}
+          </datalist>
+          <div className="space-y-2">
+            <div className="grid grid-cols-[1fr_90px_110px_110px_32px] gap-2 text-xs text-muted-foreground px-1">
+              <span>Item (digite o nome; se não existir, cadastra sozinho)</span>
+              <span>Qtd</span>
+              <span>Valor total</span>
+              <span>Soma estoque?</span>
+              <span />
             </div>
-            {mProduct && (
-              <label className="flex items-start gap-2 text-sm cursor-pointer">
-                <input type="checkbox" className="mt-1 h-4 w-4" checked={mAddStock} onChange={e => setMAddStock(e.target.checked)} />
-                <span><strong>Somar no estoque</strong><br /><span className="text-xs text-muted-foreground">Desmarcado = item "Só produção": atualiza o custo, mas não soma no estoque. Fica salvo no cadastro do item.</span></span>
-              </label>
-            )}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Quantidade</Label>
-                <Input inputMode="decimal" value={mQty} onChange={e => setMQty(e.target.value)} placeholder="Ex: 2" />
+            {mLines.map(l => (
+              <div key={l.key} className="grid grid-cols-[1fr_90px_110px_110px_32px] gap-2 items-center">
+                <Input list="manual-products" value={l.name} placeholder="Ex: Farinha de trigo"
+                  onChange={e => {
+                    const name = e.target.value;
+                    const p: any = products.find(x => normalize(x.name) === normalize(name));
+                    updMLine(l.key, { name, ...(p ? { addStock: !p.production_only } : {}) });
+                  }} />
+                <Input inputMode="decimal" value={l.qty} placeholder="2" onChange={e => updMLine(l.key, { qty: e.target.value })} />
+                <Input inputMode="decimal" value={l.total} placeholder="36,00" onChange={e => updMLine(l.key, { total: e.target.value })} />
+                <label className="flex items-center gap-1 text-xs cursor-pointer" title="Desmarcado = Só produção: atualiza o custo, mas não soma no estoque">
+                  <input type="checkbox" className="h-4 w-4" checked={l.addStock} onChange={e => updMLine(l.key, { addStock: e.target.checked })} />
+                  Sim
+                </label>
+                <Button variant="ghost" size="sm" disabled={mLines.length === 1} onClick={() => setMLines(prev => prev.filter(x => x.key !== l.key))}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
-              <div>
-                <Label>Valor total (R$)</Label>
-                <Input inputMode="decimal" value={mTotal} onChange={e => setMTotal(e.target.value)} placeholder="Ex: 36,00" />
-              </div>
-            </div>
-            {(() => { const mp: any = products.find(p => p.id === mProduct); return mp?.buy_units?.length ? (
-              <div><Label>Unidade da quantidade</Label>
-                <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={mUnit} onChange={e => setMUnit(e.target.value)}>
-                  <option value="">Unidade do estoque</option>
-                  {mp.buy_units.map((b: any) => <option key={b.unit} value={b.unit}>{b.unit} (1 = {b.factor} no estoque)</option>)}
-                </select>
-              </div>) : null; })()}
+            ))}
+            <Button variant="outline" size="sm" onClick={() => setMLines(prev => [...prev, newMLine()])}>
+              <Plus className="h-4 w-4 mr-1" /> Adicionar item
+            </Button>
             <Button className="w-full" onClick={confirmManual} disabled={saving}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Registrar compra"}
             </Button>
