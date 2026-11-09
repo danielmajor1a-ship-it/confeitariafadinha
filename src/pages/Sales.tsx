@@ -95,6 +95,11 @@ export default function Sales() {
   const [orderForm, setOrderForm] = useState<{ open: boolean; initial?: OrderFormInitial }>({ open: false });
 
   useEffect(() => {
+    if (encomendaParam || encomenda) return;
+    try { localStorage.setItem('pdv_cart', JSON.stringify(cart)); } catch { /* ignore */ }
+  }, [cart, encomendaParam, encomenda]);
+
+  useEffect(() => {
     if (!encomendaParam || products.length === 0 || encomenda?.id === encomendaParam) return;
     (async () => {
       const [e, it] = await Promise.all([
