@@ -55,7 +55,10 @@ export default function Sales() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("todos");
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    if (new URLSearchParams(window.location.search).get('encomenda')) return [];
+    try { const s = localStorage.getItem('pdv_cart'); return s ? JSON.parse(s) : []; } catch { return []; }
+  });
   const [paymentMethod, setPaymentMethod] = useState<string>("dinheiro");
   const [clientId, setClientId] = useState("");
   const [showHistory, setShowHistory] = useState(false);
@@ -90,6 +93,11 @@ export default function Sales() {
   const encomendaParam = searchParams.get('encomenda');
   const [encomenda, setEncomenda] = useState<{ id: string; cliente_nome: string; sinal: number } | null>(null);
   const [orderForm, setOrderForm] = useState<{ open: boolean; initial?: OrderFormInitial }>({ open: false });
+
+  useEffect(() => {
+    if (encomendaParam || encomenda) return;
+    try { localStorage.setItem('pdv_cart', JSON.stringify(cart)); } catch { /* ignore */ }
+  }, [cart, encomendaParam, encomenda]);
 
   useEffect(() => {
     if (!encomendaParam || products.length === 0 || encomenda?.id === encomendaParam) return;
