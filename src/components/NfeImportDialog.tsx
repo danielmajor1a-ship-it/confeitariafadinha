@@ -151,6 +151,8 @@ export default function PurchaseEntry() {
   const [mQty, setMQty] = useState("");
   const [mTotal, setMTotal] = useState("");
   const [mUnit, setMUnit] = useState("");
+  const [mNewName, setMNewName] = useState("");
+  const [mAddStock, setMAddStock] = useState(true);
 
   // Detecta embalagem escrita na nota: "CX/12", "PC/12", "PCT/15" ou "C/12" na descrição
   function detectPack(unitRaw: string, desc: string): { unit: string; factor: number } | null {
@@ -352,15 +354,27 @@ export default function PurchaseEntry() {
   async function confirmManual() {
     const qty = parseFloat(mQty.replace(",", "."));
     const total = parseFloat(mTotal.replace(",", "."));
-    const prod = products.find(p => p.id === mProduct);
-    if (!prod || !(qty > 0) || !(total >= 0)) { toast.error("Preencha item, quantidade e valor total"); return; }
+    const isNew = mProduct === NEW_PRODUCT;
+    let prod: any = products.find(p => p.id === mProduct);
+    if ((!prod && !(isNew && mNewName.trim())) || !(qty > 0) || !(total >= 0)) { toast.error("Preencha item, quantidade e valor total"); return; }
     setSaving(true);
     try {
+      if (isNew) {
+        const { data, error } = await supabase.from("products").insert({
+          user_id: user?.id, name: mNewName.trim(), category: "outro", purchase_price: 0, sale_price: 0, stock: 0,
+          low_stock_threshold: 5, needs_review: true, sells: false, used_in_recipes: true, production_only: !mAddStock,
+        } as any).select("*").single();
+        if (error) { toast.error(`Não foi possível cadastrar o item: ${error.message}`); return; }
+        prod = data;
+      } else if (!!prod.production_only === mAddStock) {
+        const { error } = await supabase.from("products").update({ production_only: !mAddStock } as any).eq("id", prod.id);
+        if (error) { toast.error(`Não foi possível ajustar o item: ${error.message}`); return; }
+      }
       const ok = await savePurchase("manual", "", [{
-        key: "m", description: prod.name, quantity: qty, unit: (prod as any).stock_unit || "UN", total, targetId: prod.id, fromHistory: false,
-        buyUnits: ((prod as any).buy_units || []), buyChoice: mUnit,
+        key: "m", description: prod.name, quantity: qty, unit: prod.stock_unit || "UN", total, targetId: prod.id, fromHistory: false,
+        buyUnits: (prod.buy_units || []), buyChoice: isNew ? "" : mUnit,
       }]);
-      if (ok) { setManualOpen(false); setMProduct(""); setMQty(""); setMTotal(""); }
+      if (ok) { setManualOpen(false); setMProduct(""); setMQty(""); setMTotal(""); setMNewName(""); setMAddStock(true); }
     } finally { setSaving(false); }
   }
 
@@ -522,13 +536,23 @@ export default function PurchaseEntry() {
           <div className="space-y-3">
             <div>
               <Label>Item</Label>
-              <Select value={mProduct} onValueChange={v => { setMProduct(v); setMUnit(""); }}>
+              <Select value={mProduct} onValueChange={v => { setMProduct(v); setMUnit(""); const p: any = products.find(x => x.id === v); setMAddStock(p ? !p.production_only : true); }}>
                 <SelectTrigger><SelectValue placeholder="Escolha o item" /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value={NEW_PRODUCT}>+ Cadastrar item novo</SelectItem>
                   {products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {mProduct === NEW_PRODUCT && (
+                <Input className="mt-2" value={mNewName} onChange={e => setMNewName(e.target.value)} placeholder="Nome do item novo" />
+              )}
             </div>
+            {mProduct && (
+              <label className="flex items-start gap-2 text-sm cursor-pointer">
+                <input type="checkbox" className="mt-1 h-4 w-4" checked={mAddStock} onChange={e => setMAddStock(e.target.checked)} />
+                <span><strong>Somar no estoque</strong><br /><span className="text-xs text-muted-foreground">Desmarcado = item "Só produção": atualiza o custo, mas não soma no estoque. Fica salvo no cadastro do item.</span></span>
+              </label>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Quantidade</Label>
