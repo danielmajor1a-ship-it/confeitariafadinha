@@ -147,12 +147,11 @@ export default function PurchaseEntry() {
 
   // Manual purchase
   const [manualOpen, setManualOpen] = useState(false);
-  const [mProduct, setMProduct] = useState("");
-  const [mQty, setMQty] = useState("");
-  const [mTotal, setMTotal] = useState("");
-  const [mUnit, setMUnit] = useState("");
-  const [mNewName, setMNewName] = useState("");
-  const [mAddStock, setMAddStock] = useState(true);
+  const [mLines, setMLines] = useState<{ key: string; name: string; qty: string; total: string; addStock: boolean }[]>([]);
+  const newMLine = () => ({ key: Math.random().toString(36).slice(2), name: "", qty: "", total: "", addStock: true });
+  const openManual = () => { setMLines([newMLine()]); setManualOpen(true); };
+  const updMLine = (key: string, patch: Partial<(typeof mLines)[number]>) =>
+    setMLines(prev => prev.map(l => l.key === key ? { ...l, ...patch } : l));
 
   // Detecta embalagem escrita na nota: "CX/12", "PC/12", "PCT/15" ou "C/12" na descrição
   function detectPack(unitRaw: string, desc: string): { unit: string; factor: number } | null {
