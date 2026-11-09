@@ -395,7 +395,7 @@ export default function PurchaseEntry() {
         <Button variant="outline" className="min-h-[44px]" onClick={() => cupomRef.current?.click()} disabled={reading}>
           <Camera className="h-4 w-4 mr-1" /> Lançar por foto de cupom
         </Button>
-        <Button variant="outline" className="min-h-[44px]" onClick={() => setManualOpen(true)}>
+        <Button variant="outline" className="min-h-[44px]" onClick={openManual}>
           <PencilLine className="h-4 w-4 mr-1" /> Compra sem nota
         </Button>
       </div>
