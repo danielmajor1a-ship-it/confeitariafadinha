@@ -147,11 +147,21 @@ export default function PurchaseEntry() {
 
   // Manual purchase
   const [manualOpen, setManualOpen] = useState(false);
-  const [mLines, setMLines] = useState<{ key: string; name: string; qty: string; total: string; addStock: boolean }[]>([]);
+  const [mLines, setMLines] = useState<{ key: string; name: string; qty: string; total: string; addStock: boolean; newOk?: boolean }[]>([]);
   const newMLine = () => ({ key: Math.random().toString(36).slice(2), name: "", qty: "", total: "", addStock: true });
   const openManual = () => { setMLines([newMLine()]); setManualOpen(true); };
   const updMLine = (key: string, patch: Partial<(typeof mLines)[number]>) =>
     setMLines(prev => prev.map(l => l.key === key ? { ...l, ...patch } : l));
+  // Itens parecidos com o nome digitado (quando não bate exatamente)
+  const similarTo = (name: string) => {
+    const n = normalize(name).trim();
+    if (n.length < 3 || products.some((p: any) => normalize(p.name) === n)) return [];
+    const words = n.split(/\s+/).filter(w => w.length >= 3);
+    return (products as any[]).filter(p => {
+      const pn = normalize(p.name);
+      return pn.includes(n) || n.includes(pn) || words.some(w => pn.includes(w));
+    }).slice(0, 5);
+  };
 
   // Detecta embalagem escrita na nota: "CX/12", "PC/12", "PCT/15" ou "C/12" na descrição
   function detectPack(unitRaw: string, desc: string): { unit: string; factor: number } | null {
@@ -353,6 +363,7 @@ export default function PurchaseEntry() {
   async function confirmManual() {
     const rows = mLines.map(l => ({ ...l, name: l.name.trim(), qtyN: parseFloat(l.qty.replace(",", ".")), totalN: parseFloat(l.total.replace(",", ".")) }));
     if (!rows.length || rows.some(r => !r.name || !(r.qtyN > 0) || !(r.totalN >= 0))) { toast.error("Preencha nome, quantidade e valor de todos os itens"); return; }
+    if (rows.some(r => !r.newOk && similarTo(r.name).length > 0)) { toast.error("Confirme os itens parecidos: escolha o item certo ou marque que é item novo"); return; }
     setSaving(true);
     try {
       const lines: Line[] = [];
@@ -551,7 +562,7 @@ export default function PurchaseEntry() {
                   onChange={e => {
                     const name = e.target.value;
                     const p: any = products.find(x => normalize(x.name) === normalize(name));
-                    updMLine(l.key, { name, ...(p ? { addStock: !p.production_only } : {}) });
+                    updMLine(l.key, { name, newOk: false, ...(p ? { addStock: !p.production_only } : {}) });
                   }} />
                 <Input inputMode="decimal" value={l.qty} placeholder="2" onChange={e => updMLine(l.key, { qty: e.target.value })} />
                 <Input inputMode="decimal" value={l.total} placeholder="36,00" onChange={e => updMLine(l.key, { total: e.target.value })} />
@@ -562,6 +573,20 @@ export default function PurchaseEntry() {
                 <Button variant="ghost" size="sm" disabled={mLines.length === 1} onClick={() => setMLines(prev => prev.filter(x => x.key !== l.key))}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
+                {!l.newOk && similarTo(l.name).length > 0 && (
+                  <div className="col-span-5 rounded-lg border border-accent bg-accent/10 p-2 text-xs space-y-1">
+                    <div className="font-medium">Já existe parecido. É algum destes?</div>
+                    <div className="flex flex-wrap gap-1">
+                      {similarTo(l.name).map((p: any) => (
+                        <Button key={p.id} type="button" size="sm" variant="secondary" className="h-7 text-xs"
+                          onClick={() => updMLine(l.key, { name: p.name, addStock: !p.production_only })}>{p.name}</Button>
+                      ))}
+                      <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={() => updMLine(l.key, { newOk: true })}>
+                        Não, é item novo
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
             <Button variant="outline" size="sm" onClick={() => setMLines(prev => [...prev, newMLine()])}>
