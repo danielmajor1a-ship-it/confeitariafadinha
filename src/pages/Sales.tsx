@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import OrderFormDialog, { type OrderFormInitial } from "@/components/OrderFormDialog";
 import { db } from "@/lib/encomendas";
-import { CalendarClock, Wallet } from "lucide-react";
+import { CalendarClock } from "lucide-react";
 import { ImageIcon, AlertTriangle, Calculator, Smartphone, Layers, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,16 +17,16 @@ import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search, ShoppingCart, Trash2, Plus, Minus, CreditCard, Banknote, HandCoins, Receipt, X, History, FileText } from "lucide-react";
 import { toast } from "sonner";
-import { CATEGORY_LABELS, PAYMENT_LABELS } from "@/types";
+import { CATEGORY_LABELS, PAYMENT_LABELS, SALE_PAYMENT_METHODS } from "@/types";
 import type { PaymentEntry } from "@/types";
 import ReceiptDialog from "@/components/ReceiptDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
-const SINGLE_METHODS = ['dinheiro', 'pix', 'debito', 'credito', 'fiado', 'credito_loja'] as const;
+const SINGLE_METHODS = SALE_PAYMENT_METHODS;
 
 function PaymentIcon({ method, className = "h-5 w-5" }: { method: string; className?: string }) {
   const icons: Record<string, any> = {
-    dinheiro: Banknote, pix: Smartphone, debito: CreditCard, credito: CreditCard, fiado: HandCoins, credito_loja: Wallet,
+    dinheiro: Banknote, pix: Smartphone, debito: CreditCard, credito: CreditCard, fiado: HandCoins,
   };
   const Icon = icons[method];
   return Icon ? <Icon className={className} /> : null;
@@ -303,16 +303,7 @@ export default function Sales() {
     const hasFiado = paymentMode === 'multi'
       ? payments.some(p => p.method === 'fiado')
       : paymentMethod === 'fiado';
-    const creditUsed = paymentMode === 'multi'
-      ? payments.filter(p => p.method === 'credito_loja').reduce((s, p) => s + p.amount, 0)
-      : (paymentMethod === 'credito_loja' ? total : 0);
-
     if (hasFiado && !clientId) { toast.error("Selecione um cliente para fiado"); return; }
-    if (creditUsed > 0) {
-      if (!clientId) { toast.error("Selecione o cliente dono do crédito"); return; }
-      const bal = Number(clients.find(c => c.id === clientId)?.credit_balance || 0);
-      if (creditUsed > bal + 0.001) { toast.error(`Crédito insuficiente. Saldo do cliente: ${fmt(bal)}`); return; }
-    }
 
     if (paymentMode === 'multi') {
       const paymentsTotal = payments.reduce((s, p) => s + p.amount, 0);
@@ -497,7 +488,7 @@ export default function Sales() {
   // ===== MAIN PDV VIEW =====
   const multiPaid = payments.reduce((s, p) => s + p.amount, 0);
   const multiRemaining = total - multiPaid;
-  const needsClient = paymentMode === 'multi' ? payments.some(p => p.method === 'fiado' || p.method === 'credito_loja') : (paymentMethod === 'fiado' || paymentMethod === 'credito_loja');
+  const needsClient = paymentMode === 'multi' ? payments.some(p => p.method === 'fiado') : paymentMethod === 'fiado';
 
   return (
     <div className="animate-fade-in h-[calc(100vh-5rem)] flex flex-col lg:flex-row gap-4">
@@ -789,10 +780,6 @@ export default function Sales() {
                     </SelectContent>
                   </Select>
                 )}
-                {paymentMethod === 'fiado' && clientId && Number(clients.find(c => c.id === clientId)?.credit_balance || 0) > 0 && (
-                  <p className="text-xs p-2 rounded-lg bg-success/10 text-success font-medium">Este cliente tem {fmt(Number(clients.find(c => c.id === clientId)?.credit_balance || 0))} de crédito. O crédito será usado primeiro para abater o fiado.</p>
-                )}
-                {paymentMethod === 'credito_loja' && <CreditClientPicker clients={clients} clientId={clientId} setClientId={setClientId} total={total} fmt={fmt} />}
               </>
             ) : (
               /* ===== MULTI PAYMENT MODE ===== */
@@ -891,9 +878,8 @@ export default function Sales() {
                   </div>
                 )}
 
-                {payments.some(p => p.method === 'credito_loja') && <CreditClientPicker clients={clients} clientId={clientId} setClientId={setClientId} total={payments.filter(p => p.method === 'credito_loja').reduce((s, p) => s + p.amount, 0)} fmt={fmt} />}
                 {/* Fiado client selector */}
-                {payments.some(p => p.method === 'fiado') && !payments.some(p => p.method === 'credito_loja') && (
+                {payments.some(p => p.method === 'fiado') && (
                   <Select value={clientId} onValueChange={setClientId}>
                     <SelectTrigger><SelectValue placeholder="Selecione o cliente (fiado)" /></SelectTrigger>
                     <SelectContent>
@@ -964,28 +950,6 @@ export default function Sales() {
         </DialogContent>
       </Dialog>
       <ReceiptDialog open={showReceipt} onOpenChange={setShowReceipt} data={receiptData} />
-    </div>
-  );
-}
-
-function CreditClientPicker({ clients, clientId, setClientId, total, fmt }: { clients: any[]; clientId: string; setClientId: (v: string) => void; total: number; fmt: (v: number) => string }) {
-  const withCredit = clients.filter(c => Number(c.credit_balance || 0) > 0);
-  const sel = clients.find(c => c.id === clientId);
-  const bal = Number(sel?.credit_balance || 0);
-  return (
-    <div className="space-y-2 p-3 rounded-xl border-2 border-success/40 bg-success/5">
-      <p className="text-xs font-bold text-success flex items-center gap-1"><Wallet className="h-4 w-4" /> Crédito da loja (não é fiado)</p>
-      <Select value={clientId} onValueChange={setClientId}>
-        <SelectTrigger><SelectValue placeholder={withCredit.length ? "Quem vai usar o crédito?" : "Nenhum cliente tem crédito"} /></SelectTrigger>
-        <SelectContent>
-          {withCredit.map(c => <SelectItem key={c.id} value={c.id}>{c.name} — saldo {fmt(Number(c.credit_balance))}</SelectItem>)}
-        </SelectContent>
-      </Select>
-      {sel && (
-        bal + 0.001 >= total
-          ? <p className="text-xs">Saldo: <b>{fmt(bal)}</b> → depois da compra: <b className="text-success">{fmt(bal - total)}</b></p>
-          : <p className="text-xs font-semibold text-destructive">Saldo {fmt(bal)} não cobre {fmt(total)}. Use "Misto" e pague o restante de outra forma.</p>
-      )}
     </div>
   );
 }
