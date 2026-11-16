@@ -201,9 +201,54 @@ export type Database = {
           },
         ]
       }
+      client_credit_movements: {
+        Row: {
+          amount: number
+          client_id: string
+          created_at: string
+          id: string
+          kind: string
+          notes: string | null
+          payment_method: string | null
+          sale_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          amount: number
+          client_id: string
+          created_at?: string
+          id?: string
+          kind: string
+          notes?: string | null
+          payment_method?: string | null
+          sale_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number
+          client_id?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          notes?: string | null
+          payment_method?: string | null
+          sale_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_credit_movements_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           created_at: string
+          credit_balance: number
           email: string | null
           id: string
           name: string
@@ -214,6 +259,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          credit_balance?: number
           email?: string | null
           id?: string
           name: string
@@ -224,6 +270,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          credit_balance?: number
           email?: string | null
           id?: string
           name?: string
@@ -740,6 +787,7 @@ export type Database = {
           allowed_tabs: string[]
           can_edit_costs: boolean
           can_edit_prices: boolean
+          can_manage_credit: boolean
           can_register_cash: boolean
           can_register_sales: boolean
           can_view_dashboard: boolean
@@ -754,6 +802,7 @@ export type Database = {
           allowed_tabs?: string[]
           can_edit_costs?: boolean
           can_edit_prices?: boolean
+          can_manage_credit?: boolean
           can_register_cash?: boolean
           can_register_sales?: boolean
           can_view_dashboard?: boolean
@@ -768,6 +817,7 @@ export type Database = {
           allowed_tabs?: string[]
           can_edit_costs?: boolean
           can_edit_prices?: boolean
+          can_manage_credit?: boolean
           can_register_cash?: boolean
           can_register_sales?: boolean
           can_view_dashboard?: boolean
@@ -1261,6 +1311,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_client_credit: {
+        Args: {
+          _amount: number
+          _client_id: string
+          _method: string
+          _notes?: string
+        }
+        Returns: Json
+      }
+      adjust_client_credit: {
+        Args: { _client_id: string; _new_balance: number; _reason: string }
+        Returns: undefined
+      }
       allocate_supplier_payment: {
         Args: { _allocations: Json; _payment_id: string }
         Returns: undefined
