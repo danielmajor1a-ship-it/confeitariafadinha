@@ -14,6 +14,7 @@ export const PAYMENT_LABELS: Record<string, string> = {
   credito: 'Crédito',
   debito: 'Débito',
   fiado: 'Fiado',
+  credito_loja: 'Crédito da loja',
   misto: 'Misto',
   adiantamento: 'Adiantamento',
 };

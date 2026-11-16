@@ -14,6 +14,7 @@ export interface UserProfile {
   can_view_dashboard: boolean;
   can_register_sales: boolean;
   can_register_cash: boolean;
+  can_manage_credit?: boolean;
 }
 
 export function useUserRole() {

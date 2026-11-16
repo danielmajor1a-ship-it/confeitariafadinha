@@ -71,6 +71,7 @@ interface CashVerification {
 const categoryLabels: Record<string, string> = {
   venda: "Venda",
   recebimento_fiado: "Recebimento Fiado",
+  credito_cliente: "Crédito deixado (cliente)",
   despesa: "Despesa",
   pagamento_fornecedor: "Pagamento a Fornecedor",
   sangria: "Sangria",
