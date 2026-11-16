@@ -497,7 +497,7 @@ export default function Sales() {
   // ===== MAIN PDV VIEW =====
   const multiPaid = payments.reduce((s, p) => s + p.amount, 0);
   const multiRemaining = total - multiPaid;
-  const needsClient = paymentMode === 'multi' ? payments.some(p => p.method === 'fiado') : paymentMethod === 'fiado';
+  const needsClient = paymentMode === 'multi' ? payments.some(p => p.method === 'fiado' || p.method === 'credito_loja') : (paymentMethod === 'fiado' || paymentMethod === 'credito_loja');
 
   return (
     <div className="animate-fade-in h-[calc(100vh-5rem)] flex flex-col lg:flex-row gap-4">
@@ -984,7 +984,7 @@ function CreditClientPicker({ clients, clientId, setClientId, total, fmt }: { cl
       {sel && (
         bal + 0.001 >= total
           ? <p className="text-xs">Saldo: <b>{fmt(bal)}</b> → depois da compra: <b className="text-success">{fmt(bal - total)}</b></p>
-          : <p className="text-xs font-semibold text-destructive">Saldo {fmt(bal)} não cobre {fmt(total)}. Use "Dividir" e pague o restante de outra forma.</p>
+          : <p className="text-xs font-semibold text-destructive">Saldo {fmt(bal)} não cobre {fmt(total)}. Use "Misto" e pague o restante de outra forma.</p>
       )}
     </div>
   );
