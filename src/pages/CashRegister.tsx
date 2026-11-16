@@ -71,6 +71,7 @@ interface CashVerification {
 const categoryLabels: Record<string, string> = {
   venda: "Venda",
   recebimento_fiado: "Recebimento Fiado",
+  credito_cliente: "Crédito deixado (cliente)",
   despesa: "Despesa",
   pagamento_fornecedor: "Pagamento a Fornecedor",
   sangria: "Sangria",
@@ -169,7 +170,8 @@ export default function CashRegisterPage() {
   const totalDespesas = saidas.filter((m) => m.category === "despesa" || m.category === "pagamento_fornecedor").reduce((s, m) => s + m.amount, 0);
 
   // Expected cash in drawer = initial + cash sales + fiado received - sangrias - expenses (cash only)
-  const saldoEsperadoDinheiro = (openRegister?.initial_amount || 0) + totalDinheiro + totalFiado - totalSangrias - totalDespesas;
+  // totalDinheiro já inclui fiado recebido e crédito deixado em dinheiro
+  const saldoEsperadoDinheiro = (openRegister?.initial_amount || 0) + totalDinheiro - totalSangrias - totalDespesas;
 
   // === OPEN CASH REGISTER ===
   async function handleOpen() {

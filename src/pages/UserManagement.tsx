@@ -39,6 +39,7 @@ interface UserRow {
   can_view_dashboard: boolean;
   can_register_sales: boolean;
   can_register_cash: boolean;
+  can_manage_credit?: boolean;
   role?: string;
   email?: string;
 }
@@ -99,6 +100,7 @@ export default function UserManagement() {
         can_view_dashboard: u.can_view_dashboard,
         can_register_sales: u.can_register_sales,
         can_register_cash: u.can_register_cash,
+        can_manage_credit: !!u.can_manage_credit,
         display_name: u.display_name,
       })
       .eq("user_id", u.user_id);
@@ -307,6 +309,10 @@ export default function UserManagement() {
                                 <div className="flex items-center justify-between">
                                   <span className="text-sm">Registrar caixa</span>
                                   <Switch checked={editUser.can_register_cash} onCheckedChange={(v) => setEditUser({ ...editUser, can_register_cash: v })} />
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm">Lançar crédito de cliente</span>
+                                  <Switch checked={!!editUser.can_manage_credit} onCheckedChange={(v) => setEditUser({ ...editUser, can_manage_credit: v })} />
                                 </div>
                               </div>
                             </>
