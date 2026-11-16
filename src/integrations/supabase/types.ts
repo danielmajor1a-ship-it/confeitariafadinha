@@ -1319,6 +1319,7 @@ export type Database = {
         Args: { p_id: string; p_token: string }
         Returns: undefined
       }
+      is_active_staff: { Args: { _user_id: string }; Returns: boolean }
       purchase_open_amount: { Args: { _purchase_id: string }; Returns: number }
       register_internal_consumption: {
         Args: {
