@@ -14,7 +14,6 @@ export const PAYMENT_LABELS: Record<string, string> = {
   credito: 'Crédito',
   debito: 'Débito',
   fiado: 'Fiado',
-  credito_loja: 'Crédito da loja',
   misto: 'Misto',
   adiantamento: 'Adiantamento',
 };
@@ -35,3 +34,5 @@ export const EXPENSE_TYPE_LABELS: Record<string, string> = {
   investimento: 'Investimento',
   retirada_dona: 'Retirada da dona',
 };
+
+export const SALE_PAYMENT_METHODS = ['dinheiro', 'pix', 'debito', 'credito', 'fiado'] as const;
