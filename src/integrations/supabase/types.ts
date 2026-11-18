@@ -502,10 +502,12 @@ export type Database = {
           created_at: string
           data_entrega: string
           descricao: string
+          endereco: string | null
           entregue_em: string | null
           hora_entrega: string
           id: string
           iniciada_em: string | null
+          linhas: Json | null
           observacoes: string | null
           quantidade: number
           status: string
@@ -516,6 +518,7 @@ export type Database = {
           valor_total: number | null
           venda_entrega_id: string | null
           venda_id: string | null
+          vista_em: string | null
         }
         Insert: {
           cliente_nome: string
@@ -523,10 +526,12 @@ export type Database = {
           created_at?: string
           data_entrega: string
           descricao: string
+          endereco?: string | null
           entregue_em?: string | null
           hora_entrega: string
           id?: string
           iniciada_em?: string | null
+          linhas?: Json | null
           observacoes?: string | null
           quantidade: number
           status?: string
@@ -537,6 +542,7 @@ export type Database = {
           valor_total?: number | null
           venda_entrega_id?: string | null
           venda_id?: string | null
+          vista_em?: string | null
         }
         Update: {
           cliente_nome?: string
@@ -544,10 +550,12 @@ export type Database = {
           created_at?: string
           data_entrega?: string
           descricao?: string
+          endereco?: string | null
           entregue_em?: string | null
           hora_entrega?: string
           id?: string
           iniciada_em?: string | null
+          linhas?: Json | null
           observacoes?: string | null
           quantidade?: number
           status?: string
@@ -558,6 +566,7 @@ export type Database = {
           valor_total?: number | null
           venda_entrega_id?: string | null
           venda_id?: string | null
+          vista_em?: string | null
         }
         Relationships: [
           {
@@ -1383,6 +1392,10 @@ export type Database = {
         Returns: undefined
       }
       is_active_staff: { Args: { _user_id: string }; Returns: boolean }
+      marcar_encomenda_vista: {
+        Args: { p_id: string; p_token: string }
+        Returns: undefined
+      }
       purchase_open_amount: { Args: { _purchase_id: string }; Returns: number }
       register_internal_consumption: {
         Args: {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { db, fichaTexto, fmtData, fmtHora, imprimirViaRawBT, isAndroid } from "@/lib/encomendas";
+import { db, fichaTexto, linhasDe, fmtData, fmtHora, imprimirViaRawBT, isAndroid } from "@/lib/encomendas";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function OrderTicket() {
@@ -44,10 +44,10 @@ export default function OrderTicket() {
         <div style={{ textAlign: "center", fontWeight: 700, fontSize: 13 }}>ENCOMENDA</div>
         <hr />
         <div>Cliente: <b>{e.cliente_nome}</b></div>
-        <div style={{ marginTop: 4, fontWeight: 700 }}>{e.descricao}</div>
-        <div>Qtd: {e.quantidade} {e.unidade || ""}</div>
+        <div style={{ marginTop: 4, fontWeight: 700 }}>{linhasDe(e).map((l, i) => <div key={i}>{l}</div>)}</div>
         {e.observacoes && <div>Obs: {e.observacoes}</div>}
         <div>Tipo: {e.tipo === "entrega" ? "ENTREGA" : "RETIRADA"}</div>
+        {e.tipo === "entrega" && e.endereco && <div>End: {e.endereco}</div>}
         <hr />
         <div style={{ textAlign: "center", fontWeight: 800, fontSize: 16 }}>{fmtData(e.data_entrega)}<br />{fmtHora(e.hora_entrega)}</div>
         <hr />

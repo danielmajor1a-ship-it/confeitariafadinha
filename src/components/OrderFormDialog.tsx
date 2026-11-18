@@ -9,7 +9,7 @@ import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "@/contexts/AppContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { db, isAndroid, imprimirFicha, type Encomenda, type EncomendaItem } from "@/lib/encomendas";
+import { db, isAndroid, imprimirFicha, type Encomenda, type EncomendaItem, type Linha } from "@/lib/encomendas";
 
 export interface OrderFormInitial {
   encomenda?: Partial<Encomenda>;
@@ -28,8 +28,9 @@ export default function OrderFormDialog({ open, onOpenChange, initial, onSaved }
   const editId = initial?.encomenda?.id;
   const [f, setF] = useState({
     cliente_nome: "", cliente_telefone: "", descricao: "", quantidade: "1", unidade: "", observacoes: "",
-    data_entrega: "", hora_entrega: "", tipo: "retirada", valor_total: "",
+    data_entrega: "", hora_entrega: "", tipo: "retirada", valor_total: "", endereco: "",
   });
+  const [linhas, setLinhas] = useState<Linha[]>([{ qtd: "", nome: "" }]);
   const [itens, setItens] = useState<EncomendaItem[]>([]);
   const [sinal, setSinal] = useState("");
   const [sinalMetodo, setSinalMetodo] = useState("dinheiro");
@@ -46,7 +47,12 @@ export default function OrderFormDialog({ open, onOpenChange, initial, onSaved }
       observacoes: e.observacoes || "", data_entrega: e.data_entrega || "",
       hora_entrega: e.hora_entrega?.slice(0, 5) || "", tipo: e.tipo || "retirada",
       valor_total: e.valor_total != null ? String(e.valor_total).replace(".", ",") : "",
+      endereco: e.endereco || "",
     });
+    const ls = (e.linhas || []).filter(x => x?.nome);
+    setLinhas(ls.length ? ls.map(x => ({ qtd: String(x.qtd ?? ""), nome: x.nome }))
+      : e.descricao ? [{ qtd: e.quantidade && Number(e.quantidade) !== 1 ? `${e.quantidade}${e.unidade ? " " + e.unidade : ""}` : "1", nome: e.descricao }]
+      : [{ qtd: "", nome: "" }]);
     setItens(initial?.itens || []);
     setSinal(initial?.sinalSugerido ? String(initial.sinalSugerido).replace(".", ",") : "");
     setMais(!!(initial?.itens?.length || initial?.sinalSugerido || e.valor_total));
@@ -65,8 +71,9 @@ export default function OrderFormDialog({ open, onOpenChange, initial, onSaved }
 
   async function salvar() {
     if (saving) return;
-    if (!f.cliente_nome.trim() || !f.descricao.trim() || !f.data_entrega || !f.hora_entrega || num(f.quantidade) <= 0) {
-      toast.error("Preencha cliente, descrição, quantidade, data e hora da entrega");
+    const ls = linhas.map(l => ({ qtd: l.qtd.trim() || "1", nome: l.nome.trim() })).filter(l => l.nome);
+    if (!f.cliente_nome.trim() || !ls.length || !f.data_entrega || !f.hora_entrega) {
+      toast.error("Preencha cliente, pelo menos um item, data e hora da entrega");
       return;
     }
     const valorSinal = num(sinal);
@@ -74,7 +81,8 @@ export default function OrderFormDialog({ open, onOpenChange, initial, onSaved }
     try {
       const row: any = {
         cliente_nome: f.cliente_nome.trim(), cliente_telefone: f.cliente_telefone.trim() || null,
-        descricao: f.descricao.trim(), quantidade: num(f.quantidade), unidade: f.unidade.trim() || null,
+        descricao: ls.map(l => `${l.qtd} ${l.nome}`).join("; "), quantidade: 1, unidade: null, linhas: ls,
+        endereco: f.tipo === "entrega" ? f.endereco.trim() || null : null,
         observacoes: f.observacoes.trim() || null, data_entrega: f.data_entrega, hora_entrega: f.hora_entrega,
         tipo: f.tipo, valor_total: f.valor_total ? num(f.valor_total) : (somaItens > 0 ? Math.round(somaItens * 100) / 100 : null),
       };
@@ -113,30 +121,39 @@ export default function OrderFormDialog({ open, onOpenChange, initial, onSaved }
         <DialogHeader><DialogTitle>{editId ? "Editar encomenda" : "Nova encomenda"}</DialogTitle></DialogHeader>
         <fieldset disabled={saving} className="space-y-3">
           <div><Label>Cliente *</Label><Input value={f.cliente_nome} onChange={set("cliente_nome")} /></div>
-          <div><Label>Descrição *</Label><Textarea rows={2} value={f.descricao} onChange={set("descricao")} placeholder="Ex.: Bolo de ninho com morango, 2 kg" /></div>
+          <div className="space-y-1">
+            <Label>Itens *</Label>
+            {linhas.map((l, idx) => (
+              <div key={idx} className="flex gap-2">
+                <Input className="w-24" placeholder="Qtd" value={l.qtd} onChange={e => setLinhas(p => p.map((x, i) => i === idx ? { ...x, qtd: e.target.value } : x))} />
+                <Input className="flex-1" placeholder="Ex.: Coxinha de frango" value={l.nome} onChange={e => setLinhas(p => p.map((x, i) => i === idx ? { ...x, nome: e.target.value } : x))} />
+                <Button type="button" size="icon" variant="ghost" disabled={linhas.length === 1} onClick={() => setLinhas(p => p.filter((_, i) => i !== idx))}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+              </div>
+            ))}
+            <Button type="button" variant="outline" size="sm" onClick={() => setLinhas(p => [...p, { qtd: "", nome: "" }])}><Plus className="h-4 w-4 mr-1" /> Adicionar item</Button>
+          </div>
           <div className="grid grid-cols-3 gap-2">
-            <div><Label>Quantidade *</Label><Input inputMode="decimal" value={f.quantidade} onChange={set("quantidade")} /></div>
+            <div>
+              <Label>Tipo</Label>
+              <Select value={f.tipo} onValueChange={set("tipo")}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="retirada">Retirada</SelectItem><SelectItem value="entrega">Entrega</SelectItem></SelectContent>
+              </Select>
+            </div>
             <div><Label>Data *</Label><Input type="date" value={f.data_entrega} onChange={set("data_entrega")} /></div>
             <div><Label>Hora *</Label><Input type="time" value={f.hora_entrega} onChange={set("hora_entrega")} /></div>
           </div>
+          {f.tipo === "entrega" && (
+            <div><Label>Endereço da entrega</Label><Input value={f.endereco} onChange={set("endereco")} placeholder="Rua, número, bairro" /></div>
+          )}
 
           <button type="button" onClick={() => setMais(m => !m)} className="flex items-center gap-1 text-sm font-semibold text-pink-dark">
             {mais ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />} Mais detalhes
           </button>
           {mais && (
             <div className="space-y-3 border rounded-xl p-3 bg-muted/30">
-              <div className="grid grid-cols-2 gap-2">
-                <div><Label>Telefone</Label><Input value={f.cliente_telefone} onChange={set("cliente_telefone")} /></div>
-                <div><Label>Unidade</Label><Input value={f.unidade} onChange={set("unidade")} placeholder="kg, un, cento..." /></div>
-              </div>
+              <div><Label>Telefone</Label><Input value={f.cliente_telefone} onChange={set("cliente_telefone")} /></div>
               <div><Label>Observações</Label><Textarea rows={2} value={f.observacoes} onChange={set("observacoes")} /></div>
-              <div>
-                <Label>Tipo</Label>
-                <Select value={f.tipo} onValueChange={set("tipo")}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="retirada">Retirada</SelectItem><SelectItem value="entrega">Entrega</SelectItem></SelectContent>
-                </Select>
-              </div>
               <div className="space-y-2">
                 <Label>Produtos (usados para montar a venda na entrega)</Label>
                 {itens.map((it, idx) => {

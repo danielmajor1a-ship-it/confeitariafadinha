@@ -12,7 +12,7 @@ import { CalendarClock, ChevronLeft, ChevronRight, Plus, Pencil, Play, PackageCh
 import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
 import OrderFormDialog, { type OrderFormInitial } from "@/components/OrderFormDialog";
-import { db, STATUS_LABELS, fmtData, fmtHora, gerarToken, getPrintPref, setPrintPref, imprimirFicha, type ConfigProducao, type Encomenda, type EncomendaItem } from "@/lib/encomendas";
+import { db, STATUS_LABELS, fmtData, fmtHora, gerarToken, getPrintPref, setPrintPref, imprimirFicha, type ConfigProducao, type Encomenda, type EncomendaItem, linhasDe } from "@/lib/encomendas";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -119,7 +119,7 @@ export default function Orders() {
         <div className="flex items-start justify-between gap-2">
           <div>
             <p className="text-lg font-bold text-chocolate">{fmtHora(e.hora_entrega)} · {e.cliente_nome}</p>
-            <p className="text-sm">{e.descricao} — {e.quantidade} {e.unidade || ""}</p>
+            <div className="text-sm">{linhasDe(e).map((l, i) => <p key={i}>{l}</p>)}</div>
             {e.observacoes && <p className="text-xs text-muted-foreground">Obs: {e.observacoes}</p>}
             <p className="text-xs text-muted-foreground">
               {e.tipo === "entrega" ? "Entrega" : "Retirada"}
@@ -210,7 +210,7 @@ export default function Orders() {
                   <tr key={e.id} className="border-t">
                     <td className="p-2 whitespace-nowrap">{fmtData(e.data_entrega)} {fmtHora(e.hora_entrega)}</td>
                     <td className="p-2">{e.cliente_nome}</td>
-                    <td className="p-2">{e.descricao}</td>
+                    <td className="p-2">{linhasDe(e).join(", ")}</td>
                     <td className="p-2">{e.valor_total ? fmt(Number(e.valor_total)) : "—"}</td>
                     <td className="p-2">{Number(e.valor_sinal) > 0 ? fmt(Number(e.valor_sinal)) : "—"}</td>
                     <td className="p-2">{statusBadge(e.status)}</td>

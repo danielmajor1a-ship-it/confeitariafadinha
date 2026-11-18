@@ -23,7 +23,20 @@ export interface Encomenda {
   entregue_em: string | null;
   valor_total: number | null;
   valor_sinal: number;
+  linhas?: Linha[] | null;
+  endereco?: string | null;
   created_at: string;
+}
+
+export interface Linha { qtd: string; nome: string }
+
+/** Itens em linhas ("20 × Coxinha"); encomendas antigas usam a descrição solta. */
+export function linhasDe(e: { linhas?: Linha[] | null; descricao: string; quantidade: number; unidade: string | null }): string[] {
+  const l = (e.linhas || []).filter(x => x?.nome?.trim());
+  if (l.length) return l.map(x => `${String(x.qtd || "").trim() || "1"} × ${x.nome.trim()}`);
+  const q = Number(e.quantidade);
+  const extra = q && q !== 1 || e.unidade ? ` — ${e.quantidade} ${e.unidade || ""}`.trimEnd() : "";
+  return [`${e.descricao}${extra}`];
 }
 
 export interface EncomendaItem {
@@ -74,14 +87,14 @@ export const fmtDuracao = (min: number) => {
   return h > 0 ? `${h}h ${m}min` : `${m} min`;
 };
 
-export function fichaTexto(e: { cliente_nome: string; descricao: string; quantidade: number; unidade: string | null; observacoes: string | null; tipo: string; data_entrega: string; hora_entrega: string }) {
+export function fichaTexto(e: { cliente_nome: string; descricao: string; quantidade: number; unidade: string | null; observacoes: string | null; tipo: string; data_entrega: string; hora_entrega: string; linhas?: Linha[] | null; endereco?: string | null }) {
   const line = "-".repeat(32);
   return [
     "CONFEITARIA FADINHA", line, "ENCOMENDA", line,
-    `Cliente: ${e.cliente_nome}`, "", e.descricao,
-    `Qtd: ${e.quantidade} ${e.unidade || ""}`.trim(),
+    `Cliente: ${e.cliente_nome}`, "", ...linhasDe(e),
     e.observacoes ? `Obs: ${e.observacoes}` : "",
-    `Tipo: ${e.tipo === "entrega" ? "ENTREGA" : "RETIRADA"}`, line,
+    `Tipo: ${e.tipo === "entrega" ? "ENTREGA" : "RETIRADA"}`,
+    e.tipo === "entrega" && e.endereco ? `End: ${e.endereco}` : "", line,
     `ENTREGA: ${fmtData(e.data_entrega)} ${fmtHora(e.hora_entrega)}`, line, "", "",
   ].filter((l, i, a) => !(l === "" && a[i - 1] === "")).join("\n");
 }
@@ -124,10 +137,10 @@ export async function imprimirFicha(id: string) {
     <div class="c">CONFEITARIA FADINHA</div><hr/>
     <div class="c" style="font-size:13px">ENCOMENDA</div><hr/>
     <div>Cliente: <b>${esc(e.cliente_nome)}</b></div>
-    <div style="margin-top:4px;font-weight:700">${esc(e.descricao)}</div>
-    <div>Qtd: ${esc(e.quantidade)} ${esc(e.unidade || "")}</div>
+    <div style="margin-top:4px;font-weight:700">${linhasDe(e).map(esc).join("<br/>")}</div>
     ${e.observacoes ? `<div>Obs: ${esc(e.observacoes)}</div>` : ""}
-    <div>Tipo: ${e.tipo === "entrega" ? "ENTREGA" : "RETIRADA"}</div><hr/>
+    <div>Tipo: ${e.tipo === "entrega" ? "ENTREGA" : "RETIRADA"}</div>
+    ${e.tipo === "entrega" && e.endereco ? `<div>End: ${esc(e.endereco)}</div>` : ""}<hr/>
     <div class="c" style="font-size:16px;font-weight:800">${esc(fmtData(e.data_entrega))}<br/>${esc(fmtHora(e.hora_entrega))}</div><hr/>
   </div></body></html>`;
   const iframe = document.createElement("iframe");

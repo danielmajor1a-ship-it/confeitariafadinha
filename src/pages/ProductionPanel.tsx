@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { db, fmtDuracao, fmtHora, fmtData, minutosRestantes, termometro, type Termo } from "@/lib/encomendas";
+import { db, linhasDe, type Linha, fmtDuracao, fmtHora, fmtData, minutosRestantes, termometro, type Termo } from "@/lib/encomendas";
 
 interface PItem {
   id: string; cliente: string; descricao: string; quantidade: number; unidade: string | null; observacoes: string | null;
   data_entrega: string; hora_entrega: string; tipo: string; status: string; iniciada_em: string | null; entregue_em: string | null;
+  linhas?: Linha[] | null; endereco?: string | null; nova?: boolean;
 }
 
 // Cores fixas do painel (alto contraste para baixa visão), isoladas do tema do sistema
@@ -39,7 +40,7 @@ export default function ProductionPanel() {
     setData(data);
   }, [token]);
 
-  useEffect(() => { load(); const t = setInterval(load, 30000); return () => clearInterval(t); }, [load]);
+  useEffect(() => { load(); const t = setInterval(load, 15000); return () => clearInterval(t); }, [load]);
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
   useEffect(() => { supabase.auth.getSession().then(({ data }) => setLogged(!!data.session)); }, []);
   useEffect(() => { try { localStorage.setItem(SCALE_KEY, String(scale)); } catch { /* ignore */ } }, [scale]);
@@ -77,6 +78,32 @@ export default function ProductionPanel() {
     }, 60);
     return () => clearInterval(t);
   }, [data]);
+
+  // Aviso sonoro enquanto houver encomenda nova sem "Vi, estou ciente"
+  const temNova = !!data?.encomendas.some(e => e.nova && (e.status === "agendada" || e.status === "em_producao"));
+  useEffect(() => {
+    if (!temNova) return;
+    const bip = () => {
+      try {
+        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        [0, 0.35].forEach(t => {
+          const o = ctx.createOscillator(), g = ctx.createGain();
+          o.frequency.value = 880; o.connect(g); g.connect(ctx.destination);
+          g.gain.setValueAtTime(0.4, ctx.currentTime + t); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.3);
+          o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.3);
+        });
+        setTimeout(() => ctx.close(), 1500);
+      } catch { /* ignore */ }
+    };
+    bip();
+    const t = setInterval(bip, 8000);
+    return () => clearInterval(t);
+  }, [temNova]);
+
+  async function ciente(id: string) {
+    setData(d => d && { ...d, encomendas: d.encomendas.map(x => x.id === id ? { ...x, nova: false } : x) });
+    await db.rpc("marcar_encomenda_vista", { p_token: token, p_id: id });
+  }
 
   async function doConfirm() {
     if (!confirm || busy) return;
@@ -135,12 +162,18 @@ export default function ProductionPanel() {
   );
 
   const Item = ({ e, big }: { e: PItem; big?: boolean }) => (
-    <div style={{ background: C.card, border: `2px solid ${C.line}`, borderRadius: 16, padding: "0.6em 0.8em", marginBottom: "0.6em" }}>
+    <div style={{ background: C.card, border: `${e.nova ? 6 : 2}px solid ${e.nova ? "#FACC15" : C.line}`, animation: e.nova ? "pulse 1s infinite" : undefined, borderRadius: 16, padding: "0.6em 0.8em", marginBottom: "0.6em" }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5em", alignItems: "baseline", flexWrap: "wrap" }}>
-        <span style={{ fontWeight: 700, fontSize: big ? "2.2em" : "1.5em" }}>{fmtHora(e.hora_entrega)}{e.data_entrega < hojeStr ? ` (${fmtData(e.data_entrega)})` : ""}</span>
+        <span style={{ fontWeight: 700, fontSize: big ? "2.2em" : "1.5em" }}>{fmtHora(e.hora_entrega)}{e.data_entrega !== hojeStr ? ` (${fmtData(e.data_entrega).slice(0, 5)})` : ""}</span>
         <span style={{ fontWeight: 700 }}>{e.cliente} · {e.tipo === "entrega" ? "ENTREGA" : "RETIRADA"}</span>
       </div>
-      <div style={{ fontWeight: 700, fontSize: big ? "1.4em" : "1em" }}>{e.descricao} — {e.quantidade} {e.unidade || ""}</div>
+      {e.nova && (
+        <button style={{ ...btn("#FACC15"), width: "100%", marginTop: "0.3em" }} onClick={() => ciente(e.id)}>🔔 NOVA ENCOMENDA — VI, ESTOU CIENTE</button>
+      )}
+      <div style={{ fontWeight: 700, fontSize: big ? "1.4em" : "1em", marginTop: "0.2em" }}>
+        {linhasDe(e).map((l, i) => <div key={i}>• {l}</div>)}
+      </div>
+      {e.tipo === "entrega" && e.endereco && <div>📍 {e.endereco}</div>}
       {e.observacoes && <div style={{ color: C.muted }}>Obs: {e.observacoes}</div>}
       {e.status === "em_producao" && (
         <div style={{ marginTop: "0.3em", fontWeight: 700 }}>
@@ -197,7 +230,7 @@ export default function ProductionPanel() {
           <p>{amanha.map(e => fmtHora(e.hora_entrega)).join(" · ") || "—"}</p>
           <h2 className="ph" style={{ marginTop: "1em" }}>PRÓXIMOS DIAS</h2>
           {futuros.length === 0 && <p style={{ color: C.muted }}>—</p>}
-          {futuros.map(e => <p key={e.id}>{fmtData(e.data_entrega).slice(0, 5)} {fmtHora(e.hora_entrega)} · {e.descricao}</p>)}
+          {futuros.map(e => <p key={e.id}>{fmtData(e.data_entrega).slice(0, 5)} {fmtHora(e.hora_entrega)} · {linhasDe(e).join(", ")}</p>)}
         </section>
       </div>
 
@@ -210,7 +243,7 @@ export default function ProductionPanel() {
           <div style={{ background: C.card, border: `3px solid ${C.fg}`, borderRadius: 20, padding: "1em", maxWidth: 700, width: "100%" }}>
             {confirm ? (<>
               <p style={{ fontWeight: 700, fontSize: "1.2em" }}>{confirm.kind === "iniciar" ? "Iniciar a produção?" : "Ir para o caixa entregar?"}</p>
-              <p>{fmtHora(confirm.item.hora_entrega)} · {confirm.item.descricao}</p>
+              <p>{fmtHora(confirm.item.hora_entrega)} · {linhasDe(confirm.item).join(", ")}</p>
               <div style={{ display: "flex", gap: "0.5em", marginTop: "0.8em" }}>
                 <button style={btn(C.line)} onClick={() => setConfirm(null)}>VOLTAR</button>
                 <button style={btn("#22C55E")} disabled={busy} onClick={doConfirm}>SIM</button>
