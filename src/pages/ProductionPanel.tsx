@@ -86,13 +86,32 @@ export default function ProductionPanel() {
     const bip = () => {
       try {
         const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-        [0, 0.35].forEach(t => {
-          const o = ctx.createOscillator(), g = ctx.createGain();
-          o.frequency.value = 880; o.connect(g); g.connect(ctx.destination);
-          g.gain.setValueAtTime(0.4, ctx.currentTime + t); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.3);
-          o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.3);
+        ctx.resume?.();
+        // Limitador: segura o volume no máximo sem distorcer o som
+        const shaper = ctx.createWaveShaper();
+        const curve = new Float32Array(2048);
+        for (let i = 0; i < 2048; i++) {
+          const x = (i / 2047) * 2 - 1;
+          curve[i] = Math.tanh(x * 3) / Math.tanh(3);
+        }
+        shaper.curve = curve;
+        shaper.oversample = "4x";
+        const out = ctx.createGain();
+        out.gain.value = 0.8;
+        shaper.connect(out); out.connect(ctx.destination);
+        [0, 0.35, 0.7].forEach(t => {
+          [880, 1320].forEach(freq => {
+            const o = ctx.createOscillator(), g = ctx.createGain();
+            o.type = "square";
+            o.frequency.value = freq;
+            o.connect(g); g.connect(shaper);
+            const at = ctx.currentTime + t;
+            g.gain.setValueAtTime(0.9, at);
+            g.gain.exponentialRampToValueAtTime(0.001, at + 0.3);
+            o.start(at); o.stop(at + 0.32);
+          });
         });
-        setTimeout(() => ctx.close(), 1500);
+        setTimeout(() => ctx.close(), 2000);
       } catch { /* ignore */ }
     };
     bip();
