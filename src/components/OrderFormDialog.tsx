@@ -9,7 +9,7 @@ import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "@/contexts/AppContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { db, isAndroid, imprimirFicha, type Encomenda, type EncomendaItem, type Linha } from "@/lib/encomendas";
+import { db, isAndroid, imprimirFicha, separarPedido, type Encomenda, type EncomendaItem, type Linha } from "@/lib/encomendas";
 
 export interface OrderFormInitial {
   encomenda?: Partial<Encomenda>;
@@ -37,6 +37,8 @@ export default function OrderFormDialog({ open, onOpenChange, initial, onSaved }
   const [mais, setMais] = useState(false);
   const [saving, setSaving] = useState(false);
   const [addProd, setAddProd] = useState("");
+  const [colar, setColar] = useState("");
+  const [modoColar, setModoColar] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -122,7 +124,22 @@ export default function OrderFormDialog({ open, onOpenChange, initial, onSaved }
         <fieldset disabled={saving} className="space-y-3">
           <div><Label>Cliente *</Label><Input value={f.cliente_nome} onChange={set("cliente_nome")} /></div>
           <div className="space-y-1">
-            <Label>Itens *</Label>
+            <div className="flex items-center justify-between">
+              <Label>Itens *</Label>
+              <Button type="button" variant="outline" size="sm" onClick={() => setModoColar(m => !m)}>{modoColar ? "Fechar" : "Colar pedido do WhatsApp"}</Button>
+            </div>
+            {modoColar && (
+              <div className="space-y-2 border rounded-xl p-3 bg-muted/30">
+                <Textarea rows={5} value={colar} onChange={e => setColar(e.target.value)} placeholder={"Cole aqui o pedido, um item por linha. Ex.:\n30 coxinhas\n20 kibes\n1 kg bolo de ninho"} />
+                <Button type="button" size="sm" disabled={!colar.trim()} onClick={() => {
+                  const novas = separarPedido(colar);
+                  if (!novas.length) return;
+                  setLinhas(p => [...p.filter(x => x.nome.trim()), ...novas]);
+                  setColar(""); setModoColar(false);
+                  toast.success(`${novas.length} itens separados. Confira as quantidades.`);
+                }}>Separar itens</Button>
+              </div>
+            )}
             {linhas.map((l, idx) => (
               <div key={idx} className="flex gap-2">
                 <Input className="w-24" placeholder="Qtd" value={l.qtd} onChange={e => setLinhas(p => p.map((x, i) => i === idx ? { ...x, qtd: e.target.value } : x))} />

@@ -154,3 +154,14 @@ export async function imprimirFicha(id: string) {
     setTimeout(() => iframe.remove(), 60000);
   }, 250);
 }
+
+/** Separa um pedido colado do WhatsApp em linhas (quantidade + nome). */
+export function separarPedido(texto: string): Linha[] {
+  return texto.split(/\r?\n|;/).map(l => l.replace(/^[\s\-•*·>]+|\s+$/g, "").replace(/^\d+[.)]\s+/, "")).filter(Boolean).map(l => {
+    const m = l.match(/^(\d+(?:[.,]\d+)?\s*(?:kg|g|un|und|unid|unidades?|cento|dz|d[uú]zias?)?)\s*(?:x|×|-|:|de\s)?\s*(.+)$/i);
+    if (m && m[2].trim()) return { qtd: m[1].trim(), nome: m[2].trim() };
+    const f = l.match(/^(.+?)\s*[-:x×]?\s*(\d+(?:[.,]\d+)?\s*(?:kg|g|un|und)?)$/i);
+    if (f && f[1].trim()) return { qtd: f[2].trim(), nome: f[1].trim() };
+    return { qtd: "1", nome: l };
+  });
+}
