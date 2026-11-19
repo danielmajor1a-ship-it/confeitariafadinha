@@ -898,6 +898,7 @@ export type Database = {
       }
       purchases: {
         Row: {
+          bonificacao: boolean
           confirmed_at: string | null
           cost_date: string | null
           created_at: string
@@ -913,6 +914,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          bonificacao?: boolean
           confirmed_at?: string | null
           cost_date?: string | null
           created_at?: string
@@ -928,6 +930,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          bonificacao?: boolean
           confirmed_at?: string | null
           cost_date?: string | null
           created_at?: string
@@ -1424,6 +1427,10 @@ export type Database = {
             }
             Returns: Json
           }
+      register_purchase_bonificacao: {
+        Args: { _items: Json; _supplier: string }
+        Returns: Json
+      }
       register_supplier_payment: {
         Args: {
           _allocations: Json

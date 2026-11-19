@@ -127,7 +127,9 @@ function parseXml(text: string) {
   const idAttr = doc.getElementsByTagName("infNFe")[0]?.getAttribute("Id") || "";
   const nfeKey = (doc.getElementsByTagName("chNFe")[0]?.textContent || idAttr).replace(/\D/g, "").slice(-44) || "";
   const total = parseFloat(doc.querySelector("ICMSTot > vNF")?.textContent || "") || 0;
-  return { supplier, items, dueDate: dVenc.slice(0, 10), nfeKey, total };
+  const natOp = doc.getElementsByTagName("natOp")[0]?.textContent?.trim() || "";
+  const bonus = /bonifica/i.test(normalize(natOp));
+  return { supplier, items, dueDate: bonus ? "" : dVenc.slice(0, 10), nfeKey, total, bonus };
 }
 
 export default function PurchaseEntry() {
@@ -147,6 +149,7 @@ export default function PurchaseEntry() {
   const [dueDate, setDueDate] = useState("");
   const [dueFromXml, setDueFromXml] = useState(false);
   const [nfeKey, setNfeKey] = useState("");
+  const [bonus, setBonus] = useState(false);
   const [payFor, setPayFor] = useState<{ id: string; supplier: string; total: number } | null>(null);
 
   // Manual purchase
@@ -252,7 +255,7 @@ export default function PurchaseEntry() {
           const { data: sim } = await supabase.from("purchases").select("purchase_date").eq("source", "nf_xml").is("nfe_key", null).eq("supplier", x.supplier).eq("total", x.total).limit(1);
           if (sim?.length && !window.confirm(`Já existe uma nota de ${x.supplier} com o mesmo valor, lançada em ${sim[0].purchase_date.split("-").reverse().join("/")}. Pode ser a mesma nota. Lançar mesmo assim?`)) return;
         }
-        setNfeKey(x.nfeKey);
+        setNfeKey(x.nfeKey); setBonus(x.bonus);
       } else {
         if (file.size > 10 * 1024 * 1024) throw new Error("Arquivo muito grande (máx. 10 MB)");
         const isPdf = file.type === "application/pdf";
@@ -262,7 +265,7 @@ export default function PurchaseEntry() {
         if (error || data?.error) throw new Error(data?.error || "Não foi possível ler a nota");
         result = data;
         src = isPdf ? "nf_pdf" : "nf_foto";
-        setNfeKey("");
+        setNfeKey(""); setBonus(false);
       }
       const items = (result.items || []).filter(i => i.description && i.quantity > 0);
       if (!items.length) throw new Error("Nenhum item encontrado");
@@ -341,7 +344,16 @@ export default function PurchaseEntry() {
       if (bErr) { toast.error(`Não foi possível salvar a embalagem de ${l.description} (nada foi salvo): ${bErr.message}`); return false; }
     }
     // Compra, itens novos, itens da compra, movimento de estoque e custo médio: uma única transação
-    const { data: res, error } = await supabase.rpc("register_purchase" as any, {
+    const isBonus = src === "nf_xml" && bonus;
+    const { data: res, error } = isBonus
+      ? await supabase.rpc("register_purchase_bonificacao" as any, {
+          _supplier: sup,
+          _items: rows.map(l => ({
+            product_id: l.targetId === NEW_PRODUCT ? null : l.targetId,
+            description: l.description, quantity: convert(l).qty, unit: l.buyChoice ? (U(l.stockUnit) || "UN") : (U(l.stockUnit) || l.unit || ""),
+          })),
+        } as any)
+      : await supabase.rpc("register_purchase" as any, {
       _supplier: sup, _source: src,
       _items: rows.map(l => ({
         product_id: l.targetId === NEW_PRODUCT ? null : l.targetId,
@@ -354,13 +366,15 @@ export default function PurchaseEntry() {
     const r = res as { items: number; alerts: number; purchase_id: string };
     if (src === "nf_xml" && nfeKey) await supabase.from("purchases").update({ nfe_key: nfeKey } as any).eq("id", r.purchase_id);
     const total = Math.round(rows.reduce((t, l) => t + l.total, 0) * 100) / 100;
-    if (isDeferredSupplier(sup) || dueFromXml) {
+    if (isBonus) {
+      // Bonificação: sem custo e sem vencimento
+    } else if (isDeferredSupplier(sup) || dueFromXml) {
       const { error: dErr } = await supabase.from("purchases").update({ due_date: dueDate } as any).eq("id", r.purchase_id);
       if (dErr) toast.error(`Compra salva, mas o vencimento não foi gravado: ${dErr.message}`);
     } else if (sup.trim() && total > 0) {
       setPayFor({ id: r.purchase_id, supplier: sup.trim(), total });
     }
-    toast.success(`Compra registrada: ${r.items} item(ns) no estoque`);
+    toast.success(isBonus ? `Bonificação registrada: ${r.items} item(ns) no estoque, sem mudar custo` : `Compra registrada: ${r.items} item(ns) no estoque`);
     if (r.alerts > 0) toast.warning(`${r.alerts} item(ns) mudaram de custo mais de 5%`);
     await refresh();
     return true;
@@ -370,7 +384,7 @@ export default function PurchaseEntry() {
     if (lines.some(l => convert(l).blocked)) { toast.error("Defina o fator de conversão dos itens destacados antes de confirmar"); return; }
     if (lines.some(l => convert(l).qty <= 0)) { toast.error("Quantidade deve ser maior que zero"); return; }
     if (lines.some(l => !l.description.trim())) { toast.error("Preencha a descrição de todos os itens"); return; }
-    if (isDeferredSupplier(supplier) && !dueDate) { toast.error("Informe a data de vencimento da nota"); return; }
+    if (isDeferredSupplier(supplier) && !dueDate && !(source === "nf_xml" && bonus)) { toast.error("Informe a data de vencimento da nota"); return; }
     setSaving(true);
     try {
       if (await savePurchase(source, supplier, lines)) { setOpen(false); setLines([]); setDocFile(null); setDueDate(""); }
@@ -436,7 +450,12 @@ export default function PurchaseEntry() {
               <Label>Fornecedor</Label>
               <Input value={supplier} onChange={e => setSupplier(e.target.value)} />
             </div>
-            {isDeferredSupplier(supplier) && (
+            {source === "nf_xml" && bonus && (
+              <div className="rounded-lg border border-accent bg-accent/10 px-3 py-2 text-sm">
+                <b>Nota de bonificação</b>: os itens entram no estoque, mas não mudam o custo e não geram conta a pagar.
+              </div>
+            )}
+            {isDeferredSupplier(supplier) && !(source === "nf_xml" && bonus) && (
               <div className="w-44"><Label>Vencimento *</Label>
                 <Input type="date" value={dueDate} disabled={dueFromXml} onChange={e => setDueDate(e.target.value)} />
                 <p className="text-xs text-muted-foreground mt-1">{dueFromXml ? "Lido da nota. " : ""}O custo conta nesta data.</p>
