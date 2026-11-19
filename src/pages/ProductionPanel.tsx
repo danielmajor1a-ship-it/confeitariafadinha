@@ -32,6 +32,21 @@ export default function ProductionPanel() {
   const [busy, setBusy] = useState(false);
   const [scale, setScale] = useState(() => { try { return Number(localStorage.getItem(SCALE_KEY)) || 1; } catch { return 1; } });
   const listRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<AudioContext | null>(null);
+  const [somAtivo, setSomAtivo] = useState(false);
+
+  // O navegador só libera som depois de um toque na tela
+  const ativarSom = useCallback(() => {
+    try {
+      if (!audioRef.current) audioRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      audioRef.current.resume().then(() => setSomAtivo(audioRef.current?.state === "running"));
+    } catch { /* ignore */ }
+  }, []);
+  useEffect(() => {
+    window.addEventListener("pointerdown", ativarSom);
+    window.addEventListener("keydown", ativarSom);
+    return () => { window.removeEventListener("pointerdown", ativarSom); window.removeEventListener("keydown", ativarSom); };
+  }, [ativarSom]);
 
   const load = useCallback(async () => {
     const { data, error } = await db.rpc("get_painel", { p_token: token });
@@ -85,8 +100,8 @@ export default function ProductionPanel() {
     if (!temNova) return;
     const bip = () => {
       try {
-        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-        ctx.resume?.();
+        const ctx = audioRef.current;
+        if (!ctx || ctx.state !== "running") return;
         // Limitador: segura o volume no máximo sem distorcer o som
         const shaper = ctx.createWaveShaper();
         const curve = new Float32Array(2048);
@@ -111,13 +126,12 @@ export default function ProductionPanel() {
             o.start(at); o.stop(at + 0.32);
           });
         });
-        setTimeout(() => ctx.close(), 2000);
       } catch { /* ignore */ }
     };
     bip();
     const t = setInterval(bip, 8000);
     return () => clearInterval(t);
-  }, [temNova]);
+  }, [temNova, somAtivo]);
 
   async function ciente(id: string) {
     setData(d => d && { ...d, encomendas: d.encomendas.map(x => x.id === id ? { ...x, nova: false } : x) });
@@ -228,6 +242,11 @@ export default function ProductionPanel() {
         </div>
       </header>
 
+      {!somAtivo && (
+        <button onClick={ativarSom} style={{ ...btn("#FACC15"), display: "block", width: "calc(100% - 2em)", margin: "0 1em 0.6em" }}>
+          🔇 SOM DESLIGADO — TOQUE AQUI PARA ATIVAR O AVISO SONORO
+        </button>
+      )}
       <div className="pgrid">
         <section className="pnext">
           <h2 className="ph">PRÓXIMA</h2>
