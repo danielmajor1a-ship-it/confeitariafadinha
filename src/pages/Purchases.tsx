@@ -11,7 +11,9 @@ const SOURCE: Record<string, string> = {
 };
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-type Row = { id: string; purchase_date: string; cost_date: string | null; due_date: string | null; created_at: string; supplier: string; source: string; total: number; status: string; document_url: string | null };
+type Row = { id: string; purchase_date: string; cost_date: string | null; due_date: string | null; created_at: string; supplier: string; source: string; total: number; status: string; document_url: string | null; nfe_key: string | null; bonificacao: boolean };
+// Número da nota (posições 26–34 da chave de 44 dígitos)
+const nfeNumber = (k: string | null) => k && k.length === 44 ? String(parseInt(k.slice(25, 34), 10)) : "";
 
 export default function Purchases() {
   const { products } = useApp();
@@ -24,7 +26,7 @@ export default function Purchases() {
   const load = useCallback(async () => {
     if (!range) { setRows([]); setLoading(false); return; }
     const f = ymd(range.from), t = ymd(range.to);
-    const { data } = await supabase.from("purchases").select("id, purchase_date, cost_date, due_date, created_at, supplier, source, total, status, document_url")
+    const { data } = await supabase.from("purchases").select("id, purchase_date, cost_date, due_date, created_at, supplier, source, total, status, document_url, nfe_key, bonificacao")
       .or(`and(cost_date.gte.${f},cost_date.lte.${t}),and(purchase_date.gte.${f},purchase_date.lte.${t})`)
       .order("created_at", { ascending: false }).limit(500);
     setRows((data as Row[]) || []);
@@ -54,16 +56,17 @@ export default function Purchases() {
         <div className="rounded-2xl border bg-card overflow-hidden">
           <Table>
             <TableHeader><TableRow>
-              <TableHead>Data</TableHead><TableHead>Fornecedor</TableHead><TableHead>Origem</TableHead>
+              <TableHead>Data</TableHead><TableHead>Nº nota</TableHead><TableHead>Fornecedor</TableHead><TableHead>Origem</TableHead>
               <TableHead className="text-right">Total</TableHead><TableHead>Status</TableHead><TableHead />
             </TableRow></TableHeader>
             <TableBody>
-              {!loading && rows.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhuma compra no período</TableCell></TableRow>}
+              {!loading && rows.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhuma compra no período</TableCell></TableRow>}
               {rows.map(r => (
                 <TableRow key={r.id}>
                   <TableCell>{new Date(r.created_at).toLocaleDateString("pt-BR")}{r.due_date && <div className="text-xs text-muted-foreground">vence {new Date(r.due_date + "T12:00:00").toLocaleDateString("pt-BR")}</div>}</TableCell>
+                  <TableCell className="font-mono text-sm" title={r.nfe_key || ""}>{nfeNumber(r.nfe_key) || "—"}</TableCell>
                   <TableCell>{r.supplier || "—"}</TableCell>
-                  <TableCell>{SOURCE[r.source] || r.source}</TableCell>
+                  <TableCell>{SOURCE[r.source] || r.source}{r.bonificacao && <Badge variant="secondary" className="ml-2">Bonificação</Badge>}</TableCell>
                   <TableCell className="text-right font-medium">{fmt(Number(r.total))}</TableCell>
                   <TableCell><Badge variant={r.status === "confirmada" ? "default" : "secondary"}>{r.status === "confirmada" ? "Confirmada" : "Rascunho"}</Badge></TableCell>
                   <TableCell>{r.document_url && <button className="text-sm underline text-primary" onClick={() => openDoc(r.document_url!)}>Ver cupom</button>}</TableCell>
