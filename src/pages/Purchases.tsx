@@ -20,12 +20,12 @@ export default function Purchases() {
   const [pv, setPv] = useState<PeriodState>({ period: "30" });
   const range = useMemo(() => resolvePeriod(pv), [pv]);
 
-  // Filtra pela data de custo (vencimento quando houver, senão data da compra); rascunhos sem data entram pela data da compra.
+  // Mostra a compra se a data da compra OU a data de custo (vencimento) cair no período.
   const load = useCallback(async () => {
     if (!range) { setRows([]); setLoading(false); return; }
     const f = ymd(range.from), t = ymd(range.to);
     const { data } = await supabase.from("purchases").select("id, purchase_date, cost_date, due_date, created_at, supplier, source, total, status, document_url")
-      .or(`and(cost_date.gte.${f},cost_date.lte.${t}),and(cost_date.is.null,purchase_date.gte.${f},purchase_date.lte.${t})`)
+      .or(`and(cost_date.gte.${f},cost_date.lte.${t}),and(purchase_date.gte.${f},purchase_date.lte.${t})`)
       .order("created_at", { ascending: false }).limit(500);
     setRows((data as Row[]) || []);
     setLoading(false);

@@ -124,7 +124,10 @@ function parseXml(text: string) {
     };
   });
   const dVenc = Array.from(doc.getElementsByTagName("dVenc")).map(e => e.textContent?.trim() || "").filter(Boolean).sort().pop() || "";
-  return { supplier, items, dueDate: dVenc.slice(0, 10) };
+  const idAttr = doc.getElementsByTagName("infNFe")[0]?.getAttribute("Id") || "";
+  const nfeKey = (doc.getElementsByTagName("chNFe")[0]?.textContent || idAttr).replace(/\D/g, "").slice(-44) || "";
+  const total = parseFloat(doc.querySelector("ICMSTot > vNF")?.textContent || "") || 0;
+  return { supplier, items, dueDate: dVenc.slice(0, 10), nfeKey, total };
 }
 
 export default function PurchaseEntry() {
@@ -143,6 +146,7 @@ export default function PurchaseEntry() {
   const [saving, setSaving] = useState(false);
   const [dueDate, setDueDate] = useState("");
   const [dueFromXml, setDueFromXml] = useState(false);
+  const [nfeKey, setNfeKey] = useState("");
   const [payFor, setPayFor] = useState<{ id: string; supplier: string; total: number } | null>(null);
 
   // Manual purchase
@@ -236,8 +240,19 @@ export default function PurchaseEntry() {
       let result: { supplier: string; items: any[]; dueDate?: string };
       let src: Source;
       if (file.name.toLowerCase().endsWith(".xml") || file.type.includes("xml")) {
-        result = parseXml(await readAs(file, "text"));
+        const x = parseXml(await readAs(file, "text"));
+        result = x;
         src = "nf_xml";
+        if (x.nfeKey) {
+          const { data: dup } = await supabase.from("purchases").select("purchase_date, supplier").eq("nfe_key", x.nfeKey).limit(1);
+          if (dup?.length) throw new Error(`Esta nota já foi lançada (${dup[0].supplier}, ${dup[0].purchase_date.split("-").reverse().join("/")}). Nada foi registrado de novo.`);
+        }
+        if (x.total > 0) {
+          // Notas antigas não têm a chave gravada: confere fornecedor + valor
+          const { data: sim } = await supabase.from("purchases").select("purchase_date").eq("source", "nf_xml").is("nfe_key", null).eq("supplier", x.supplier).eq("total", x.total).limit(1);
+          if (sim?.length && !window.confirm(`Já existe uma nota de ${x.supplier} com o mesmo valor, lançada em ${sim[0].purchase_date.split("-").reverse().join("/")}. Pode ser a mesma nota. Lançar mesmo assim?`)) return;
+        }
+        setNfeKey(x.nfeKey);
       } else {
         if (file.size > 10 * 1024 * 1024) throw new Error("Arquivo muito grande (máx. 10 MB)");
         const isPdf = file.type === "application/pdf";
@@ -247,6 +262,7 @@ export default function PurchaseEntry() {
         if (error || data?.error) throw new Error(data?.error || "Não foi possível ler a nota");
         result = data;
         src = isPdf ? "nf_pdf" : "nf_foto";
+        setNfeKey("");
       }
       const items = (result.items || []).filter(i => i.description && i.quantity > 0);
       if (!items.length) throw new Error("Nenhum item encontrado");
@@ -336,6 +352,7 @@ export default function PurchaseEntry() {
     if (error) {
       if (docPath) await supabase.storage.from("purchase-documents").remove([docPath]); toast.error(`Compra não registrada (nada foi salvo): ${error.message}`); return false; }
     const r = res as { items: number; alerts: number; purchase_id: string };
+    if (src === "nf_xml" && nfeKey) await supabase.from("purchases").update({ nfe_key: nfeKey } as any).eq("id", r.purchase_id);
     const total = Math.round(rows.reduce((t, l) => t + l.total, 0) * 100) / 100;
     if (isDeferredSupplier(sup) || dueFromXml) {
       const { error: dErr } = await supabase.from("purchases").update({ due_date: dueDate } as any).eq("id", r.purchase_id);

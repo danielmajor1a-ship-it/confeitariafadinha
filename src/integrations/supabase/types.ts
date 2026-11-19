@@ -904,6 +904,7 @@ export type Database = {
           document_url: string | null
           due_date: string | null
           id: string
+          nfe_key: string | null
           purchase_date: string
           source: string
           status: string
@@ -918,6 +919,7 @@ export type Database = {
           document_url?: string | null
           due_date?: string | null
           id?: string
+          nfe_key?: string | null
           purchase_date?: string
           source?: string
           status?: string
@@ -932,6 +934,7 @@ export type Database = {
           document_url?: string | null
           due_date?: string | null
           id?: string
+          nfe_key?: string | null
           purchase_date?: string
           source?: string
           status?: string
