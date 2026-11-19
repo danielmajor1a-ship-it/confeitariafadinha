@@ -151,7 +151,7 @@ export default function PurchaseEntry() {
 
   // Manual purchase
   const [manualOpen, setManualOpen] = useState(false);
-  const [mLines, setMLines] = useState<{ key: string; name: string; qty: string; total: string; addStock: boolean; newOk?: boolean }[]>([]);
+  const [mLines, setMLines] = useState<{ key: string; name: string; qty: string; total: string; addStock: boolean; newOk?: boolean; unit?: string }[]>([]);
   const newMLine = () => ({ key: Math.random().toString(36).slice(2), name: "", qty: "", total: "", addStock: true });
   const openManual = () => { setMLines([newMLine()]); setManualOpen(true); };
   const updMLine = (key: string, patch: Partial<(typeof mLines)[number]>) =>
@@ -399,7 +399,7 @@ export default function PurchaseEntry() {
         }
         lines.push({
           key: r.key, description: prod.name, quantity: r.qtyN, unit: prod.stock_unit || "UN", total: r.totalN,
-          targetId: prod.id, fromHistory: false, buyUnits: (prod.buy_units || []), buyChoice: "",
+          targetId: prod.id, fromHistory: false, buyUnits: (prod.buy_units || []), buyChoice: r.unit || "",
         });
       }
       const ok = await savePurchase("manual", "", lines);
@@ -579,7 +579,7 @@ export default function PurchaseEntry() {
                   onChange={e => {
                     const name = e.target.value;
                     const p: any = products.find(x => normalize(x.name) === normalize(name));
-                    updMLine(l.key, { name, newOk: false, ...(p ? { addStock: !p.production_only } : {}) });
+                    updMLine(l.key, { name, newOk: false, unit: "", ...(p ? { addStock: !p.production_only } : {}) });
                   }} />
                 <Input inputMode="decimal" value={l.qty} placeholder="2" onChange={e => updMLine(l.key, { qty: e.target.value })} />
                 <Input inputMode="decimal" value={l.total} placeholder="36,00" onChange={e => updMLine(l.key, { total: e.target.value })} />
@@ -590,13 +590,30 @@ export default function PurchaseEntry() {
                 <Button variant="ghost" size="sm" disabled={mLines.length === 1} onClick={() => setMLines(prev => prev.filter(x => x.key !== l.key))}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
+                {(() => {
+                  const p: any = products.find(x => normalize(x.name) === normalize(l.name));
+                  const bus = ((p?.buy_units || []) as any[]).filter(b => b.unit && b.factor > 0);
+                  if (!bus.length) return null;
+                  const q = parseFloat((l.qty || "").replace(",", "."));
+                  const bu = bus.find(b => b.unit === l.unit);
+                  return (
+                    <div className="col-span-5 flex items-center gap-2 text-xs pl-1">
+                      <span className="text-muted-foreground">Quantidade em:</span>
+                      <select className="h-8 rounded-md border bg-background px-2" value={l.unit || ""} onChange={e => updMLine(l.key, { unit: e.target.value })}>
+                        <option value="">{p.stock_unit || "UN"} (unidade do estoque)</option>
+                        {bus.map(b => <option key={b.unit} value={b.unit}>{b.unit} = {b.factor} {p.stock_unit || "UN"}</option>)}
+                      </select>
+                      {bu && q > 0 && <span className="text-muted-foreground">→ {q * bu.factor} {p.stock_unit || "UN"} no estoque</span>}
+                    </div>
+                  );
+                })()}
                 {!l.newOk && similarTo(l.name).length > 0 && (
                   <div className="col-span-5 rounded-lg border border-accent bg-accent/10 p-2 text-xs space-y-1">
                     <div className="font-medium">Já existe parecido. É algum destes?</div>
                     <div className="flex flex-wrap gap-1">
                       {similarTo(l.name).map((p: any) => (
                         <Button key={p.id} type="button" size="sm" variant="secondary" className="h-7 text-xs"
-                          onClick={() => updMLine(l.key, { name: p.name, addStock: !p.production_only })}>{p.name}</Button>
+                          onClick={() => updMLine(l.key, { name: p.name, unit: "", addStock: !p.production_only })}>{p.name}</Button>
                       ))}
                       <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={() => updMLine(l.key, { newOk: true })}>
                         Não, é item novo
