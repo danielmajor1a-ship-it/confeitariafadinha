@@ -9,7 +9,7 @@ import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "@/contexts/AppContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { db, isAndroid, imprimirFicha, separarPedido, type Encomenda, type EncomendaItem, type Linha } from "@/lib/encomendas";
+import { db, isAndroid, imprimirFicha, separarPedido, reconhecerItens, type Encomenda, type EncomendaItem, type Linha } from "@/lib/encomendas";
 
 export interface OrderFormInitial {
   encomenda?: Partial<Encomenda>;
@@ -69,6 +69,23 @@ export default function OrderFormDialog({ open, onOpenChange, initial, onSaved }
     const byW = (p as any).sold_by_weight;
     setItens(prev => [...prev, { produto_id: p.id, quantidade: byW ? 1000 : 1, preco_unitario: byW ? Number(p.sale_price) / 1000 : Number(p.sale_price) }]);
     setAddProd("");
+  }
+
+  function reconhecer(ls: Linha[], somar: boolean) {
+    const r = reconhecerItens(ls, products as any);
+    if (r.itens.length) {
+      setItens(prev => {
+        const base = somar ? prev.map(x => ({ ...x })) : [];
+        for (const it of r.itens) {
+          const ex = base.find(x => x.produto_id === it.produto_id);
+          if (ex) ex.quantidade += it.quantidade; else base.push(it);
+        }
+        return base;
+      });
+      setMais(true);
+    }
+    const falt = r.naoReconhecidas.length;
+    toast[falt ? "warning" : "success"](`${ls.filter(l => l.nome.trim()).length - falt} linha(s) ligadas a produtos` + (falt ? `. Sem produto: ${r.naoReconhecidas.map(l => l.nome).join(", ")} — adicione em "Mais detalhes".` : "."));
   }
 
   async function salvar() {
@@ -136,7 +153,7 @@ export default function OrderFormDialog({ open, onOpenChange, initial, onSaved }
                   if (!novas.length) return;
                   setLinhas(p => [...p.filter(x => x.nome.trim()), ...novas]);
                   setColar(""); setModoColar(false);
-                  toast.success(`${novas.length} itens separados. Confira as quantidades.`);
+                  reconhecer(novas, true);
                 }}>Separar itens</Button>
               </div>
             )}
@@ -148,6 +165,7 @@ export default function OrderFormDialog({ open, onOpenChange, initial, onSaved }
               </div>
             ))}
             <Button type="button" variant="outline" size="sm" onClick={() => setLinhas(p => [...p, { qtd: "", nome: "" }])}><Plus className="h-4 w-4 mr-1" /> Adicionar item</Button>
+            <Button type="button" variant="ghost" size="sm" className="ml-2" onClick={() => reconhecer(linhas, false)}>Reconhecer produtos de novo</Button>
           </div>
           <div className="grid grid-cols-3 gap-2">
             <div>

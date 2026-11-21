@@ -165,3 +165,58 @@ export function separarPedido(texto: string): Linha[] {
     return { qtd: "1", nome: l };
   });
 }
+
+// ---------- Reconhecer produtos a partir das linhas do pedido ----------
+const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const raiz = (w: string) => w.replace(/(oes|aes|ns|es|s)$/, "");
+const PARADAS = new Set(["de", "da", "do", "com", "e", "para", "pra", "kg", "un", "und", "unid", "cento", "dz", "mini", "festa"]);
+/** Salgados fritos de festa que no sistema entram como um único produto. */
+const FRITOS = ["cox", "quib", "kib", "risol", "risoi", "risori", "bolinha", "enroladinh", "pastel", "croquete", "salsicha", "churrinh"];
+
+export interface ProdutoBase { id: string; name: string; sale_price: number; category?: string; sells?: boolean; sold_by_weight?: boolean }
+
+function quantidadeDe(qtd: string, byW: boolean): number {
+  const t = norm(qtd);
+  const n = Number((t.match(/\d+(?:[.,]\d+)?/)?.[0] || "1").replace(",", ".")) || 1;
+  if (/cento/.test(t)) return n * 100;
+  if (/\bdz|duzia/.test(t)) return n * 12;
+  if (byW) return /kg/.test(t) ? n * 1000 : /\dg|\bg\b/.test(t) ? n : n * 1000;
+  return n;
+}
+
+export function reconhecerProduto(nome: string, produtos: ProdutoBase[]): ProdutoBase | null {
+  const vendaveis = produtos.filter(p => p.sells !== false);
+  const n = norm(nome);
+  if (FRITOS.some(k => n.includes(k))) {
+    const fritos = vendaveis.filter(p => norm(p.name).includes("salgado frito"));
+    return fritos.find(p => p.category === "encomenda") || fritos[0] || null;
+  }
+  const tokens = n.split(/[^a-z0-9]+/).filter(w => w.length >= 3 && !PARADAS.has(w)).map(raiz);
+  if (!tokens.length) return null;
+  let best: ProdutoBase | null = null, bestScore = 0, empate = false;
+  for (const p of vendaveis) {
+    const pt = new Set(norm(p.name).split(/[^a-z0-9]+/).filter(w => w.length >= 3 && !PARADAS.has(w)).map(raiz));
+    if (!pt.size) continue;
+    const hits = tokens.filter(t => pt.has(t)).length;
+    const score = hits / Math.max(tokens.length, pt.size) + hits / 100;
+    if (score > bestScore + 1e-9) { best = p; bestScore = score; empate = false; }
+    else if (Math.abs(score - bestScore) < 1e-9) empate = true;
+  }
+  return best && bestScore >= 0.5 && !empate ? best : null;
+}
+
+/** Junta as linhas do pedido em produtos do cadastro (somando quantidades). */
+export function reconhecerItens(linhas: Linha[], produtos: ProdutoBase[]) {
+  const itens: EncomendaItem[] = [];
+  const naoReconhecidas: Linha[] = [];
+  for (const l of linhas.filter(x => x.nome?.trim())) {
+    const p = reconhecerProduto(l.nome, produtos);
+    if (!p) { naoReconhecidas.push(l); continue; }
+    const byW = !!p.sold_by_weight;
+    const q = quantidadeDe(l.qtd || "1", byW);
+    const ex = itens.find(i => i.produto_id === p.id);
+    if (ex) ex.quantidade += q;
+    else itens.push({ produto_id: p.id, quantidade: q, preco_unitario: byW ? Number(p.sale_price) / 1000 : Number(p.sale_price) });
+  }
+  return { itens, naoReconhecidas };
+}
