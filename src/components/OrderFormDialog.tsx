@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "@/contexts/AppContext";
@@ -63,6 +65,7 @@ export default function OrderFormDialog({ open, onOpenChange, initial, onSaved }
   const set = (k: keyof typeof f) => (ev: any) => setF(p => ({ ...p, [k]: ev?.target ? ev.target.value : ev }));
   const somaItens = itens.reduce((s, i) => s + i.quantidade * i.preco_unitario, 0);
 
+  const [addOpen, setAddOpen] = useState(false);
   function addItem(pid: string) {
     const p = products.find(x => x.id === pid);
     if (!p) return;
@@ -205,10 +208,27 @@ export default function OrderFormDialog({ open, onOpenChange, initial, onSaved }
                     </div>
                   );
                 })}
-                <Select value={addProd} onValueChange={addItem}>
-                  <SelectTrigger className="h-9"><SelectValue placeholder={<span className="flex items-center gap-1"><Plus className="h-3 w-3" /> Adicionar produto</span>} /></SelectTrigger>
-                  <SelectContent>{products.filter(p => (p as any).sells !== false).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
-                </Select>
+                <Popover open={addOpen} onOpenChange={setAddOpen}>
+                  <PopoverTrigger asChild>
+                    <Button type="button" variant="outline" className="h-9 w-full justify-start font-normal text-muted-foreground"><Plus className="h-3 w-3 mr-1" /> Adicionar produto</Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="p-0 w-[--radix-popover-trigger-width]" align="start">
+                    <Command>
+                      <CommandInput placeholder="Pesquisar produto (ex: bolo churros)" />
+                      <CommandList className="max-h-72">
+                        <CommandEmpty>Nenhum produto encontrado.</CommandEmpty>
+                        <CommandGroup>
+                          {products.filter(p => (p as any).sells !== false).map(p => (
+                            <CommandItem key={p.id} value={`${p.name} ${p.id}`} onSelect={() => { addItem(p.id); setAddOpen(false); }} className="flex justify-between gap-3">
+                              <span className="truncate">{p.name}</span>
+                              <span className="shrink-0 tabular-nums text-muted-foreground">{fmt(Number(p.sale_price))}{(p as any).sold_by_weight ? "/kg" : ""}</span>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div><Label>Valor total</Label><Input inputMode="decimal" value={f.valor_total} onChange={set("valor_total")} placeholder={somaItens > 0 ? fmt(somaItens) : "0,00"} /></div>
