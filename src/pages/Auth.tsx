@@ -1,7 +1,8 @@
 import { AsyncForm } from "@/components/ui/async-form";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
+import { orderCheckoutAfterLogin } from "@/lib/order-delivery";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,7 @@ const PASSWORD_RULES = [
 
 export default function Auth() {
   const { signIn, signUp, user } = useAuth();
+  const location = useLocation();
   const [isLogin, setIsLogin] = useState(true);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -28,7 +30,7 @@ export default function Auth() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  if (user) return <Navigate to="/" replace />;
+  if (user) return <Navigate to={orderCheckoutAfterLogin(location.state?.from)} replace />;
 
   const trimmedEmail = email.trim().toLowerCase();
   const trimmedConfirmEmail = confirmEmail.trim().toLowerCase();

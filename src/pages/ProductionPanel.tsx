@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { canDeliverOrder } from "@/lib/order-delivery";
 import { db, linhasDe, type Linha, fmtDuracao, fmtHora, fmtData, minutosRestantes, termometro, type Termo } from "@/lib/encomendas";
 
 interface PItem {
@@ -26,7 +27,6 @@ export default function ProductionPanel() {
   const [data, setData] = useState<{ faixas: any; hoje: string; encomendas: PItem[] } | null>(null);
   const [invalid, setInvalid] = useState(false);
   const [now, setNow] = useState(new Date());
-  const [logged, setLogged] = useState(false);
   const [confirm, setConfirm] = useState<{ kind: "iniciar" | "entregar"; item: PItem } | null>(null);
   const [printAsk, setPrintAsk] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -57,7 +57,6 @@ export default function ProductionPanel() {
 
   useEffect(() => { load(); const t = setInterval(load, 15000); return () => clearInterval(t); }, [load]);
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
-  useEffect(() => { supabase.auth.getSession().then(({ data }) => setLogged(!!data.session)); }, []);
   useEffect(() => { try { localStorage.setItem(SCALE_KEY, String(scale)); } catch { /* ignore */ } }, [scale]);
 
   // Fonte e manifest só nesta tela
@@ -159,7 +158,7 @@ export default function ProductionPanel() {
 
   const f = data.faixas;
   const hojeStr = data.hoje;
-  const pend = data.encomendas.filter(e => e.status === "agendada" || e.status === "em_producao");
+  const pend = data.encomendas.filter(canDeliverOrder);
   const doDia = pend.filter(e => e.data_entrega <= hojeStr);
   const proxima = doDia[0] || pend[0];
   const restoHoje = doDia.filter(e => e.id !== proxima?.id);
@@ -169,7 +168,7 @@ export default function ProductionPanel() {
   const futuros = pend.filter(e => e.data_entrega > amanhaStr);
   const entregues = data.encomendas.filter(e => e.status === "entregue");
 
-  const Termometro = ({ e }: { e: PItem }) => {
+  const renderTermometro = ({ e }: { e: PItem }) => {
     const min = minutosRestantes(e.data_entrega, e.hora_entrega, now);
     const t = TERMO[termometro(min, f)];
     const st = termometro(min, f);
@@ -187,14 +186,15 @@ export default function ProductionPanel() {
     );
   };
 
-  const Botoes = ({ e }: { e: PItem }) => (
+  const renderBotoes = ({ e }: { e: PItem }) => (
     <div style={{ display: "flex", gap: "0.5em", marginTop: "0.5em", flexWrap: "wrap" }}>
       {e.status === "agendada" && <button style={btn("#22C55E")} onClick={() => setConfirm({ kind: "iniciar", item: e })}>▶ INICIAR</button>}
-      {logged && <button style={btn("#60A5FA")} onClick={() => setConfirm({ kind: "entregar", item: e })}>✓ ENTREGAR</button>}
+      {canDeliverOrder(e) && <Button className="h-auto min-h-14 px-5 py-3 text-[1em] font-bold" onClick={() => setConfirm({ kind: "entregar", item: e })}>✓ ENTREGAR</Button>}
     </div>
   );
 
-  const Item = ({ e, big }: { e: PItem; big?: boolean }) => (
+  // Render helpers preserve button identity across clock/audio updates and pointer clicks.
+  const renderItem = ({ e, big }: { e: PItem; big?: boolean }) => (
     <div style={{ background: C.card, border: `${e.nova ? 6 : 2}px solid ${e.nova ? "#FACC15" : C.line}`, animation: e.nova ? "pulse 1s infinite" : undefined, borderRadius: 16, padding: "0.6em 0.8em", marginBottom: "0.6em" }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5em", alignItems: "baseline", flexWrap: "wrap" }}>
         <span style={{ fontWeight: 700, fontSize: big ? "2.2em" : "1.5em" }}>{fmtHora(e.hora_entrega)}{e.data_entrega !== hojeStr ? ` (${fmtData(e.data_entrega).slice(0, 5)})` : ""}</span>
@@ -214,8 +214,8 @@ export default function ProductionPanel() {
           {e.iniciada_em && <span> iniciada há {fmtDuracao(Math.round((now.getTime() - new Date(e.iniciada_em).getTime()) / 60000))}</span>}
         </div>
       )}
-      <Termometro e={e} />
-      <Botoes e={e} />
+      {renderTermometro({ e })}
+      {renderBotoes({ e })}
     </div>
   );
 
@@ -250,13 +250,13 @@ export default function ProductionPanel() {
       <div className="pgrid">
         <section className="pnext">
           <h2 className="ph">PRÓXIMA</h2>
-          {proxima ? <Item e={proxima} big /> : <p style={{ fontSize: "1.3em" }}>Nenhuma encomenda pendente 🎉</p>}
+          {proxima ? renderItem({ e: proxima, big: true }) : <p style={{ fontSize: "1.3em" }}>Nenhuma encomenda pendente 🎉</p>}
         </section>
         <section>
           <h2 className="ph">HOJE</h2>
           <div ref={listRef} style={{ maxHeight: "70vh", overflowY: "auto" }}>
             {restoHoje.length === 0 && <p style={{ color: C.muted }}>Sem outras encomendas hoje.</p>}
-            {restoHoje.map(e => <Item key={e.id} e={e} />)}
+            {restoHoje.map(e => <div key={e.id}>{renderItem({ e })}</div>)}
             <div className="pam2">
               <h2 className="ph">AMANHÃ — {amanha.length}</h2>
               <p>{amanha.map(e => fmtHora(e.hora_entrega)).join(" · ") || "—"}</p>

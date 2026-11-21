@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
 import OrderFormDialog, { type OrderFormInitial } from "@/components/OrderFormDialog";
 import { db, STATUS_LABELS, fmtData, fmtHora, gerarToken, getPrintPref, setPrintPref, imprimirFicha, type ConfigProducao, type Encomenda, type EncomendaItem, linhasDe } from "@/lib/encomendas";
+import { canDeliverOrder, overdueOrders } from "@/lib/order-delivery";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -61,6 +62,7 @@ export default function Orders() {
   }, [month]);
 
   const dayList = list.filter(e => e.data_entrega === day).sort((a, b) => a.hora_entrega.localeCompare(b.hora_entrega));
+  const pastPending = overdueOrders(list, iso(new Date())).filter(e => e.data_entrega !== day);
 
   async function editar(e: Encomenda) {
     const { data } = await db.from("encomenda_itens").select("*").eq("encomenda_id", e.id);
@@ -113,7 +115,7 @@ export default function Orders() {
   );
 
   const card = (e: Encomenda) => {
-    const pend = e.status === "agendada" || e.status === "em_producao";
+    const pend = canDeliverOrder(e);
     return (
       <Card key={e.id} className="p-4 space-y-2">
         <div className="flex items-start justify-between gap-2">
@@ -181,6 +183,10 @@ export default function Orders() {
             <p className="text-xs text-muted-foreground mt-2">Capacidade: {cap} por dia. Verde até 60%, amarelo até 100%, vermelho acima (⚠).</p>
           </Card>
           <div className="space-y-3">
+            {pastPending.length > 0 && <section className="space-y-3">
+              <h2 className="font-bold text-destructive">Pendentes de dias anteriores — {pastPending.length}</h2>
+              {pastPending.map(e => <div key={e.id}><p className="text-sm text-muted-foreground mb-1">{fmtData(e.data_entrega)}</p>{card(e)}</div>)}
+            </section>}
             <h2 className="font-bold">{fmtData(day)} — {dayList.length} encomenda(s)</h2>
             {dayList.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma encomenda neste dia.</p>}
             {dayList.map(card)}
@@ -204,7 +210,7 @@ export default function Orders() {
           </div>
           <Card className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-left"><tr><th className="p-2">Entrega</th><th className="p-2">Cliente</th><th className="p-2">Descrição</th><th className="p-2">Total</th><th className="p-2">Sinal</th><th className="p-2">Status</th></tr></thead>
+              <thead className="bg-muted/50 text-left"><tr><th className="p-2">Entrega</th><th className="p-2">Cliente</th><th className="p-2">Descrição</th><th className="p-2">Total</th><th className="p-2">Sinal</th><th className="p-2">Status</th><th className="p-2">Ações</th></tr></thead>
               <tbody>
                 {histList.map(e => (
                   <tr key={e.id} className="border-t">
@@ -214,9 +220,10 @@ export default function Orders() {
                     <td className="p-2">{e.valor_total ? fmt(Number(e.valor_total)) : "—"}</td>
                     <td className="p-2">{Number(e.valor_sinal) > 0 ? fmt(Number(e.valor_sinal)) : "—"}</td>
                     <td className="p-2">{statusBadge(e.status)}</td>
+                    <td className="p-2">{canDeliverOrder(e) && <Button size="sm" disabled={busy} onClick={() => navigate(`/vendas?encomenda=${e.id}`)}><PackageCheck className="h-3.5 w-3.5 mr-1" />Entregar</Button>}</td>
                   </tr>
                 ))}
-                {histList.length === 0 && <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">Nenhuma encomenda encontrada.</td></tr>}
+                {histList.length === 0 && <tr><td colSpan={7} className="p-4 text-center text-muted-foreground">Nenhuma encomenda encontrada.</td></tr>}
               </tbody>
             </table>
           </Card>

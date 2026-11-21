@@ -9,3 +9,4 @@
 - Purchase cost analytics filter/group by purchases.cost_date (generated: due_date or purchase_date), so deferred-payment notes count on their due date.
 
 - Retire rejected customer-credit operations by disabling write RPCs and payment triggers, retaining deprecated data for history; never drop financial records during feature removal.
+- Use shared order-delivery eligibility based on lifecycle status, not lateness; keep past pending orders actionable and resume order checkout after login without granting public financial writes.

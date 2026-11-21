@@ -2,3 +2,5 @@
 - [x] Conferir cálculos e apresentação do gráfico.
 - [x] Remover crédito de cliente das telas, permissões e novas operações, preservando fiado e histórico.
 - [x] Conferir remoção nas telas e testar métodos de pagamento.
+- [x] Restaurar entrega de encomendas atrasadas no painel, calendário e histórico.
+- [x] Testar a abertura da entrega real sem lançar outra venda.
