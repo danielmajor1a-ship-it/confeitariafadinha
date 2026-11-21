@@ -91,7 +91,7 @@ export default function Sales() {
   // Encomendas: entrega via /vendas?encomenda=:id
   const [searchParams, setSearchParams] = useSearchParams();
   const encomendaParam = searchParams.get('encomenda');
-  const [encomenda, setEncomenda] = useState<{ id: string; cliente_nome: string; sinal: number } | null>(null);
+  const [encomenda, setEncomenda] = useState<{ id: string; cliente_nome: string; sinal: number; taxaCliente: number; taxaLoja: number } | null>(null);
   const [orderForm, setOrderForm] = useState<{ open: boolean; initial?: OrderFormInitial }>({ open: false });
 
   useEffect(() => {
@@ -120,7 +120,7 @@ export default function Sales() {
         };
       });
       setCart(items);
-      setEncomenda({ id: e.data.id, cliente_nome: e.data.cliente_nome, sinal: Number(e.data.valor_sinal || 0) });
+      setEncomenda({ id: e.data.id, cliente_nome: e.data.cliente_nome, sinal: Number(e.data.valor_sinal || 0), ...(() => { const t = e.data.tipo === 'entrega' ? Number(e.data.taxa_entrega || 0) : 0; return e.data.entrega_paga_por === 'loja' ? { taxaCliente: 0, taxaLoja: t } : { taxaCliente: t, taxaLoja: 0 }; })() });
       if (items.length === 0) toast.info('Encomenda sem produtos cadastrados: adicione os itens no carrinho');
     })();
   }, [encomendaParam, products]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -187,7 +187,8 @@ export default function Sales() {
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const grossTotal = cart.reduce((s, i) => s + i.subtotal, 0);
   const sinalAplicado = encomenda ? Math.min(encomenda.sinal, grossTotal) : 0;
-  const total = Math.round((grossTotal - sinalAplicado) * 100) / 100; // valor a cobrar
+  const taxaCliente = encomenda?.taxaCliente || 0;
+  const total = Math.round((grossTotal - sinalAplicado + taxaCliente) * 100) / 100; // valor a cobrar (inclui entrega paga pelo cliente)
   const totalItems = cart.reduce((s, i) => s + (i.byWeight ? 1 : i.quantity), 0);
 
   const filteredProducts = useMemo(() => {
@@ -319,6 +320,17 @@ export default function Sales() {
       byWeight: i.byWeight,
     }));
     let paymentsPayload = buildPaymentsPayload().filter(p => p.amount > 0.001);
+    // Entrega paga pelo cliente: sai dos pagamentos da venda (não é receita de produto) e vai ao caixa à parte
+    let taxaMetodo: string | null = null;
+    if (taxaCliente > 0) {
+      const alvo = [...paymentsPayload].sort((a, b) => b.amount - a.amount)[0];
+      if (!alvo || alvo.amount < taxaCliente - 0.001) { toast.error('Pagamento insuficiente para cobrir a entrega'); return; }
+      taxaMetodo = alvo.method;
+      const novo = Math.round((alvo.amount - taxaCliente) * 100) / 100;
+      const tax = (alvo.tax_rate || 0) * novo / 100;
+      Object.assign(alvo, { amount: novo, tax_amount: tax, net_amount: novo - tax });
+      paymentsPayload = paymentsPayload.filter(p => p.amount > 0.001);
+    }
     if (sinalAplicado > 0) {
       paymentsPayload = [{ method: 'adiantamento', amount: sinalAplicado, installments: 1, tax_rate: 0, tax_amount: 0, net_amount: sinalAplicado }, ...paymentsPayload];
     }
@@ -334,6 +346,7 @@ export default function Sales() {
           _payment_method: paymentsPayload.length === 1 ? paymentsPayload[0].method : 'misto',
           _client_id: clientId || null,
           _payments: paymentsPayload,
+          _taxa_metodo: taxaMetodo,
         });
         if (error) toast.error(error.message || 'Não foi possível finalizar a entrega');
         success = !error;
@@ -642,10 +655,14 @@ export default function Sales() {
                 <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setCart([]); sairDaEncomenda(); }}>Sair</Button>
               </div>
             )}
-            {sinalAplicado > 0 ? (
+            {encomenda && encomenda.taxaLoja > 0 && (
+              <p className="text-xs text-muted-foreground">A loja paga a entrega: {fmt(encomenda.taxaLoja)} sai do caixa como despesa ao finalizar.</p>
+            )}
+            {sinalAplicado > 0 || taxaCliente > 0 ? (
               <div className="p-4 rounded-2xl bg-card border space-y-1 shadow-sm">
-                <div className="flex justify-between text-sm"><span>Total</span><span className="font-semibold">{fmt(grossTotal)}</span></div>
-                <div className="flex justify-between text-sm text-success"><span>Sinal pago</span><span className="font-semibold">− {fmt(sinalAplicado)}</span></div>
+                <div className="flex justify-between text-sm"><span>Produtos</span><span className="font-semibold">{fmt(grossTotal)}</span></div>
+                {sinalAplicado > 0 && <div className="flex justify-between text-sm text-success"><span>Sinal pago</span><span className="font-semibold">− {fmt(sinalAplicado)}</span></div>}
+                {taxaCliente > 0 && <div className="flex justify-between text-sm"><span>Entrega</span><span className="font-semibold">+ {fmt(taxaCliente)}</span></div>}
                 <div className="p-3 mt-2 rounded-xl bg-pink-dark text-primary-foreground text-center">
                   <span className="text-sm opacity-90">A cobrar</span>
                   <p className="text-4xl font-extrabold leading-tight">{fmt(total)}</p>

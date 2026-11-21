@@ -25,6 +25,8 @@ export interface Encomenda {
   valor_sinal: number;
   linhas?: Linha[] | null;
   endereco?: string | null;
+  taxa_entrega?: number;
+  entrega_paga_por?: "cliente" | "loja";
   created_at: string;
 }
 

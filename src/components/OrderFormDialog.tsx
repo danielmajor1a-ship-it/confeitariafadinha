@@ -30,7 +30,7 @@ export default function OrderFormDialog({ open, onOpenChange, initial, onSaved }
   const editId = initial?.encomenda?.id;
   const [f, setF] = useState({
     cliente_nome: "", cliente_telefone: "", descricao: "", quantidade: "1", unidade: "", observacoes: "",
-    data_entrega: "", hora_entrega: "", tipo: "retirada", valor_total: "", endereco: "",
+    data_entrega: "", hora_entrega: "", tipo: "retirada", valor_total: "", endereco: "", taxa_entrega: "", entrega_paga_por: "cliente",
   });
   const [linhas, setLinhas] = useState<Linha[]>([{ qtd: "", nome: "" }]);
   const [itens, setItens] = useState<EncomendaItem[]>([]);
@@ -52,6 +52,8 @@ export default function OrderFormDialog({ open, onOpenChange, initial, onSaved }
       hora_entrega: e.hora_entrega?.slice(0, 5) || "", tipo: e.tipo || "retirada",
       valor_total: e.valor_total != null ? String(e.valor_total).replace(".", ",") : "",
       endereco: e.endereco || "",
+      taxa_entrega: Number(e.taxa_entrega) > 0 ? String(e.taxa_entrega).replace(".", ",") : "",
+      entrega_paga_por: e.entrega_paga_por || "cliente",
     });
     const ls = (e.linhas || []).filter(x => x?.nome);
     setLinhas(ls.length ? ls.map(x => ({ qtd: String(x.qtd ?? ""), nome: x.nome }))
@@ -105,6 +107,8 @@ export default function OrderFormDialog({ open, onOpenChange, initial, onSaved }
         cliente_nome: f.cliente_nome.trim(), cliente_telefone: f.cliente_telefone.trim() || null,
         descricao: ls.map(l => `${l.qtd} ${l.nome}`).join("; "), quantidade: 1, unidade: null, linhas: ls,
         endereco: f.tipo === "entrega" ? f.endereco.trim() || null : null,
+        taxa_entrega: f.tipo === "entrega" && f.taxa_entrega ? num(f.taxa_entrega) : 0,
+        entrega_paga_por: f.entrega_paga_por,
         observacoes: f.observacoes.trim() || null, data_entrega: f.data_entrega, hora_entrega: f.hora_entrega,
         tipo: f.tipo, valor_total: f.valor_total ? num(f.valor_total) : (somaItens > 0 ? Math.round(somaItens * 100) / 100 : null),
       };
@@ -182,7 +186,20 @@ export default function OrderFormDialog({ open, onOpenChange, initial, onSaved }
             <div><Label>Hora *</Label><Input type="time" value={f.hora_entrega} onChange={set("hora_entrega")} /></div>
           </div>
           {f.tipo === "entrega" && (
-            <div><Label>Endereço da entrega</Label><Input value={f.endereco} onChange={set("endereco")} placeholder="Rua, número, bairro" /></div>
+            <div className="space-y-2">
+              <div><Label>Endereço da entrega</Label><Input value={f.endereco} onChange={set("endereco")} placeholder="Rua, número, bairro" /></div>
+              <div className="grid grid-cols-2 gap-2">
+                <div><Label>Valor da entrega</Label><Input inputMode="decimal" value={f.taxa_entrega} onChange={set("taxa_entrega")} placeholder="0,00" /></div>
+                <div>
+                  <Label>Quem paga a entrega?</Label>
+                  <Select value={f.entrega_paga_por} onValueChange={set("entrega_paga_por")}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent><SelectItem value="cliente">Cliente paga</SelectItem><SelectItem value="loja">A loja paga</SelectItem></SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">{f.entrega_paga_por === "cliente" ? "Será cobrado junto na entrega e entra no caixa separado dos produtos." : "Sai do caixa como despesa de entrega, sem mexer no lucro dos produtos."}</p>
+            </div>
           )}
 
           <button type="button" onClick={() => setMais(m => !m)} className="flex items-center gap-1 text-sm font-semibold text-pink-dark">

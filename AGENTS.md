@@ -10,3 +10,4 @@
 
 - Retire rejected customer-credit operations by disabling write RPCs and payment triggers, retaining deprecated data for history; never drop financial records during feature removal.
 - Use shared order-delivery eligibility based on lifecycle status, not lateness; keep past pending orders actionable and resume order checkout after login without granting public financial writes.
+- Order delivery fees live on encomendas (taxa_entrega, entrega_paga_por); entregar_encomenda records them as separate cash movements (entrada 'taxa_entrega' or variable expense), never as sale revenue, so product profitability stays clean.

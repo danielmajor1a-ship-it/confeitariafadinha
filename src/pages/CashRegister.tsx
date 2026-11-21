@@ -78,6 +78,7 @@ const categoryLabels: Record<string, string> = {
   ajuste: "Ajuste",
   outro: "Outro",
   entrada_manual: "Entrada Manual",
+  taxa_entrega: "Taxa de entrega (cliente)",
 };
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });

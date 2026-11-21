@@ -503,6 +503,7 @@ export type Database = {
           data_entrega: string
           descricao: string
           endereco: string | null
+          entrega_paga_por: string
           entregue_em: string | null
           hora_entrega: string
           id: string
@@ -511,6 +512,7 @@ export type Database = {
           observacoes: string | null
           quantidade: number
           status: string
+          taxa_entrega: number
           tipo: string
           unidade: string | null
           user_id: string | null
@@ -527,6 +529,7 @@ export type Database = {
           data_entrega: string
           descricao: string
           endereco?: string | null
+          entrega_paga_por?: string
           entregue_em?: string | null
           hora_entrega: string
           id?: string
@@ -535,6 +538,7 @@ export type Database = {
           observacoes?: string | null
           quantidade: number
           status?: string
+          taxa_entrega?: number
           tipo?: string
           unidade?: string | null
           user_id?: string | null
@@ -551,6 +555,7 @@ export type Database = {
           data_entrega?: string
           descricao?: string
           endereco?: string | null
+          entrega_paga_por?: string
           entregue_em?: string | null
           hora_entrega?: string
           id?: string
@@ -559,6 +564,7 @@ export type Database = {
           observacoes?: string | null
           quantidade?: number
           status?: string
+          taxa_entrega?: number
           tipo?: string
           unidade?: string | null
           user_id?: string | null
@@ -1378,6 +1384,7 @@ export type Database = {
           _items: Json
           _payment_method: string
           _payments: Json
+          _taxa_metodo?: string
         }
         Returns: string
       }
